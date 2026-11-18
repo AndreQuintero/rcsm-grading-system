@@ -1,6 +1,8 @@
 "use client";
 
+import { ChevronDown, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 type Option = { id: number; name: string };
 
@@ -62,13 +64,13 @@ export function SubjectMultiSelect({
   };
 
   return (
-    <div className="multiselect">
-      <span id={labelId} className="field-label">
+    <div className="relative flex flex-col gap-2">
+      <span id={labelId} className="text-sm font-medium leading-none">
         {label}
       </span>
       {/* Clicking anywhere in the box focuses the search input. */}
       <div
-        className="multiselect-box"
+        className="flex min-h-8 w-full cursor-text flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent px-1.5 py-0.5 text-sm shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30"
         onClick={() => {
           input.current?.focus();
           setOpen(true);
@@ -78,17 +80,21 @@ export function SubjectMultiSelect({
           const o = byId.get(id);
           return (
             o && (
-              <span key={id} className="tag">
+              <span
+                key={id}
+                className="inline-flex items-center gap-1 rounded-md bg-accent py-0.5 pr-1 pl-2 text-xs font-medium text-accent-foreground"
+              >
                 {o.name}
                 <button
                   type="button"
                   aria-label={`Remove ${o.name}`}
+                  className="grid size-4 place-items-center rounded-sm opacity-70 outline-none hover:bg-primary/15 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={(e) => {
                     e.stopPropagation(); // don't let the box re-focus the input and re-open the list
                     remove(id);
                   }}
                 >
-                  ×
+                  <X className="size-3" aria-hidden="true" />
                 </button>
               </span>
             )
@@ -115,17 +121,24 @@ export function SubjectMultiSelect({
             setNavigated(false);
           }}
           onKeyDown={onKeyDown}
+          className="h-6 min-w-32 flex-1 bg-transparent px-1 outline-none placeholder:text-muted-foreground"
         />
+        <ChevronDown className="mr-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
       {open && (
-        <ul id={listId} role="listbox" aria-multiselectable="true" className="multiselect-list">
+        <ul
+          id={listId}
+          role="listbox"
+          aria-multiselectable="true"
+          className="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+        >
           {matches.map((o) => (
             <li
               key={o.id}
               id={`${listId}-${o.id}`}
               role="option"
               aria-selected={o === activeOption}
-              className={o === activeOption ? "active" : undefined}
+              className={cn("cursor-pointer rounded-md px-2 py-1.5", o === activeOption && "bg-accent text-accent-foreground")}
               // mousedown + preventDefault keeps focus in the input so the list does not close first
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -137,7 +150,7 @@ export function SubjectMultiSelect({
             </li>
           ))}
           {matches.length === 0 && (
-            <li className="empty" role="option" aria-selected={false} aria-disabled="true">
+            <li className="px-2 py-1.5 text-muted-foreground" role="option" aria-selected={false} aria-disabled="true">
               {options.length === 0 ? "No subjects registered yet" : q ? "No matching subjects" : "All subjects selected"}
             </li>
           )}

@@ -1,6 +1,15 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { STATUSES, type Status } from "@/lib/student";
+import { FilterActions } from "@/components/filter-actions";
+import { PageHeader } from "@/components/page-header";
+import { Pager } from "@/components/pager";
+import { StatusBadge } from "@/components/status-badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listStudents, STUDENT_PAGE_SIZE } from "@/lib/student-queries";
 import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
 import { EditLink } from "../EditLink";
@@ -18,9 +27,24 @@ const FILTERS = [
   { value: "audit", label: "Audit" },
 ];
 
+const header = (
+  <PageHeader
+    title="Students"
+    description="Everyone enrolled at the school, with their study type and enrollment date."
+    action={
+      <Button asChild size="lg">
+        <Link href="/students/new">
+          <Plus aria-hidden="true" />
+          Register student
+        </Link>
+      </Button>
+    }
+  />
+);
+
 export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <Suspense fallback={<main><h1>Students</h1><p>Loading…</p></main>}>
+    <Suspense fallback={<main>{header}<p className="text-sm text-muted-foreground">Loading…</p></main>}>
       <Results searchParams={searchParams} />
     </Suspense>
   );
@@ -47,99 +71,81 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
 
   return (
     <main>
-      <div className="page-head">
-        <h1>Students</h1>
-        <Link className="btn btn-primary" href="/students/new">
-          Register student
-        </Link>
-      </div>
+      {header}
 
-      {/* keyed on the active filters so Clear (a client-side navigation) rebuilds the inputs */}
-      <form key={pageHref(1)} method="get" className="filters" role="search" aria-label="Filter students">
-        <div className="filters-grid">
-          <div className="field">
-            <label htmlFor="filter-name" className="field-label">Name</label>
-            <input id="filter-name" name="name" defaultValue={name} placeholder="First, middle or last name" />
-          </div>
-          <fieldset className="field segmented-field">
-            <legend className="field-label">Study type</legend>
-            <div className="segmented">
-              {FILTERS.map((f) => (
-                <label key={f.value}>
-                  <input type="radio" name="status" value={f.value} defaultChecked={status === f.value} />
-                  {f.label}
-                </label>
-              ))}
+      <Card className="mb-6">
+        <CardContent>
+          {/* keyed on the active filters so Clear (a client-side navigation) rebuilds the inputs */}
+          <form key={pageHref(1)} method="get" role="search" aria-label="Filter students" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-name">Name</Label>
+                <Input id="filter-name" name="name" defaultValue={name} placeholder="First, middle or last name" />
+              </div>
+              <fieldset className="flex min-w-0 flex-col gap-2">
+                <legend className="mb-2 text-sm font-medium leading-none">Study type</legend>
+                {/* native radios keep this a plain GET filter; styled as a segmented control */}
+                <div className="inline-flex w-fit rounded-lg bg-muted p-1">
+                  {FILTERS.map((f) => (
+                    <label
+                      key={f.value}
+                      className="relative cursor-pointer rounded-md px-3 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground has-checked:bg-card has-checked:text-foreground has-checked:shadow-sm has-focus-visible:ring-2 has-focus-visible:ring-ring"
+                    >
+                      <input type="radio" name="status" value={f.value} defaultChecked={status === f.value} className="sr-only" />
+                      {f.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-        </div>
-        <div className="filters-actions">
-          {filtered && (
-            <Link href="/students" className="btn btn-ghost">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-              Clear filters
-            </Link>
-          )}
-          <button type="submit" className="btn btn-primary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-            Filter
-          </button>
-        </div>
-      </form>
+            <FilterActions clearHref="/students" filtered={filtered} />
+          </form>
+        </CardContent>
+      </Card>
 
-      <p className="result-count">
+      <p className="mb-3 text-sm text-muted-foreground" aria-live="polite">
         {total} student{total === 1 ? "" : "s"} found
       </p>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Date of birth</th>
-              <th>Status</th>
-              <th>Enrollment date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-4">Name</TableHead>
+              <TableHead>Date of birth</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Enrollment date</TableHead>
+              <TableHead className="w-24 pr-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {students.map((s) => (
-              <tr key={s.id}>
-                <td>{fullName(s)}</td>
-                <td>{s.dob}</td>
-                <td>
-                  <span className={`badge badge-${s.status}`}>{STATUSES[s.status as Status]}</span>
-                </td>
-                <td>{s.enrolled}</td>
-                <td>
-                  <div className="actions">
+              <TableRow key={s.id}>
+                <TableCell className="pl-4 font-medium">{fullName(s)}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{s.dob}</TableCell>
+                <TableCell>
+                  <StatusBadge status={s.status} />
+                </TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{s.enrolled}</TableCell>
+                <TableCell className="pr-4">
+                  <div className="flex justify-end gap-1">
                     <EditLink href={`/students/${s.id}/edit`} label={`Edit ${fullName(s)}`} />
-                    <ConfirmDeleteButton
-                      action={deleteStudent.bind(null, s.id)}
-                      name={fullName(s)}
-                      noun="student"
-                    />
+                    <ConfirmDeleteButton action={deleteStudent.bind(null, s.id)} name={fullName(s)} noun="student" />
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {students.length === 0 && (
-              <tr>
-                <td colSpan={5}>No students match these filters.</td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  No students match these filters.
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
-      <nav aria-label="Pagination">
-        {page > 1 && <Link href={pageHref(page - 1)}>Previous</Link>} Page {page} of {pages}{" "}
-        {page < pages && <Link href={pageHref(page + 1)}>Next</Link>}
-      </nav>
+      <Pager page={page} pages={pages} href={pageHref} />
     </main>
   );
 }

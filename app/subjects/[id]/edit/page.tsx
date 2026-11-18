@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getSubject } from "@/lib/subject";
 import { SubjectForm } from "../../new/SubjectForm";
+import { PageHeader } from "@/components/page-header";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><p>Loading…</p></main>}>
+    <Suspense fallback={<main><p className="text-sm text-muted-foreground">Loading…</p></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -19,7 +20,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!s) notFound();
   return (
     <main>
-      <h1>Edit subject</h1>
+      <PageHeader title="Edit subject" description="Renaming a subject updates it for every teacher who teaches it." />
       <SubjectForm subjectId={n} initialName={s.name} />
     </main>
   );

@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getStudent } from "@/lib/student-queries";
 import { StudentForm } from "../../new/StudentForm";
+import { PageHeader } from "@/components/page-header";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><p>Loading…</p></main>}>
+    <Suspense fallback={<main><p className="text-sm text-muted-foreground">Loading…</p></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -19,7 +20,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!s) notFound();
   return (
     <main>
-      <h1>Edit student</h1>
+      <PageHeader title="Edit student" description={`Update ${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}’s details.`} />
       <StudentForm
         studentId={n}
         hasPhoto={s.has_photo as boolean}

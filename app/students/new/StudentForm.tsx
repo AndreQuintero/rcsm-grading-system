@@ -1,6 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
+import { FormCard } from "@/components/form-card";
+import { FieldError, SuccessMessage } from "@/components/form-message";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { STATUSES } from "@/lib/student";
 import { updateStudent } from "../actions";
 import { PhotoPicker } from "../PhotoPicker";
@@ -15,66 +20,83 @@ export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props
     { values: initial } as StudentFormState,
   );
   const v = state.values ?? initial;
-  const err = (k: string) => state.errors?.[k] && <p role="alert">{state.errors[k]}</p>;
+  const e = state.errors ?? {};
+  const invalid = (k: string) => Boolean(e[k]) || undefined;
 
   return (
     <form action={action}>
-      {err("form")}
-      <div className="grid-3">
-        <div className="field">
-          <label htmlFor="firstName" className="field-label">First name</label>
-          <input id="firstName" name="firstName" defaultValue={v.firstName} required />
-          {err("firstName")}
+      <FormCard
+        footer={
+          <>
+            <Button type="submit" size="lg" disabled={pending}>
+              {studentId
+                ? pending ? "Saving…" : "Save changes"
+                : pending ? "Registering…" : "Register student"}
+            </Button>
+            <SuccessMessage message={state.message} />
+          </>
+        }
+      >
+        <FieldError message={e.form} />
+        <PhotoPicker existingUrl={studentId && hasPhoto ? `/students/${studentId}/photo` : null} />
+        <FieldError message={e.photo} />
+
+        <div className="grid gap-6 sm:grid-cols-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="firstName">First name</Label>
+            <Input id="firstName" name="firstName" defaultValue={v.firstName} required aria-invalid={invalid("firstName")} />
+            <FieldError message={e.firstName} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="middleName">
+              Middle name <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
+            <Input id="middleName" name="middleName" defaultValue={v.middleName} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="lastName">Last name</Label>
+            <Input id="lastName" name="lastName" defaultValue={v.lastName} required aria-invalid={invalid("lastName")} />
+            <FieldError message={e.lastName} />
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="middleName" className="field-label">Middle name <span className="optional">(optional)</span></label>
-          <input id="middleName" name="middleName" defaultValue={v.middleName} />
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dateOfBirth">Date of birth</Label>
+            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={v.dateOfBirth} required aria-invalid={invalid("dateOfBirth")} />
+            <FieldError message={e.dateOfBirth} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="enrollmentDate">Enrollment date</Label>
+            <Input id="enrollmentDate" name="enrollmentDate" type="date" defaultValue={v.enrollmentDate} required aria-invalid={invalid("enrollmentDate")} />
+            <FieldError message={e.enrollmentDate} />
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="lastName" className="field-label">Last name</label>
-          <input id="lastName" name="lastName" defaultValue={v.lastName} required />
-          {err("lastName")}
-        </div>
-      </div>
 
-      <div className="field">
-        <label htmlFor="dateOfBirth" className="field-label">Date of birth</label>
-        <input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={v.dateOfBirth} required />
-        {err("dateOfBirth")}
-      </div>
-
-      <fieldset className="choice">
-        <legend>Status</legend>
-        {(Object.keys(STATUSES) as (keyof typeof STATUSES)[]).map((key) => (
-          <label key={key} className="choice-option">
-            <input
-              type="radio"
-              name="status"
-              value={key}
-              defaultChecked={v.status === key}
-              required
-            />
-            {STATUSES[key]}
-          </label>
-        ))}
-        {err("status")}
-      </fieldset>
-
-      <div className="field">
-        <label htmlFor="enrollmentDate" className="field-label">Enrollment date</label>
-        <input id="enrollmentDate" name="enrollmentDate" type="date" defaultValue={v.enrollmentDate} required />
-        {err("enrollmentDate")}
-      </div>
-
-      <PhotoPicker existingUrl={studentId && hasPhoto ? `/students/${studentId}/photo` : null} />
-      {err("photo")}
-
-      <button type="submit" className="btn btn-primary" disabled={pending}>
-        {studentId
-          ? pending ? "Saving…" : "Save changes"
-          : pending ? "Registering…" : "Register student"}
-      </button>
-      {state.message && <p role="status">{state.message}</p>}
+        {/* native radios so React's form reset after saving keeps them in step with what is submitted */}
+        <fieldset className="flex flex-col gap-3">
+          <legend className="mb-3 text-sm font-medium leading-none">Status</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(Object.keys(STATUSES) as (keyof typeof STATUSES)[]).map((key) => (
+              <label
+                key={key}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 has-checked:border-primary has-checked:bg-accent has-checked:text-accent-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/30"
+              >
+                <input
+                  type="radio"
+                  name="status"
+                  value={key}
+                  defaultChecked={v.status === key}
+                  required
+                  className="size-4 accent-primary"
+                />
+                {STATUSES[key]}
+              </label>
+            ))}
+          </div>
+          <FieldError message={e.status} />
+        </fieldset>
+      </FormCard>
     </form>
   );
 }

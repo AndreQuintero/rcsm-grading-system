@@ -1,5 +1,14 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { FilterActions } from "@/components/filter-actions";
+import { PageHeader } from "@/components/page-header";
+import { Pager } from "@/components/pager";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listSubjectPage, SUBJECT_PAGE_SIZE } from "@/lib/subject";
 import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
 import { EditLink } from "../EditLink";
@@ -7,9 +16,24 @@ import { deleteSubject } from "./actions";
 
 type SearchParams = { name?: string; page?: string };
 
+const header = (
+  <PageHeader
+    title="Subjects"
+    description="The subjects taught at the school. Teachers choose from this list."
+    action={
+      <Button asChild size="lg">
+        <Link href="/subjects/new">
+          <Plus aria-hidden="true" />
+          Register subjects
+        </Link>
+      </Button>
+    }
+  />
+);
+
 export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <Suspense fallback={<main><h1>Subjects</h1><p>Loading…</p></main>}>
+    <Suspense fallback={<main>{header}<p className="text-sm text-muted-foreground">Loading…</p></main>}>
       <Results searchParams={searchParams} />
     </Suspense>
   );
@@ -33,63 +57,56 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
 
   return (
     <main>
-      <div className="page-head">
-        <h1>Subjects</h1>
-        <Link className="btn btn-primary" href="/subjects/new">
-          Register subjects
-        </Link>
-      </div>
+      {header}
 
-      {/* keyed on the active filter so Clear (a client-side navigation) resets the input */}
-      <form key={name} method="get">
-        <p>
-          <label>
-            Name
-            <input name="name" defaultValue={name} />
-          </label>
-        </p>
-        <button type="submit" className="btn btn-ghost">
-          Filter
-        </button>{" "}
-        <Link href="/subjects">Clear</Link>
-      </form>
+      <Card className="mb-6">
+        <CardContent>
+          {/* keyed on the active filter so Clear (a client-side navigation) resets the input */}
+          <form key={name} method="get" role="search" aria-label="Filter subjects" className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="flex flex-1 flex-col gap-2">
+              <Label htmlFor="filter-name">Name</Label>
+              <Input id="filter-name" name="name" defaultValue={name} placeholder="e.g. Worship" />
+            </div>
+            <FilterActions clearHref="/subjects" filtered={Boolean(name)} />
+          </form>
+        </CardContent>
+      </Card>
 
-      <p>
+      <p className="mb-3 text-sm text-muted-foreground" aria-live="polite">
         {total} subject{total === 1 ? "" : "s"} found
       </p>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-4">Name</TableHead>
+              <TableHead className="w-24 pr-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {subjects.map((s) => (
-              <tr key={s.id}>
-                <td>{s.name}</td>
-                <td>
-                  <div className="actions">
+              <TableRow key={s.id}>
+                <TableCell className="pl-4 font-medium">{s.name}</TableCell>
+                <TableCell className="pr-4">
+                  <div className="flex justify-end gap-1">
                     <EditLink href={`/subjects/${s.id}/edit`} label={`Edit ${s.name}`} />
                     <ConfirmDeleteButton action={deleteSubject.bind(null, s.id)} name={s.name} noun="subject" />
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {subjects.length === 0 && (
-              <tr>
-                <td colSpan={2}>No subjects match this filter.</td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={2} className="py-10 text-center text-muted-foreground">
+                  No subjects match this filter.
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
-      <nav>
-        {page > 1 && <Link href={pageHref(page - 1)}>Previous</Link>} Page {page} of {pages}{" "}
-        {page < pages && <Link href={pageHref(page + 1)}>Next</Link>}
-      </nav>
+      <Pager page={page} pages={pages} href={pageHref} />
     </main>
   );
 }

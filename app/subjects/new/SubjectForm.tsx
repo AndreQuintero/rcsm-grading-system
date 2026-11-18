@@ -1,7 +1,12 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
+import { FormCard } from "@/components/form-card";
+import { FieldError, SuccessMessage } from "@/components/form-message";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { updateSubject } from "../actions";
 import { createSubjects, type SubjectFormState } from "./actions";
 
@@ -42,37 +47,54 @@ export function SubjectForm({ subjectId, initialName = "" }: { subjectId?: numbe
         submit();
       }}
     >
-      {rows.map((row, i) => (
-        <div className="subject-row" key={row.id}>
-          <input
-            aria-label={`Subject ${i + 1}`}
-            placeholder="Subject name"
-            value={row.value}
-            onChange={(e) => editRow(row.id, e.target.value)}
-          />
-          {!editing && (
-            <button type="button" className="icon-btn" aria-label={`Remove subject ${i + 1}`} onClick={() => removeRow(row.id)}>
-              <Trash2 size={18} aria-hidden="true" />
-            </button>
-          )}
+      <FormCard
+        footer={
+          <>
+            <Button type="submit" size="lg" disabled={pending}>
+              {editing
+                ? pending ? "Saving…" : "Save changes"
+                : pending ? "Registering…" : "Register subjects"}
+            </Button>
+            <SuccessMessage message={result.message} />
+            <FieldError message={result.errors} />
+          </>
+        }
+      >
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="subject-0">{editing ? "Subject name" : "Subject names"}</Label>
+          <ul className="flex flex-col gap-2">
+            {rows.map((row, i) => (
+              <li className="flex gap-2" key={row.id}>
+                <Input
+                  id={i === 0 ? "subject-0" : undefined}
+                  aria-label={`Subject ${i + 1}`}
+                  placeholder="Subject name"
+                  value={row.value}
+                  onChange={(e) => editRow(row.id, e.target.value)}
+                />
+                {!editing && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-lg"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`Remove subject ${i + 1}`}
+                    onClick={() => removeRow(row.id)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
-      ))}
-
-      <div className="form-actions">
         {!editing && (
-          <button type="button" className="btn btn-ghost" onClick={addRow}>
-            + Add subject
-          </button>
+          <Button type="button" variant="outline" className="self-start" onClick={addRow}>
+            <Plus aria-hidden="true" />
+            Add subject
+          </Button>
         )}
-        <button type="submit" className="btn btn-primary" disabled={pending}>
-          {editing
-            ? pending ? "Saving…" : "Save changes"
-            : pending ? "Registering…" : "Register subjects"}
-        </button>
-      </div>
-
-      {result.errors && <p role="alert">{result.errors}</p>}
-      {result.message && <p role="status">{result.message}</p>}
+      </FormCard>
     </form>
   );
 }
