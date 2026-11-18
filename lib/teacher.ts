@@ -1,3 +1,5 @@
+import { sql } from "@/lib/db";
+
 export type TeacherInput = {
   fullName: string;
   dateOfBirth: string;
@@ -36,4 +38,23 @@ export function parseTeacher(formData: FormData): TeacherParse {
 
   if (Object.keys(errors).length) return { errors };
   return { data: { fullName, dateOfBirth, email, subjects } };
+}
+
+export const PAGE_SIZE = 10;
+
+// Filters: name is a case-insensitive substring; subjects matches teachers teaching ANY of the given subjects.
+export async function listTeachers({ name = "", subjects = [], page = 1 }: { name?: string; subjects?: string[]; page?: number }) {
+  const rows = await sql`
+    SELECT id, full_name, date_of_birth::text AS dob, email, subjects, count(*) OVER() AS total
+    FROM teachers
+    WHERE (${name} = '' OR full_name ILIKE ${"%" + name + "%"})
+      AND (cardinality(${subjects}::text[]) = 0 OR subjects && ${subjects}::text[])
+    ORDER BY full_name, id
+    LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`;
+  return { teachers: rows, total: rows.length ? Number(rows[0].total) : 0 };
+}
+
+export async function listSubjects(): Promise<string[]> {
+  const rows = await sql`SELECT DISTINCT unnest(subjects) AS subject FROM teachers ORDER BY subject`;
+  return rows.map((r) => r.subject as string);
 }
