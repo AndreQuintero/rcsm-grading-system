@@ -1,8 +1,9 @@
+import { PageHeader } from "@/components/page-header";
+
 export default function Home() {
   return (
     <main>
-      <h1>Welcome</h1>
-      <p>Welcome to the Revival Cry School of Ministry teacher registry.</p>
+      <PageHeader title="Welcome" description="Welcome to the Revival Cry School of Ministry teacher registry." />
     </main>
   );
 }

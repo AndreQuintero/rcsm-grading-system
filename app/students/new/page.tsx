@@ -1,9 +1,10 @@
 import { StudentForm } from "./StudentForm";
+import { PageHeader } from "@/components/page-header";
 
 export default function Page() {
   return (
     <main>
-      <h1>Register student</h1>
+      <PageHeader title="Register student" description="Add a student with their study type and enrollment date." />
       <StudentForm />
     </main>
   );

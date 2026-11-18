@@ -1,7 +1,19 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useId, useRef } from "react";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // action is a bound server action, e.g. deleteTeacher.bind(null, id).
 export function ConfirmDeleteButton({
@@ -13,36 +25,42 @@ export function ConfirmDeleteButton({
   name: string;
   noun: string;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
+  const [open, setOpen] = useState(false);
 
   return (
-    <>
-      <button
-        type="button"
-        className="icon-action icon-action-danger"
-        aria-label={`Delete ${noun} ${name}`}
-        title={`Delete ${noun}`}
-        onClick={() => dialog.current?.showModal()}
-      >
-        <Trash2 size={17} aria-hidden="true" />
-      </button>
-      <dialog ref={dialog} className="modal" aria-labelledby={titleId}>
-        <form action={action} onSubmit={() => dialog.current?.close()}>
-          <h2 id={titleId}>Delete {noun}?</h2>
-          <p>
-            This permanently removes <strong>{name}</strong>. It can&apos;t be undone.
-          </p>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => dialog.current?.close()}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-danger">
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Delete ${noun} ${name}`}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          </AlertDialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Delete</TooltipContent>
+      </Tooltip>
+      <AlertDialogContent>
+        {/* a plain form so the server action runs; the dialog closes as it is submitted */}
+        <form action={action} onSubmit={() => setOpen(false)} className="contents">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {noun}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes <strong className="text-foreground">{name}</strong>. It can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <Button type="submit" variant="destructive" className="bg-destructive text-white hover:bg-destructive/90">
               Delete
-            </button>
-          </div>
+            </Button>
+          </AlertDialogFooter>
         </form>
-      </dialog>
-    </>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

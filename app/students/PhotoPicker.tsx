@@ -1,13 +1,15 @@
 "use client";
 
+import { Camera, ImageUp } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 // Shown when a student has no photo.
 function GenericAvatar() {
   return (
-    <svg viewBox="0 0 128 128" aria-hidden="true">
-      <rect width="128" height="128" fill="currentColor" opacity="0.08" />
+    <svg viewBox="0 0 128 128" aria-hidden="true" className="size-full text-muted-foreground">
+      <rect width="128" height="128" fill="currentColor" opacity="0.1" />
       <circle cx="64" cy="50" r="22" fill="currentColor" opacity="0.35" />
       <path d="M22 124c0-24 19-42 42-42s42 18 42 42z" fill="currentColor" opacity="0.35" />
     </svg>
@@ -29,33 +31,42 @@ export function PhotoPicker({ existingUrl }: { existingUrl?: string | null }) {
   };
 
   return (
-    <div className="field">
-      <label htmlFor="photo" className="field-label">
-        Photo <span className="optional">(optional)</span>
+    <div className="flex flex-col gap-3">
+      <label htmlFor="photo" className="text-sm font-medium leading-none">
+        Photo <span className="font-normal text-muted-foreground">(optional)</span>
       </label>
-      <div className="photo-picker">
-        <button type="button" className="avatar" onClick={() => input.current?.click()} aria-label="Choose a photo">
-          {src ? (
-            <Image src={src} alt="Student photo preview" width={128} height={128} unoptimized />
-          ) : (
-            <GenericAvatar />
-          )}
-          <span className="avatar-badge" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 8h4l2-3h6l2 3h4v11H3z" />
-              <circle cx="12" cy="13" r="3.5" />
-            </svg>
+      <div className="flex flex-wrap items-center gap-5">
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          aria-label="Choose a photo"
+          className="group relative size-28 shrink-0 rounded-full bg-muted p-1 ring-2 ring-border outline-none transition-shadow hover:ring-primary focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          <span className="block size-full overflow-hidden rounded-full">
+            {src ? (
+              <Image src={src} alt="Student photo preview" width={112} height={112} unoptimized className="size-full object-cover" />
+            ) : (
+              <GenericAvatar />
+            )}
+          </span>
+          <span
+            className="absolute right-0.5 bottom-0.5 grid size-8 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground"
+            aria-hidden="true"
+          >
+            <Camera className="size-4" />
           </span>
         </button>
-        <div className="photo-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => input.current?.click()}>
+        <div className="flex flex-col items-start gap-2">
+          <Button type="button" variant="outline" onClick={() => input.current?.click()}>
+            <ImageUp aria-hidden="true" />
             {src ? "Change photo" : "Choose photo"}
-          </button>
+          </Button>
           {existingUrl && (
-            <label className="choice-option">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 name="removePhoto"
+                className="size-4 accent-destructive"
                 onChange={(e) => {
                   setRemoved(e.target.checked);
                   if (e.target.checked && input.current) {
@@ -67,7 +78,7 @@ export function PhotoPicker({ existingUrl }: { existingUrl?: string | null }) {
               Remove current photo
             </label>
           )}
-          <p className="hint">JPEG, PNG or WebP, up to 2 MB.</p>
+          <p className="text-xs text-muted-foreground">JPEG, PNG or WebP, up to 2 MB.</p>
         </div>
       </div>
       <input

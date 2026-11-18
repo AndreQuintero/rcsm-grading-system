@@ -1,6 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { FormCard } from "@/components/form-card";
+import { FieldError, SuccessMessage } from "@/components/form-message";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SubjectMultiSelect } from "../../SubjectMultiSelect";
 import { updateTeacher } from "../actions";
 import { createTeacher, type TeacherFormState } from "./actions";
@@ -21,42 +26,51 @@ export function TeacherForm({ teacherId, initial = {}, subjectOptions, initialSu
     return r;
   }, { values: initial });
   const v = state.values ?? initial;
-  const err = (k: string) => state.errors?.[k] && <p role="alert">{state.errors[k]}</p>;
+  const e = state.errors ?? {};
 
   return (
     <form action={action}>
-      {err("form")}
-      <div className="field">
-        <label htmlFor="fullName" className="field-label">Full name</label>
-        <input id="fullName" name="fullName" defaultValue={v.fullName} required />
-        {err("fullName")}
-      </div>
-      <div className="field">
-        <label htmlFor="dateOfBirth" className="field-label">Date of birth</label>
-        <input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={v.dateOfBirth} required />
-        {err("dateOfBirth")}
-      </div>
-      <div className="field">
-        <label htmlFor="email" className="field-label">Email</label>
-        <input id="email" name="email" type="email" defaultValue={v.email} required />
-        {err("email")}
-      </div>
-      <div className="field">
-        <SubjectMultiSelect
-          key={pickerKey}
-          label="Subjects taught"
-          name="subjectIds"
-          options={subjectOptions}
-          defaultValue={initialSubjectIds}
-        />
-        {err("subjectIds")}
-      </div>
-      <button type="submit" className="btn btn-primary" disabled={pending}>
-        {teacherId
-          ? pending ? "Saving…" : "Save changes"
-          : pending ? "Registering…" : "Register teacher"}
-      </button>
-      {state.message && <p role="status">{state.message}</p>}
+      <FormCard
+        footer={
+          <>
+            <Button type="submit" size="lg" disabled={pending}>
+              {teacherId
+                ? pending ? "Saving…" : "Save changes"
+                : pending ? "Registering…" : "Register teacher"}
+            </Button>
+            <SuccessMessage message={state.message} />
+          </>
+        }
+      >
+        <FieldError message={e.form} />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="fullName">Full name</Label>
+          <Input id="fullName" name="fullName" defaultValue={v.fullName} required aria-invalid={Boolean(e.fullName) || undefined} />
+          <FieldError message={e.fullName} />
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dateOfBirth">Date of birth</Label>
+            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={v.dateOfBirth} required aria-invalid={Boolean(e.dateOfBirth) || undefined} />
+            <FieldError message={e.dateOfBirth} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" defaultValue={v.email} required aria-invalid={Boolean(e.email) || undefined} />
+            <FieldError message={e.email} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <SubjectMultiSelect
+            key={pickerKey}
+            label="Subjects taught"
+            name="subjectIds"
+            options={subjectOptions}
+            defaultValue={initialSubjectIds}
+          />
+          <FieldError message={e.subjectIds} />
+        </div>
+      </FormCard>
     </form>
   );
 }

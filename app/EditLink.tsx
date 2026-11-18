@@ -1,11 +1,20 @@
 import { Pencil } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Icon-only edit button for table rows; the label is the accessible name and the tooltip.
 export function EditLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className="icon-action" aria-label={label} title={label}>
-      <Pencil size={17} aria-hidden="true" />
-    </Link>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon" asChild>
+          <Link href={href} aria-label={label}>
+            <Pencil aria-hidden="true" />
+          </Link>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Edit</TooltipContent>
+    </Tooltip>
   );
 }

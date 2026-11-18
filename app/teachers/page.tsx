@@ -1,5 +1,15 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { FilterActions } from "@/components/filter-actions";
+import { PageHeader } from "@/components/page-header";
+import { Pager } from "@/components/pager";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { allSubjects } from "@/lib/subject";
 import { listTeachers, PAGE_SIZE, parseIds } from "@/lib/teacher";
 import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
@@ -9,9 +19,24 @@ import { deleteTeacher } from "./actions";
 
 type SearchParams = { name?: string; email?: string; subject?: string | string[]; page?: string };
 
+const header = (
+  <PageHeader
+    title="Teachers"
+    description="Everyone who teaches at the school, and the subjects they teach."
+    action={
+      <Button asChild size="lg">
+        <Link href="/teachers/new">
+          <Plus aria-hidden="true" />
+          Register teacher
+        </Link>
+      </Button>
+    }
+  />
+);
+
 export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <Suspense fallback={<main><h1>Teachers</h1><p>Loading…</p></main>}>
+    <Suspense fallback={<main>{header}<p className="text-sm text-muted-foreground">Loading…</p></main>}>
       <Results searchParams={searchParams} />
     </Suspense>
   );
@@ -44,95 +69,77 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
 
   return (
     <main>
-      <div className="page-head">
-        <h1>Teachers</h1>
-        <Link className="btn btn-primary" href="/teachers/new">
-          Register teacher
-        </Link>
-      </div>
+      {header}
 
-      {/* keyed on the active filters so Clear (a client-side navigation) rebuilds the inputs */}
-      <form key={pageHref(1)} method="get" className="filters" role="search" aria-label="Filter teachers">
-        <div className="filters-grid">
-          <div className="field">
-            <label htmlFor="filter-name" className="field-label">Full name</label>
-            <input id="filter-name" name="name" defaultValue={name} placeholder="e.g. Rosenelyn" />
-          </div>
-          <div className="field">
-            <label htmlFor="filter-email" className="field-label">Email</label>
-            <input id="filter-email" name="email" defaultValue={email} placeholder="e.g. @gmail.com" />
-          </div>
-          <div className="field">
-            <SubjectMultiSelect label="Subjects" name="subject" options={subjects} defaultValue={subjectIds} />
-          </div>
-        </div>
-        <div className="filters-actions">
-          {filtered && (
-            <Link href="/teachers" className="btn btn-ghost">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-              Clear filters
-            </Link>
-          )}
-          <button type="submit" className="btn btn-primary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-            Filter
-          </button>
-        </div>
-      </form>
+      <Card className="mb-6 overflow-visible">
+        <CardContent>
+          {/* keyed on the active filters so Clear (a client-side navigation) rebuilds the inputs */}
+          <form key={pageHref(1)} method="get" role="search" aria-label="Filter teachers" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-name">Full name</Label>
+                <Input id="filter-name" name="name" defaultValue={name} placeholder="e.g. Rosenelyn" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-email">Email</Label>
+                <Input id="filter-email" name="email" defaultValue={email} placeholder="e.g. @gmail.com" />
+              </div>
+              <SubjectMultiSelect label="Subjects" name="subject" options={subjects} defaultValue={subjectIds} />
+            </div>
+            <FilterActions clearHref="/teachers" filtered={filtered} />
+          </form>
+        </CardContent>
+      </Card>
 
-      <p className="result-count">
+      <p className="mb-3 text-sm text-muted-foreground" aria-live="polite">
         {total} teacher{total === 1 ? "" : "s"} found
       </p>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Full name</th>
-              <th>Date of birth</th>
-              <th>Email</th>
-              <th>Subjects</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-4">Full name</TableHead>
+              <TableHead>Date of birth</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Subjects</TableHead>
+              <TableHead className="w-24 pr-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {teachers.map((t) => (
-              <tr key={t.id}>
-                <td>{t.full_name}</td>
-                <td>{t.dob}</td>
-                <td>{t.email}</td>
-                <td>
-                  <div className="tags">
+              <TableRow key={t.id}>
+                <TableCell className="pl-4 font-medium">{t.full_name}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{t.dob}</TableCell>
+                <TableCell className="text-muted-foreground">{t.email}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
                     {(t.subjects as string[]).map((s) => (
-                      <span key={s} className="tag">{s}</span>
+                      <Badge key={s} variant="secondary" className="bg-accent font-medium text-accent-foreground">
+                        {s}
+                      </Badge>
                     ))}
                   </div>
-                </td>
-                <td>
-                  <div className="actions">
+                </TableCell>
+                <TableCell className="pr-4">
+                  <div className="flex justify-end gap-1">
                     <EditLink href={`/teachers/${t.id}/edit`} label={`Edit ${t.full_name}`} />
                     <ConfirmDeleteButton action={deleteTeacher.bind(null, t.id)} name={t.full_name} noun="teacher" />
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {teachers.length === 0 && (
-              <tr>
-                <td colSpan={5}>No teachers match these filters.</td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  No teachers match these filters.
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
-      <nav aria-label="Pagination">
-        {page > 1 && <Link href={pageHref(page - 1)}>Previous</Link>} Page {page} of {pages}{" "}
-        {page < pages && <Link href={pageHref(page + 1)}>Next</Link>}
-      </nav>
+      <Pager page={page} pages={pages} href={pageHref} />
     </main>
   );
 }
