@@ -1,9 +1,17 @@
 "use client";
 
 import { useId, useRef } from "react";
-import { deleteTeacher } from "./actions";
 
-export function DeleteTeacherButton({ id, name }: { id: number; name: string }) {
+// action is a bound server action, e.g. deleteTeacher.bind(null, id).
+export function ConfirmDeleteButton({
+  action,
+  name,
+  noun,
+}: {
+  action: (formData: FormData) => void | Promise<void>;
+  name: string;
+  noun: string;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -13,8 +21,8 @@ export function DeleteTeacherButton({ id, name }: { id: number; name: string }) 
         Delete
       </button>
       <dialog ref={dialog} className="modal" aria-labelledby={titleId}>
-        <form action={deleteTeacher.bind(null, id)} onSubmit={() => dialog.current?.close()}>
-          <h2 id={titleId}>Delete teacher?</h2>
+        <form action={action} onSubmit={() => dialog.current?.close()}>
+          <h2 id={titleId}>Delete {noun}?</h2>
           <p>
             This permanently removes <strong>{name}</strong>. It can&apos;t be undone.
           </p>
