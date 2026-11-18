@@ -6,3 +6,9 @@ CREATE TABLE IF NOT EXISTS teachers (
   subjects text[] NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS subjects (
+  id serial PRIMARY KEY,
+  name text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
