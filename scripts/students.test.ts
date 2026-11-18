@@ -15,7 +15,7 @@ const fd = (o: Record<string, string>, photo?: File) => {
   if (photo) f.set("photo", photo);
   return f;
 };
-const base = { firstName: " Grace ", middleName: "", lastName: "TestStu Hopper", dateOfBirth: "1990-12-09", status: "inquiry" };
+const base = { firstName: " Grace ", middleName: "", lastName: "TestStu Hopper", dateOfBirth: "1990-12-09", status: "inactive" };
 const cleanup = () => sql`DELETE FROM students WHERE last_name LIKE 'TestStu %'`;
 
 (async () => {
@@ -25,7 +25,7 @@ const cleanup = () => sql`DELETE FROM students WHERE last_name LIKE 'TestStu %'`
     const ok = parseStudent(fd(base));
     assert.deepEqual(ok.data, {
       firstName: "Grace", middleName: null, lastName: "TestStu Hopper", dateOfBirth: "1990-12-09",
-      status: "inquiry", enrollmentDate: null, photo: null,
+      status: "inactive", enrollmentDate: null, photo: null,
     });
     assert.ok(parseStudent(fd({ ...base, firstName: "" })).errors?.firstName);
     assert.ok(parseStudent(fd({ ...base, lastName: " " })).errors?.lastName);
@@ -33,11 +33,11 @@ const cleanup = () => sql`DELETE FROM students WHERE last_name LIKE 'TestStu %'`
     assert.ok(parseStudent(fd({ ...base, dateOfBirth: "2999-01-01" })).errors?.dateOfBirth);
     assert.ok(parseStudent(fd({ ...base, status: "" })).errors?.status);
 
-    // enrollment date: required for audit and full time, optional for inquiry
+    // enrollment date: required for audit and full time, optional for inactive
     assert.ok(parseStudent(fd({ ...base, status: "audit" })).errors?.enrollmentDate);
     assert.ok(parseStudent(fd({ ...base, status: "full_time", enrollmentDate: "2026-13-01" })).errors?.enrollmentDate);
     assert.equal(parseStudent(fd({ ...base, status: "full_time", enrollmentDate: "2026-01-15" })).data?.enrollmentDate, "2026-01-15");
-    // an enrollment date sent for an inquiry is dropped rather than stored
+    // an enrollment date sent for an inactive student is dropped rather than stored
     assert.equal(parseStudent(fd({ ...base, enrollmentDate: "2026-01-15" })).data?.enrollmentDate, null);
 
     // photo: optional, typed and size-limited
@@ -60,7 +60,7 @@ const cleanup = () => sql`DELETE FROM students WHERE last_name LIKE 'TestStu %'`
     assert.equal(Buffer.from(withPhoto.b64 as string, "base64").equals(PNG), true);
 
     // create without a photo
-    await createStudent({}, fd({ ...base, firstName: "Ada", lastName: "TestStu Byron", status: "inquiry" }));
+    await createStudent({}, fd({ ...base, firstName: "Ada", lastName: "TestStu Byron", status: "inactive" }));
     const [noPhoto] = await sql`SELECT photo, enrollment_date FROM students WHERE last_name = 'TestStu Byron'`;
     assert.equal(noPhoto.photo, null);
     assert.equal(noPhoto.enrollment_date, null);

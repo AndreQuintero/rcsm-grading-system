@@ -3,7 +3,7 @@ import { isRealDate, todayIso } from "@/lib/dates";
 export const STATUSES = {
   audit: "Audit",
   full_time: "Full time",
-  inquiry: "Inquiry (not enrolled yet)",
+  inactive: "Inactive",
 } as const;
 export type Status = keyof typeof STATUSES;
 
