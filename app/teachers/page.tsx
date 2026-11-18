@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { listSubjects, listTeachers, PAGE_SIZE } from "@/lib/teacher";
+import { DeleteTeacherButton } from "./DeleteTeacherButton";
 
 type SearchParams = { name?: string; subject?: string | string[]; page?: string };
 
@@ -59,31 +60,42 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
       <p>
         {total} teacher{total === 1 ? "" : "s"} found
       </p>
-      <table>
-        <thead>
-          <tr>
-            <th>Full name</th>
-            <th>Date of birth</th>
-            <th>Email</th>
-            <th>Subjects</th>
-          </tr>
-        </thead>
-        <tbody>
-          {teachers.map((t) => (
-            <tr key={t.id}>
-              <td>{t.full_name}</td>
-              <td>{t.dob}</td>
-              <td>{t.email}</td>
-              <td>{(t.subjects as string[]).join(", ")}</td>
-            </tr>
-          ))}
-          {teachers.length === 0 && (
+      <div className="table-wrap">
+        <table>
+          <thead>
             <tr>
-              <td colSpan={4}>No teachers match these filters.</td>
+              <th>Full name</th>
+              <th>Date of birth</th>
+              <th>Email</th>
+              <th>Subjects</th>
+              <th>Actions</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {teachers.map((t) => (
+              <tr key={t.id}>
+                <td>{t.full_name}</td>
+                <td>{t.dob}</td>
+                <td>{t.email}</td>
+                <td>{(t.subjects as string[]).join(", ")}</td>
+                <td>
+                  <div className="actions">
+                    <Link className="btn btn-ghost" href={`/teachers/${t.id}/edit`}>
+                      Edit
+                    </Link>
+                    <DeleteTeacherButton id={t.id} name={t.full_name} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {teachers.length === 0 && (
+              <tr>
+                <td colSpan={5}>No teachers match these filters.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <nav>
         {page > 1 && <Link href={pageHref(page - 1)}>Previous</Link>} Page {page} of {pages}{" "}

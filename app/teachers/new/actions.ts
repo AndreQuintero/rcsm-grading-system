@@ -1,7 +1,7 @@
 "use server";
 
 import { sql } from "@/lib/db";
-import { parseTeacher } from "@/lib/teacher";
+import { formValues, parseTeacher } from "@/lib/teacher";
 
 export type TeacherFormState = {
   errors?: Record<string, string>;
@@ -14,12 +14,7 @@ export async function createTeacher(
   formData: FormData,
 ): Promise<TeacherFormState> {
   const parsed = parseTeacher(formData);
-  if (!parsed.data) {
-    const values = Object.fromEntries(
-      ["fullName", "dateOfBirth", "email", "subjects"].map((k) => [k, String(formData.get(k) ?? "")]),
-    );
-    return { errors: parsed.errors, values };
-  }
+  if (!parsed.data) return { errors: parsed.errors, values: formValues(formData) };
 
   const { fullName, dateOfBirth, email, subjects } = parsed.data;
   try {
@@ -28,7 +23,7 @@ export async function createTeacher(
   } catch (e) {
     // 23505 = unique_violation (duplicate email)
     if ((e as { code?: string }).code === "23505")
-      return { errors: { email: "A teacher with this email is already registered." } };
+      return { errors: { email: "A teacher with this email is already registered." }, values: formValues(formData) };
     throw e;
   }
   return { message: `Registered ${fullName}.` };

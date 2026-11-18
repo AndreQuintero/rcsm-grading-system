@@ -40,6 +40,16 @@ export function parseTeacher(formData: FormData): TeacherParse {
   return { data: { fullName, dateOfBirth, email, subjects } };
 }
 
+// Raw form fields, used to re-fill the form after a validation error.
+export function formValues(formData: FormData): Record<string, string> {
+  return Object.fromEntries(["fullName", "dateOfBirth", "email", "subjects"].map((k) => [k, String(formData.get(k) ?? "")]));
+}
+
+export async function getTeacher(id: number) {
+  const [t] = await sql`SELECT id, full_name, date_of_birth::text AS dob, email, subjects FROM teachers WHERE id = ${id}`;
+  return t ?? null;
+}
+
 export const PAGE_SIZE = 10;
 
 // Filters: name is a case-insensitive substring; subjects matches teachers teaching ANY of the given subjects.
