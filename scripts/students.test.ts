@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { parseStudent, PHOTO_MAX_BYTES } from "../lib/student";
 import { createStudent } from "../app/students/new/actions";
+import { getStudent, listStudents } from "../lib/student-queries";
 
 // 1x1 PNG
 const PNG = Buffer.from(
@@ -73,6 +74,30 @@ const cleanup = () => sql`DELETE FROM students WHERE last_name LIKE 'TestStu %'`
     const bad = await createStudent({}, fd({ ...base, status: "audit" }));
     assert.equal(bad.values?.firstName, " Grace ");
     assert.ok(bad.errors?.enrollmentDate);
+
+    // listing: 12 students (3 audit, 9 full time), paging, name search and status filter
+    for (let i = 0; i < 12; i++) {
+      const n = String(i).padStart(2, "0");
+      await sql`INSERT INTO students (first_name, middle_name, last_name, date_of_birth, status, enrollment_date)
+        VALUES (${`Ann${n}`}, ${i === 5 ? "Zephyrine" : null}, ${`TestStu Pg ${n}`}, '1999-09-09', ${i < 3 ? "audit" : "full_time"}, '2026-01-10')`;
+    }
+    const p1 = await listStudents({ name: "teststu pg" });
+    assert.equal(p1.total, 12);
+    assert.equal(p1.students.length, 10);
+    assert.equal((await listStudents({ name: "teststu pg", page: 2 })).students.length, 2);
+    assert.equal((await listStudents({ name: "zephyr" })).total, 1); // middle name
+    assert.equal((await listStudents({ name: "ann03" })).total, 1); // first name
+    assert.equal((await listStudents({ name: "TESTSTU PG 11" })).total, 1); // last name, any case
+    assert.equal((await listStudents({ name: "ann05 zephyrine" })).total, 1); // first + middle together
+    assert.equal((await listStudents({ name: "teststu pg", status: "audit" })).total, 3);
+    assert.equal((await listStudents({ name: "teststu pg", status: "full_time" })).total, 9);
+    assert.equal((await listStudents({ name: "no-such-student-xyz" })).total, 0);
+    const row = p1.students[0];
+    assert.ok(!("photo" in row)); // the list never loads the picture
+    assert.equal((await getStudent(row.id as number))?.has_photo, false);
+    assert.equal(await getStudent(2147483000), null);
+    const [withPic] = await sql`SELECT id FROM students WHERE last_name = 'TestStu Hopper'`;
+    assert.equal((await getStudent(withPic.id as number))?.has_photo, true);
 
     console.log("all student checks passed");
   } finally {

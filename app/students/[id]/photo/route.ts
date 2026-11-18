@@ -8,6 +8,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const [r] = await sql`SELECT encode(photo, 'base64') AS b64, photo_type FROM students WHERE id = ${n}`;
   if (!r?.b64) return new Response("Not found", { status: 404 });
   return new Response(Buffer.from(r.b64 as string, "base64"), {
-    headers: { "Content-Type": r.photo_type as string, "Cache-Control": "private, max-age=3600" },
+    headers: { "Content-Type": r.photo_type as string, "Cache-Control": "private, no-cache" },
   });
 }

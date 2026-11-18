@@ -1,19 +1,26 @@
 "use client";
 
-import Image from "next/image";
 import { useActionState, useState } from "react";
-import { createStudent, type StudentFormState } from "./actions";
 import { STATUSES, needsEnrollmentDate } from "@/lib/student";
+import { updateStudent } from "../actions";
+import { PhotoPicker } from "../PhotoPicker";
+import { createStudent, type StudentFormState } from "./actions";
 
-export function StudentForm() {
-  const [state, action, pending] = useActionState(createStudent, { values: {} } as StudentFormState);
-  const v = state.values ?? {};
+type Props = { studentId?: number; hasPhoto?: boolean; initial?: Record<string, string> };
+
+// Registers a student, or edits one when studentId is given.
+export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props) {
+  const [state, action, pending] = useActionState(
+    studentId ? updateStudent.bind(null, studentId) : createStudent,
+    { values: initial } as StudentFormState,
+  );
+  const v = state.values ?? initial;
   const [status, setStatus] = useState(v.status ?? "");
-  const [preview, setPreview] = useState<string | null>(null);
   const err = (k: string) => state.errors?.[k] && <p role="alert">{state.errors[k]}</p>;
 
   return (
     <form action={action}>
+      {err("form")}
       <div className="grid-3">
         <div className="field">
           <label htmlFor="firstName" className="field-label">First name</label>
@@ -63,26 +70,13 @@ export function StudentForm() {
         </div>
       )}
 
-      <div className="field">
-        <label htmlFor="photo" className="field-label">Photo <span className="optional">(optional, JPEG, PNG or WebP, up to 2 MB)</span></label>
-        <div className="photo-row">
-          {preview && <Image className="photo-preview" src={preview} alt="Selected photo preview" width={96} height={96} unoptimized />}
-          <input
-            id="photo"
-            name="photo"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              setPreview(file ? URL.createObjectURL(file) : null);
-            }}
-          />
-        </div>
-        {err("photo")}
-      </div>
+      <PhotoPicker existingUrl={studentId && hasPhoto ? `/students/${studentId}/photo` : null} />
+      {err("photo")}
 
       <button type="submit" className="btn btn-primary" disabled={pending}>
-        {pending ? "Registering…" : "Register student"}
+        {studentId
+          ? pending ? "Saving…" : "Save changes"
+          : pending ? "Registering…" : "Register student"}
       </button>
       {state.message && <p role="status">{state.message}</p>}
     </form>

@@ -1,7 +1,7 @@
 "use server";
 
 import { sql } from "@/lib/db";
-import { parseStudent } from "@/lib/student";
+import { parseStudent, studentValues } from "@/lib/student";
 
 export type StudentFormState = {
   errors?: Record<string, string>;
@@ -11,13 +11,7 @@ export type StudentFormState = {
 
 export async function createStudent(_prev: StudentFormState, formData: FormData): Promise<StudentFormState> {
   const parsed = parseStudent(formData);
-  if (!parsed.data) {
-    // text fields only; the file input cannot be re-filled after an error
-    const values = Object.fromEntries(
-      ["firstName", "middleName", "lastName", "dateOfBirth", "status", "enrollmentDate"].map((k) => [k, String(formData.get(k) ?? "")]),
-    );
-    return { errors: parsed.errors, values };
-  }
+  if (!parsed.data) return { errors: parsed.errors, values: studentValues(formData) };
 
   const { firstName, middleName, lastName, dateOfBirth, status, enrollmentDate, photo } = parsed.data;
   const photoB64 = photo ? Buffer.from(await photo.arrayBuffer()).toString("base64") : null;

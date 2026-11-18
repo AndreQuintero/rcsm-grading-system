@@ -66,3 +66,10 @@ export function parseStudent(formData: FormData): StudentParse {
     },
   };
 }
+
+// Raw text fields, used to re-fill the form after a validation error (a file input cannot be re-filled).
+export function studentValues(formData: FormData): Record<string, string> {
+  return Object.fromEntries(
+    ["firstName", "middleName", "lastName", "dateOfBirth", "status", "enrollmentDate"].map((k) => [k, String(formData.get(k) ?? "")]),
+  );
+}
