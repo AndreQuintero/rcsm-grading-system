@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { isRealDate, todayIso } from "@/lib/dates";
 
 export type TeacherInput = {
   fullName: string;
@@ -24,11 +25,9 @@ export function parseTeacher(formData: FormData): TeacherParse {
   const subjectIds = parseIds(formData.getAll("subjectIds"));
 
   const errors: Record<string, string> = {};
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   if (!fullName) errors.fullName = "Full name is required.";
-  // Date.parse rolls over impossible days (2026-02-31), so the round trip must match the input.
-  const isRealDate = (s: string) => !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || !isRealDate(dateOfBirth))
+  if (!isRealDate(dateOfBirth))
     errors.dateOfBirth = "Enter a valid date of birth.";
   else if (dateOfBirth > today) errors.dateOfBirth = "Date of birth cannot be in the future.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email address.";
