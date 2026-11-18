@@ -1,67 +1,77 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { listSubjects, listTeachers, parseTeacher } from "../lib/teacher";
+import { getTeacher, listTeachers, parseIds, parseTeacher } from "../lib/teacher";
 import { createTeacher } from "../app/teachers/new/actions";
 
-const fd = (o: Record<string, string>) => {
+const fd = (o: Record<string, string>, subjectIds: (number | string)[] = []) => {
   const f = new FormData();
   for (const [k, v] of Object.entries(o)) f.set(k, v);
+  subjectIds.forEach((id) => f.append("subjectIds", String(id)));
   return f;
 };
-const ok = {
-  fullName: " Ada Lovelace ",
-  dateOfBirth: "1990-05-01",
-  email: "Test.Teacher@Example.com",
-  subjects: "Math\n Physics \n\nMath",
+const base = { fullName: " Ada Lovelace ", dateOfBirth: "1990-05-01", email: "Test.Teacher@Example.com" };
+const cleanup = async () => {
+  await sql`DELETE FROM teachers WHERE email LIKE '%@tchtest.example.com' OR email = 'test.teacher@example.com'`;
+  await sql`DELETE FROM subjects WHERE name LIKE 'TchTest %'`;
 };
 
 (async () => {
-  // validation
-  assert.deepEqual(parseTeacher(fd(ok)).data, {
-    fullName: "Ada Lovelace",
-    dateOfBirth: "1990-05-01",
-    email: "test.teacher@example.com",
-    subjects: ["Math", "Physics"],
-  });
-  assert.ok(parseTeacher(fd({ ...ok, fullName: "" })).errors?.fullName);
-  assert.ok(parseTeacher(fd({ ...ok, dateOfBirth: "2026-02-31" })).errors?.dateOfBirth);
-  assert.ok(parseTeacher(fd({ ...ok, dateOfBirth: "2999-01-01" })).errors?.dateOfBirth);
-  assert.ok(parseTeacher(fd({ ...ok, email: "nope" })).errors?.email);
-  assert.ok(parseTeacher(fd({ ...ok, subjects: " \n " })).errors?.subjects);
+  await cleanup();
+  const subj = await sql`INSERT INTO subjects (name) VALUES ('TchTest Art'), ('TchTest Music'), ('TchTest Drama') RETURNING id, name`;
+  const id = (n: string) => subj.find((s) => s.name === `TchTest ${n}`)!.id as number;
+  const [art, music, drama] = [id("Art"), id("Music"), id("Drama")];
 
-  // database round trip
-  const email = "test.teacher@example.com";
-  await sql`DELETE FROM teachers WHERE email = ${email}`;
-  const r1 = await createTeacher({}, fd(ok));
-  assert.equal(r1.message, "Registered Ada Lovelace.");
-  const rows = await sql`SELECT full_name, date_of_birth::text AS dob, subjects FROM teachers WHERE email = ${email}`;
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].full_name, "Ada Lovelace");
-  assert.equal(rows[0].dob, "1990-05-01");
-  assert.deepEqual(rows[0].subjects, ["Math", "Physics"]);
-  const r2 = await createTeacher({}, fd(ok));
-  assert.match(r2.errors?.email ?? "", /already registered/);
-  await sql`DELETE FROM teachers WHERE email = ${email}`;
+  try {
+    // id parsing ignores junk and duplicates
+    assert.deepEqual(parseIds(["3", "3", "x", "-1", "0", "7"]), [3, 7]);
 
-  // listing: 12 rows, paging and filters (rows tagged "ListTest" and removed afterwards)
-  await sql`DELETE FROM teachers WHERE email LIKE 'listtest%@example.com'`;
-  for (let i = 0; i < 12; i++)
-    await sql`INSERT INTO teachers (full_name, date_of_birth, email, subjects)
-      VALUES (${`ListTest ${String(i).padStart(2, "0")}`}, '1980-01-01', ${`listtest${i}@example.com`}, ${i < 3 ? ["Art"] : ["Music"]})`;
-  const p1 = await listTeachers({ name: "ListTest", page: 1 });
-  assert.equal(p1.total, 12);
-  assert.equal(p1.teachers.length, 10);
-  const p2 = await listTeachers({ name: "ListTest", page: 2 });
-  assert.equal(p2.teachers.length, 2);
-  assert.equal(p2.total, 12);
-  assert.equal((await listTeachers({ name: "listtest", subjects: ["Art"] })).total, 3);
-  assert.equal((await listTeachers({ name: "ListTest", subjects: ["Art", "Music"] })).total, 12);
-  assert.equal((await listTeachers({ name: "no-such-teacher-xyz" })).total, 0);
-  const subjects = await listSubjects();
-  assert.ok(subjects.includes("Art") && subjects.includes("Music"));
-  await sql`DELETE FROM teachers WHERE email LIKE 'listtest%@example.com'`;
+    // validation
+    assert.deepEqual(parseTeacher(fd(base, [art, art, music])).data, {
+      fullName: "Ada Lovelace", dateOfBirth: "1990-05-01", email: "test.teacher@example.com", subjectIds: [art, music],
+    });
+    assert.ok(parseTeacher(fd({ ...base, fullName: "" }, [art])).errors?.fullName);
+    assert.ok(parseTeacher(fd({ ...base, dateOfBirth: "2026-02-31" }, [art])).errors?.dateOfBirth);
+    assert.ok(parseTeacher(fd({ ...base, dateOfBirth: "2999-01-01" }, [art])).errors?.dateOfBirth);
+    assert.ok(parseTeacher(fd({ ...base, email: "nope" }, [art])).errors?.email);
+    assert.ok(parseTeacher(fd(base, [])).errors?.subjectIds);
 
-  console.log("all teacher checks passed");
+    // create links the chosen subjects
+    assert.equal((await createTeacher({}, fd(base, [art, music]))).message, "Registered Ada Lovelace.");
+    const [ada] = await sql`SELECT id FROM teachers WHERE email = 'test.teacher@example.com'`;
+    const got = await getTeacher(ada.id as number);
+    assert.deepEqual([...(got!.subject_ids as number[])].sort(), [art, music].sort());
+
+    // duplicate email
+    assert.match((await createTeacher({}, fd(base, [art]))).errors?.email ?? "", /already registered/);
+
+    // unknown subject: error, and no half-saved teacher
+    const bad = await createTeacher({}, fd({ ...base, email: "ghost@tchtest.example.com" }, [art, 2147483000]));
+    assert.match(bad.errors?.subjectIds ?? "", /no longer exists/);
+    assert.equal((await sql`SELECT id FROM teachers WHERE email = 'ghost@tchtest.example.com'`).length, 0);
+
+    // listing: 12 teachers, 3 teach Art, 9 teach Music; paging and filters
+    for (let i = 0; i < 12; i++)
+      await createTeacher({}, fd({ fullName: `TchTest ${String(i).padStart(2, "0")}`, dateOfBirth: "1980-01-01", email: `t${i}@tchtest.example.com` }, [i < 3 ? art : music]));
+    const p1 = await listTeachers({ name: "tchtest", page: 1 });
+    assert.equal(p1.total, 12);
+    assert.equal(p1.teachers.length, 10);
+    assert.equal((await listTeachers({ name: "tchtest", page: 2 })).teachers.length, 2);
+    assert.equal((await listTeachers({ email: "@TCHTEST.example" })).total, 12);
+    assert.equal((await listTeachers({ email: "t1@tchtest" })).total, 1);
+    assert.equal((await listTeachers({ subjectIds: [art] })).total, 3 + 1); // + Ada
+    assert.equal((await listTeachers({ name: "tchtest", subjectIds: [art, music] })).total, 12);
+    assert.equal((await listTeachers({ subjectIds: [drama] })).total, 0);
+    const adaRow = (await listTeachers({ email: "test.teacher@example.com" })).teachers[0];
+    assert.deepEqual(adaRow.subjects, ["TchTest Art", "TchTest Music"]);
+
+    // deleting a subject unlinks it from teachers (cascade)
+    await sql`DELETE FROM subjects WHERE id = ${music}`;
+    assert.deepEqual((await getTeacher(ada.id as number))!.subject_ids, [art]);
+
+    console.log("all teacher checks passed");
+  } finally {
+    await cleanup();
+  }
 })().catch((e) => {
   console.error("TEACHER CHECK FAILED:", e);
   process.exit(1);

@@ -1,7 +1,7 @@
 "use server";
 
 import { sql } from "@/lib/db";
-import { formValues, parseTeacher } from "@/lib/teacher";
+import { formValues, parseTeacher, teacherDbError } from "@/lib/teacher";
 
 export type TeacherFormState = {
   errors?: Record<string, string>;
@@ -16,15 +16,18 @@ export async function createTeacher(
   const parsed = parseTeacher(formData);
   if (!parsed.data) return { errors: parsed.errors, values: formValues(formData) };
 
-  const { fullName, dateOfBirth, email, subjects } = parsed.data;
+  const { fullName, dateOfBirth, email, subjectIds } = parsed.data;
   try {
-    await sql`INSERT INTO teachers (full_name, date_of_birth, email, subjects)
-      VALUES (${fullName}, ${dateOfBirth}, ${email}, ${subjects})`;
+    // One statement, so the teacher and its subject links are saved together or not at all.
+    await sql`
+      WITH t AS (
+        INSERT INTO teachers (full_name, date_of_birth, email)
+        VALUES (${fullName}, ${dateOfBirth}, ${email}) RETURNING id
+      )
+      INSERT INTO teacher_subjects (teacher_id, subject_id)
+      SELECT t.id, unnest(${subjectIds}::int[]) FROM t`;
   } catch (e) {
-    // 23505 = unique_violation (duplicate email)
-    if ((e as { code?: string }).code === "23505")
-      return { errors: { email: "A teacher with this email is already registered." }, values: formValues(formData) };
-    throw e;
+    return { errors: teacherDbError(e), values: formValues(formData) };
   }
   return { message: `Registered ${fullName}.` };
 }
