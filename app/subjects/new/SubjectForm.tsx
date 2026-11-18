@@ -1,15 +1,18 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { updateSubject } from "../actions";
 import { createSubjects, type SubjectFormState } from "./actions";
 
 type Row = { id: number; value: string };
 
-export function SubjectForm() {
-  const [rows, setRows] = useState<Row[]>([{ id: 0, value: "" }]);
+// Without subjectId it registers many subjects; with it, it edits that single subject.
+export function SubjectForm({ subjectId, initialName = "" }: { subjectId?: number; initialName?: string }) {
+  const [rows, setRows] = useState<Row[]>([{ id: 0, value: initialName }]);
   const nextId = useRef(1);
   const [result, setResult] = useState<SubjectFormState>({});
   const [pending, startTransition] = useTransition();
+  const editing = subjectId !== undefined;
 
   const addRow = () => {
     const id = nextId.current++;
@@ -21,6 +24,10 @@ export function SubjectForm() {
 
   const submit = () =>
     startTransition(async () => {
+      if (editing) {
+        setResult(await updateSubject(subjectId, rows[0].value));
+        return;
+      }
       const r = await createSubjects(rows.map((row) => row.value));
       setResult(r);
       // keep the inputs on error so nothing is lost; start over after a successful insert
@@ -42,22 +49,28 @@ export function SubjectForm() {
             value={row.value}
             onChange={(e) => editRow(row.id, e.target.value)}
           />
-          <button type="button" className="icon-btn" aria-label={`Remove subject ${i + 1}`} onClick={() => removeRow(row.id)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 6h18" />
-              <path d="M8 6V4h8v2" />
-              <path d="M6 6l1 14h10l1-14" />
-            </svg>
-          </button>
+          {!editing && (
+            <button type="button" className="icon-btn" aria-label={`Remove subject ${i + 1}`} onClick={() => removeRow(row.id)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M6 6l1 14h10l1-14" />
+              </svg>
+            </button>
+          )}
         </div>
       ))}
 
       <div className="form-actions">
-        <button type="button" className="btn btn-ghost" onClick={addRow}>
-          + Add subject
-        </button>
+        {!editing && (
+          <button type="button" className="btn btn-ghost" onClick={addRow}>
+            + Add subject
+          </button>
+        )}
         <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? "Registering…" : "Register subjects"}
+          {editing
+            ? pending ? "Saving…" : "Save changes"
+            : pending ? "Registering…" : "Register subjects"}
         </button>
       </div>
 

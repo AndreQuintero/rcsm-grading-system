@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { createSubjects } from "../app/subjects/new/actions";
+import { getSubject, listSubjectPage } from "../lib/subject";
 
 (async () => {
   await sql`DELETE FROM subjects WHERE name LIKE 'TestSubj %'`;
@@ -18,6 +19,19 @@ import { createSubjects } from "../app/subjects/new/actions";
   // validation
   assert.match((await createSubjects(["", "   "])).errors ?? "", /at least one/);
   assert.match((await createSubjects(["x".repeat(101)])).errors ?? "", /100 characters/);
+
+  // listing: 12 rows, paging and name filter
+  await sql`DELETE FROM subjects WHERE name LIKE 'PageSubj %'`;
+  for (let i = 0; i < 12; i++) await sql`INSERT INTO subjects (name) VALUES (${`PageSubj ${String(i).padStart(2, "0")}`})`;
+  const p1 = await listSubjectPage({ name: "pagesubj", page: 1 });
+  assert.equal(p1.total, 12);
+  assert.equal(p1.subjects.length, 10);
+  const p2 = await listSubjectPage({ name: "pagesubj", page: 2 });
+  assert.equal(p2.subjects.length, 2);
+  const one = await getSubject(p2.subjects[0].id as number);
+  assert.equal(one?.name, p2.subjects[0].name);
+  assert.equal(await getSubject(2147483000), null);
+  await sql`DELETE FROM subjects WHERE name LIKE 'PageSubj %'`;
 
   await sql`DELETE FROM subjects WHERE name LIKE 'TestSubj %'`;
   console.log("all subject checks passed");

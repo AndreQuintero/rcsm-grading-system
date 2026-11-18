@@ -382,3 +382,16 @@ nav {
   gap: 0.5rem;
   margin: 1rem 0;
 }
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-head h1 {
+  margin-bottom: 0;
+}

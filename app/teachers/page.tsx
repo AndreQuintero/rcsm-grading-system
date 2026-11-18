@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { listSubjects, listTeachers, PAGE_SIZE } from "@/lib/teacher";
-import { DeleteTeacherButton } from "./DeleteTeacherButton";
+import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
+import { deleteTeacher } from "./actions";
 
 type SearchParams = { name?: string; subject?: string | string[]; page?: string };
 
@@ -83,7 +84,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
                     <Link className="btn btn-ghost" href={`/teachers/${t.id}/edit`}>
                       Edit
                     </Link>
-                    <DeleteTeacherButton id={t.id} name={t.full_name} />
+                    <ConfirmDeleteButton action={deleteTeacher.bind(null, t.id)} name={t.full_name} noun="teacher" />
                   </div>
                 </td>
               </tr>
