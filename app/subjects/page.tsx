@@ -39,7 +39,8 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
         </Link>
       </div>
 
-      <form method="get">
+      {/* keyed on the active filter so Clear (a client-side navigation) resets the input */}
+      <form key={name} method="get">
         <p>
           <label>
             Name

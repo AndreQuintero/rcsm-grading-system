@@ -13,6 +13,12 @@ export async function listSubjectPage({ name = "", page = 1 }: { name?: string; 
   return { subjects: rows, total: rows.length ? Number(rows[0].total) : 0 };
 }
 
+// Every subject, for pickers and filters.
+export async function allSubjects(): Promise<{ id: number; name: string }[]> {
+  const rows = await sql`SELECT id, name FROM subjects ORDER BY name`;
+  return rows.map((r) => ({ id: r.id as number, name: r.name as string }));
+}
+
 export async function getSubject(id: number) {
   const [s] = await sql`SELECT id, name FROM subjects WHERE id = ${id}`;
   return s ?? null;

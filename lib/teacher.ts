@@ -4,26 +4,24 @@ export type TeacherInput = {
   fullName: string;
   dateOfBirth: string;
   email: string;
-  subjects: string[];
+  subjectIds: number[];
 };
 
 export type TeacherParse =
   | { data: TeacherInput; errors?: undefined }
   | { errors: Record<string, string>; data?: undefined };
 
+// Positive integer ids from repeated form fields (e.g. hidden inputs of the subject picker).
+export function parseIds(values: FormDataEntryValue[] | string[]): number[] {
+  return [...new Set(values.map((v) => String(v)).filter((v) => /^\d+$/.test(v)).map(Number))].filter((n) => n > 0);
+}
+
 // Validates untrusted form input; the server action re-runs this, so the client is not trusted.
 export function parseTeacher(formData: FormData): TeacherParse {
   const fullName = String(formData.get("fullName") ?? "").trim();
   const dateOfBirth = String(formData.get("dateOfBirth") ?? "");
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const subjects = [
-    ...new Set(
-      String(formData.get("subjects") ?? "")
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
-  ];
+  const subjectIds = parseIds(formData.getAll("subjectIds"));
 
   const errors: Record<string, string> = {};
   const today = new Date().toISOString().slice(0, 10);
@@ -34,37 +32,63 @@ export function parseTeacher(formData: FormData): TeacherParse {
     errors.dateOfBirth = "Enter a valid date of birth.";
   else if (dateOfBirth > today) errors.dateOfBirth = "Date of birth cannot be in the future.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email address.";
-  if (subjects.length === 0) errors.subjects = "Add at least one subject, one per line.";
+  if (subjectIds.length === 0) errors.subjectIds = "Choose at least one subject.";
 
   if (Object.keys(errors).length) return { errors };
-  return { data: { fullName, dateOfBirth, email, subjects } };
+  return { data: { fullName, dateOfBirth, email, subjectIds } };
 }
 
-// Raw form fields, used to re-fill the form after a validation error.
+// Raw text fields, used to re-fill the form after a validation error (the subject picker keeps its own state).
 export function formValues(formData: FormData): Record<string, string> {
-  return Object.fromEntries(["fullName", "dateOfBirth", "email", "subjects"].map((k) => [k, String(formData.get(k) ?? "")]));
+  return Object.fromEntries(["fullName", "dateOfBirth", "email"].map((k) => [k, String(formData.get(k) ?? "")]));
+}
+
+// Maps Postgres errors the user can fix to form errors; anything else is rethrown.
+export function teacherDbError(e: unknown): Record<string, string> {
+  const code = (e as { code?: string }).code;
+  if (code === "23505") return { email: "A teacher with this email is already registered." };
+  if (code === "23503") return { subjectIds: "One of the selected subjects no longer exists. Reload and try again." };
+  throw e;
 }
 
 export async function getTeacher(id: number) {
-  const [t] = await sql`SELECT id, full_name, date_of_birth::text AS dob, email, subjects FROM teachers WHERE id = ${id}`;
+  const [t] = await sql`
+    SELECT t.id, t.full_name, t.date_of_birth::text AS dob, t.email,
+      COALESCE(array_agg(ts.subject_id) FILTER (WHERE ts.subject_id IS NOT NULL), '{}') AS subject_ids
+    FROM teachers t
+    LEFT JOIN teacher_subjects ts ON ts.teacher_id = t.id
+    WHERE t.id = ${id}
+    GROUP BY t.id`;
   return t ?? null;
 }
 
 export const PAGE_SIZE = 10;
 
-// Filters: name is a case-insensitive substring; subjects matches teachers teaching ANY of the given subjects.
-export async function listTeachers({ name = "", subjects = [], page = 1 }: { name?: string; subjects?: string[]; page?: number }) {
+// Filters: name and email are case-insensitive substrings; subjectIds matches teachers teaching ANY of them.
+export async function listTeachers({
+  name = "",
+  email = "",
+  subjectIds = [],
+  page = 1,
+}: {
+  name?: string;
+  email?: string;
+  subjectIds?: number[];
+  page?: number;
+}) {
   const rows = await sql`
-    SELECT id, full_name, date_of_birth::text AS dob, email, subjects, count(*) OVER() AS total
-    FROM teachers
-    WHERE (${name} = '' OR full_name ILIKE ${"%" + name + "%"})
-      AND (cardinality(${subjects}::text[]) = 0 OR subjects && ${subjects}::text[])
-    ORDER BY full_name, id
+    SELECT t.id, t.full_name, t.date_of_birth::text AS dob, t.email,
+      COALESCE(array_agg(s.name ORDER BY s.name) FILTER (WHERE s.id IS NOT NULL), '{}') AS subjects,
+      count(*) OVER() AS total
+    FROM teachers t
+    LEFT JOIN teacher_subjects ts ON ts.teacher_id = t.id
+    LEFT JOIN subjects s ON s.id = ts.subject_id
+    WHERE (${name} = '' OR t.full_name ILIKE ${"%" + name + "%"})
+      AND (${email} = '' OR t.email ILIKE ${"%" + email + "%"})
+      AND (cardinality(${subjectIds}::int[]) = 0 OR EXISTS (
+        SELECT 1 FROM teacher_subjects x WHERE x.teacher_id = t.id AND x.subject_id = ANY(${subjectIds}::int[])))
+    GROUP BY t.id
+    ORDER BY t.full_name, t.id
     LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`;
   return { teachers: rows, total: rows.length ? Number(rows[0].total) : 0 };
-}
-
-export async function listSubjects(): Promise<string[]> {
-  const rows = await sql`SELECT DISTINCT unnest(subjects) AS subject FROM teachers ORDER BY subject`;
-  return rows.map((r) => r.subject as string);
 }
