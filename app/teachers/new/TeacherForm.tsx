@@ -1,17 +1,22 @@
 "use client";
 
 import { useActionState } from "react";
-import { createTeacher, type TeacherFormState } from "./actions";
+import { updateTeacher } from "../actions";
+import { createTeacher } from "./actions";
 
-const initial: TeacherFormState = {};
+type Props = { teacherId?: number; initial?: Record<string, string> };
 
-export function TeacherForm() {
-  const [state, action, pending] = useActionState(createTeacher, initial);
-  const v = state.values ?? {};
+export function TeacherForm({ teacherId, initial = {} }: Props) {
+  const [state, action, pending] = useActionState(
+    teacherId ? updateTeacher.bind(null, teacherId) : createTeacher,
+    { values: initial },
+  );
+  const v = state.values ?? initial;
   const err = (k: string) => state.errors?.[k] && <p role="alert">{state.errors[k]}</p>;
 
   return (
     <form action={action}>
+      {err("form")}
       <p>
         <label>
           Full name
@@ -40,8 +45,10 @@ export function TeacherForm() {
         </label>
         {err("subjects")}
       </p>
-      <button type="submit" disabled={pending}>
-        {pending ? "Registering…" : "Register teacher"}
+      <button type="submit" className="btn btn-primary" disabled={pending}>
+        {teacherId
+          ? pending ? "Saving…" : "Save changes"
+          : pending ? "Registering…" : "Register teacher"}
       </button>
       {state.message && <p role="status">{state.message}</p>}
     </form>

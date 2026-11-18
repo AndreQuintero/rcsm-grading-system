@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { parseTeacher } from "../lib/teacher";
+import { listSubjects, listTeachers, parseTeacher } from "../lib/teacher";
 import { createTeacher } from "../app/teachers/new/actions";
 
 const fd = (o: Record<string, string>) => {
@@ -42,6 +42,25 @@ const ok = {
   const r2 = await createTeacher({}, fd(ok));
   assert.match(r2.errors?.email ?? "", /already registered/);
   await sql`DELETE FROM teachers WHERE email = ${email}`;
+
+  // listing: 12 rows, paging and filters (rows tagged "ListTest" and removed afterwards)
+  await sql`DELETE FROM teachers WHERE email LIKE 'listtest%@example.com'`;
+  for (let i = 0; i < 12; i++)
+    await sql`INSERT INTO teachers (full_name, date_of_birth, email, subjects)
+      VALUES (${`ListTest ${String(i).padStart(2, "0")}`}, '1980-01-01', ${`listtest${i}@example.com`}, ${i < 3 ? ["Art"] : ["Music"]})`;
+  const p1 = await listTeachers({ name: "ListTest", page: 1 });
+  assert.equal(p1.total, 12);
+  assert.equal(p1.teachers.length, 10);
+  const p2 = await listTeachers({ name: "ListTest", page: 2 });
+  assert.equal(p2.teachers.length, 2);
+  assert.equal(p2.total, 12);
+  assert.equal((await listTeachers({ name: "listtest", subjects: ["Art"] })).total, 3);
+  assert.equal((await listTeachers({ name: "ListTest", subjects: ["Art", "Music"] })).total, 12);
+  assert.equal((await listTeachers({ name: "no-such-teacher-xyz" })).total, 0);
+  const subjects = await listSubjects();
+  assert.ok(subjects.includes("Art") && subjects.includes("Music"));
+  await sql`DELETE FROM teachers WHERE email LIKE 'listtest%@example.com'`;
+
   console.log("all teacher checks passed");
 })().catch((e) => {
   console.error("TEACHER CHECK FAILED:", e);
