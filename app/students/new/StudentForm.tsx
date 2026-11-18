@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { STATUSES, needsEnrollmentDate } from "@/lib/student";
+import { useActionState } from "react";
+import { STATUSES } from "@/lib/student";
 import { updateStudent } from "../actions";
 import { PhotoPicker } from "../PhotoPicker";
 import { createStudent, type StudentFormState } from "./actions";
@@ -15,7 +15,6 @@ export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props
     { values: initial } as StudentFormState,
   );
   const v = state.values ?? initial;
-  const [status, setStatus] = useState(v.status ?? "");
   const err = (k: string) => state.errors?.[k] && <p role="alert">{state.errors[k]}</p>;
 
   return (
@@ -54,7 +53,6 @@ export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props
               value={key}
               defaultChecked={v.status === key}
               required
-              onChange={() => setStatus(key)}
             />
             {STATUSES[key]}
           </label>
@@ -62,13 +60,11 @@ export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props
         {err("status")}
       </fieldset>
 
-      {needsEnrollmentDate(status) && (
-        <div className="field">
-          <label htmlFor="enrollmentDate" className="field-label">Enrollment date</label>
-          <input id="enrollmentDate" name="enrollmentDate" type="date" defaultValue={v.enrollmentDate} required />
-          {err("enrollmentDate")}
-        </div>
-      )}
+      <div className="field">
+        <label htmlFor="enrollmentDate" className="field-label">Enrollment date</label>
+        <input id="enrollmentDate" name="enrollmentDate" type="date" defaultValue={v.enrollmentDate} required />
+        {err("enrollmentDate")}
+      </div>
 
       <PhotoPicker existingUrl={studentId && hasPhoto ? `/students/${studentId}/photo` : null} />
       {err("photo")}

@@ -29,7 +29,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
           lastName: s.last_name,
           dateOfBirth: s.dob,
           status: s.status,
-          enrollmentDate: s.enrolled ?? "",
+          enrollmentDate: s.enrolled,
         }}
       />
     </main>
