@@ -17,6 +17,7 @@ export function SiteHeader() {
         <nav className="site-nav" aria-label="Main">
           <Link href="/teachers">Teachers</Link>
           <Link href="/subjects">Subjects</Link>
+          <Link href="/students">Students</Link>
         </nav>
       </div>
     </header>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useId, useRef } from "react";
 
 // action is a bound server action, e.g. deleteTeacher.bind(null, id).
@@ -17,8 +18,14 @@ export function ConfirmDeleteButton({
 
   return (
     <>
-      <button type="button" className="btn btn-danger" onClick={() => dialog.current?.showModal()}>
-        Delete
+      <button
+        type="button"
+        className="icon-action icon-action-danger"
+        aria-label={`Delete ${noun} ${name}`}
+        title={`Delete ${noun}`}
+        onClick={() => dialog.current?.showModal()}
+      >
+        <Trash2 size={17} aria-hidden="true" />
       </button>
       <dialog ref={dialog} className="modal" aria-labelledby={titleId}>
         <form action={action} onSubmit={() => dialog.current?.close()}>
