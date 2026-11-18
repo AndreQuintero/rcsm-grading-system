@@ -25,7 +25,7 @@ export async function updateStudent(id: number, _prev: StudentFormState, formDat
   revalidatePath("/students");
   return {
     message: `Updated ${firstName} ${lastName}.`,
-    values: { firstName, middleName: middleName ?? "", lastName, dateOfBirth, status, enrollmentDate: enrollmentDate ?? "" },
+    values: { firstName, middleName: middleName ?? "", lastName, dateOfBirth, status, enrollmentDate },
   };
 }
 

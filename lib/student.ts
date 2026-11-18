@@ -3,14 +3,12 @@ import { isRealDate, todayIso } from "@/lib/dates";
 export const STATUSES = {
   audit: "Audit",
   full_time: "Full time",
-  inquiry: "Inquiry (not enrolled yet)",
+  inactive: "Inactive",
 } as const;
 export type Status = keyof typeof STATUSES;
 
 export const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-export const needsEnrollmentDate = (status: string) => status === "audit" || status === "full_time";
 
 export type StudentInput = {
   firstName: string;
@@ -18,7 +16,7 @@ export type StudentInput = {
   lastName: string;
   dateOfBirth: string;
   status: Status;
-  enrollmentDate: string | null;
+  enrollmentDate: string;
   photo: File | null;
 };
 
@@ -34,7 +32,7 @@ export function parseStudent(formData: FormData): StudentParse {
   const lastName = text("lastName");
   const dateOfBirth = text("dateOfBirth");
   const status = text("status");
-  const enrollmentDate = text("enrollmentDate") || null;
+  const enrollmentDate = text("enrollmentDate");
   const photo = formData.get("photo");
   const hasPhoto = photo instanceof File && photo.size > 0;
 
@@ -44,10 +42,8 @@ export function parseStudent(formData: FormData): StudentParse {
   if (!isRealDate(dateOfBirth)) errors.dateOfBirth = "Enter a valid date of birth.";
   else if (dateOfBirth > todayIso()) errors.dateOfBirth = "Date of birth cannot be in the future.";
   if (!(status in STATUSES)) errors.status = "Choose a status.";
-  if (needsEnrollmentDate(status)) {
-    if (!enrollmentDate) errors.enrollmentDate = "Enrollment date is required for audit and full-time students.";
-    else if (!isRealDate(enrollmentDate)) errors.enrollmentDate = "Enter a valid enrollment date.";
-  }
+  if (!enrollmentDate) errors.enrollmentDate = "Enrollment date is required.";
+  else if (!isRealDate(enrollmentDate)) errors.enrollmentDate = "Enter a valid enrollment date.";
   if (hasPhoto) {
     if (!PHOTO_TYPES.includes(photo.type)) errors.photo = "The photo must be a JPEG, PNG or WebP image.";
     else if (photo.size > PHOTO_MAX_BYTES) errors.photo = "The photo must be 2 MB or smaller.";
@@ -61,7 +57,7 @@ export function parseStudent(formData: FormData): StudentParse {
       lastName,
       dateOfBirth,
       status: status as Status,
-      enrollmentDate: needsEnrollmentDate(status) ? enrollmentDate : null,
+      enrollmentDate,
       photo: hasPhoto ? photo : null,
     },
   };

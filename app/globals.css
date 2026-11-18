@@ -741,7 +741,7 @@ form .field-label {
   color: #1d4ed8;
 }
 
-.badge-inquiry {
+.badge-inactive {
   background: rgba(127, 127, 127, 0.18);
   color: var(--muted);
 }

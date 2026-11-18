@@ -114,7 +114,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
                 <td>
                   <span className={`badge badge-${s.status}`}>{STATUSES[s.status as Status]}</span>
                 </td>
-                <td>{s.enrolled ?? "—"}</td>
+                <td>{s.enrolled}</td>
                 <td>
                   <div className="actions">
                     <EditLink href={`/students/${s.id}/edit`} label={`Edit ${fullName(s)}`} />
