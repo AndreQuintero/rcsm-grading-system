@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { allSubjects } from "@/lib/subject";
 import { listTeachers, PAGE_SIZE, parseIds } from "@/lib/teacher";
 import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
+import { EditLink } from "../EditLink";
 import { SubjectMultiSelect } from "../SubjectMultiSelect";
 import { deleteTeacher } from "./actions";
 
@@ -113,9 +114,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
                 </td>
                 <td>
                   <div className="actions">
-                    <Link className="btn btn-ghost" href={`/teachers/${t.id}/edit`}>
-                      Edit
-                    </Link>
+                    <EditLink href={`/teachers/${t.id}/edit`} label={`Edit ${t.full_name}`} />
                     <ConfirmDeleteButton action={deleteTeacher.bind(null, t.id)} name={t.full_name} noun="teacher" />
                   </div>
                 </td>

@@ -3,9 +3,14 @@ import { Suspense } from "react";
 import { STATUSES, type Status } from "@/lib/student";
 import { listStudents, STUDENT_PAGE_SIZE } from "@/lib/student-queries";
 import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
+import { EditLink } from "../EditLink";
 import { deleteStudent } from "./actions";
 
 type SearchParams = { name?: string; status?: string; page?: string };
+
+// "First Middle Last", skipping a missing middle name so there is never a double space.
+const fullName = (s: Record<string, unknown>) =>
+  [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ");
 
 const FILTERS = [
   { value: "", label: "Any" },
@@ -94,9 +99,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
         <table>
           <thead>
             <tr>
-              <th>First name</th>
-              <th>Middle name</th>
-              <th>Last name</th>
+              <th>Name</th>
               <th>Date of birth</th>
               <th>Status</th>
               <th>Enrollment date</th>
@@ -106,9 +109,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
           <tbody>
             {students.map((s) => (
               <tr key={s.id}>
-                <td>{s.first_name}</td>
-                <td>{s.middle_name ?? "—"}</td>
-                <td>{s.last_name}</td>
+                <td>{fullName(s)}</td>
                 <td>{s.dob}</td>
                 <td>
                   <span className={`badge badge-${s.status}`}>{STATUSES[s.status as Status]}</span>
@@ -116,12 +117,10 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
                 <td>{s.enrolled ?? "—"}</td>
                 <td>
                   <div className="actions">
-                    <Link className="btn btn-ghost" href={`/students/${s.id}/edit`}>
-                      Edit
-                    </Link>
+                    <EditLink href={`/students/${s.id}/edit`} label={`Edit ${fullName(s)}`} />
                     <ConfirmDeleteButton
                       action={deleteStudent.bind(null, s.id)}
-                      name={`${s.first_name} ${s.last_name}`}
+                      name={fullName(s)}
                       noun="student"
                     />
                   </div>
@@ -130,7 +129,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
             ))}
             {students.length === 0 && (
               <tr>
-                <td colSpan={7}>No students match these filters.</td>
+                <td colSpan={5}>No students match these filters.</td>
               </tr>
             )}
           </tbody>

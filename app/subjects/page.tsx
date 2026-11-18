@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { listSubjectPage, SUBJECT_PAGE_SIZE } from "@/lib/subject";
 import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
+import { EditLink } from "../EditLink";
 import { deleteSubject } from "./actions";
 
 type SearchParams = { name?: string; page?: string };
@@ -70,9 +71,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
                 <td>{s.name}</td>
                 <td>
                   <div className="actions">
-                    <Link className="btn btn-ghost" href={`/subjects/${s.id}/edit`}>
-                      Edit
-                    </Link>
+                    <EditLink href={`/subjects/${s.id}/edit`} label={`Edit ${s.name}`} />
                     <ConfirmDeleteButton action={deleteSubject.bind(null, s.id)} name={s.name} noun="subject" />
                   </div>
                 </td>
