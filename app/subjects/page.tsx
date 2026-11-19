@@ -20,7 +20,7 @@ type SearchParams = { name?: string; page?: string };
 const header = (
   <PageHeader
     title="Subjects"
-    description="The subjects taught at the school. Teachers choose from this list."
+    description="The subjects taught at the school. Each academic semester assigns them to its teachers."
     action={
       <Button asChild size="lg">
         <Link href="/subjects/new">
