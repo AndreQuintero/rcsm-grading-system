@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { FormCard } from "@/components/form-card";
-import { FieldError, SuccessMessage } from "@/components/form-message";
+import { FieldError } from "@/components/form-message";
+import { useSavedRedirect } from "@/components/use-saved-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +16,12 @@ type Props = { studentId?: number; hasPhoto?: boolean; initial?: Record<string, 
 
 // Registers a student, or edits one when studentId is given.
 export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props) {
-  const [state, action, pending] = useActionState(
-    studentId ? updateStudent.bind(null, studentId) : createStudent,
-    { values: initial } as StudentFormState,
-  );
+  const saved = useSavedRedirect("/students");
+  const [state, action, pending] = useActionState(async (prev: StudentFormState, formData: FormData) => {
+    const r = studentId ? await updateStudent(studentId, prev, formData) : await createStudent(prev, formData);
+    if (!r.errors) saved(r.message);
+    return r;
+  }, { values: initial } as StudentFormState);
   const v = state.values ?? initial;
   const e = state.errors ?? {};
   const invalid = (k: string) => Boolean(e[k]) || undefined;
@@ -33,7 +36,6 @@ export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props
                 ? pending ? "Saving…" : "Save changes"
                 : pending ? "Registering…" : "Register student"}
             </Button>
-            <SuccessMessage message={state.message} />
           </>
         }
       >

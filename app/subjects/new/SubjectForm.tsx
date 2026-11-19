@@ -3,7 +3,8 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { FormCard } from "@/components/form-card";
-import { FieldError, SuccessMessage } from "@/components/form-message";
+import { FieldError } from "@/components/form-message";
+import { useSavedRedirect } from "@/components/use-saved-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ export function SubjectForm({ subjectId, initialName = "" }: { subjectId?: numbe
   const [result, setResult] = useState<SubjectFormState>({});
   const [pending, startTransition] = useTransition();
   const editing = subjectId !== undefined;
+  const saved = useSavedRedirect("/subjects");
 
   const addRow = () => {
     const id = nextId.current++;
@@ -30,14 +32,10 @@ export function SubjectForm({ subjectId, initialName = "" }: { subjectId?: numbe
 
   const submit = () =>
     startTransition(async () => {
-      if (editing) {
-        setResult(await updateSubject(subjectId, rows[0].value));
-        return;
-      }
-      const r = await createSubjects(rows.map((row) => row.value));
-      setResult(r);
-      // keep the inputs on error so nothing is lost; start over after a successful insert
-      if (!r.errors) setRows([{ id: nextId.current++, value: "" }]);
+      const r = editing ? await updateSubject(subjectId, rows[0].value) : await createSubjects(rows.map((row) => row.value));
+      // on error the inputs stay as typed so nothing is lost
+      if (r.errors) setResult(r);
+      else saved(r.message);
     });
 
   return (
@@ -55,7 +53,6 @@ export function SubjectForm({ subjectId, initialName = "" }: { subjectId?: numbe
                 ? pending ? "Saving…" : "Save changes"
                 : pending ? "Registering…" : "Register subjects"}
             </Button>
-            <SuccessMessage message={result.message} />
             <FieldError message={result.errors} />
           </>
         }
