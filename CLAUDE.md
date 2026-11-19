@@ -1,7 +1,7 @@
 # RCSM Grading System — project guide
 
 Admin web app for **Revival Cry School of Ministry**: register and manage teachers, subjects, students,
-batches (intakes of students) and admins. Read `AGENTS.md` too: this is Next.js 16, which differs from older versions —
+batches (intakes of students), academic semesters and admins, see the sign-in accounts (Users), with an admin dashboard at `/`. Read `AGENTS.md` too: this is Next.js 16, which differs from older versions —
 check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 
 ## Stack
@@ -38,7 +38,7 @@ app/
   <feature>/new/page.tsx        register page;   <feature>/new/<Feature>Form.tsx  client form (create + edit)
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
-  <students|teachers|admins>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
+  <students|teachers|admins|users>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
   login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
   account/               any signed-in user's own page (menu avatar/name links here): username + avatar edit, email
                         read-only, member since, role tags, change password (current + new, same rules/checklist); actions.ts also
@@ -50,8 +50,9 @@ app/
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
-              its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
-              generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
+              its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
+              generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn; sheet = side panels, right for the mobile menu and bottom for the dashboard drawer, sliding their full size;
+              select = the dashboard semester picker)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
 lib/          dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
