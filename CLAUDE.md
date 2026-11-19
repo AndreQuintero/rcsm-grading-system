@@ -13,7 +13,7 @@ check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 - Postgres on Neon via `@neondatabase/serverless` (HTTP driver, tagged-template `sql` in `lib/db.ts`).
   **The sandbox and production share the same database.**
 - Env vars (see `.env.example`): `DATABASE_URL`, `APP_BASE_URL` (setup links are built from it, never from the request),
-  `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_PUBLIC_KEY`, `EMAILJS_PRIVATE_KEY` (template params: email, link, name).
+  `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_PUBLIC_KEY`, `EMAILJS_PRIVATE_KEY` (template params: email, link, name, subject).
 - Hosted on Vercel (team `andre-quintero-projects`, project `rcsm-grading-system`).
 
 ## Layout
@@ -30,7 +30,8 @@ app/
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
   students/[id]/photo/route.ts  serves the student photo bytes (stored in Postgres)
-  login/, set-password/ public sign-in pages (two-step login; first-password form); account/actions.ts switchRole + logout
+  login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
+                        account/actions.ts switchRole + logout
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
@@ -104,7 +105,11 @@ Conventions:
   checklist (met items crossed out, animated) and a strength bar; the button stays disabled until all are met.
   Sign-in accepts up to 128 characters so passwords set under the earlier 12–128 rule still work.
 - Tokens: `<id>.<32-byte secret>`, SHA-256 stored, 60 min, single use, newer supersedes older; GET `/set-password`
-  never touches the DB, the POST consumes it. No auto-login after setting a password.
+  never touches the DB, the POST consumes it. No auto-login after setting a password. `purpose`: `setup` (first
+  sign-in, only if the account has no password) or `reset` (forgotten password, may replace it; also clears a lockout).
+- Same EmailJS template for both: `subject` = "First Login RCSM" (setup) or "Reset password - RCSM" (reset)
+  (`EMAIL_SUBJECT` in `lib/auth/first-sign-in.ts`). `/forgot-password` answers the same for every email; an account
+  that never set a password gets the first sign-in email from it. Cooldown/day cap are shared by both kinds.
 - Sessions: `sessions` table (id = SHA-256 of the cookie `rcsm_session`), roles re-read every request; idle 30 min /
   absolute 12 h, or 15 min / 8 h when the user holds admin. Role homes: admin `/`, teacher `/teacher`, student `/student`.
 - `auth_audit` logs events (never passwords, tokens or links). Security headers + CSP are in `next.config.ts`.
@@ -156,7 +161,7 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
-`scripts/backfill-users.ts`). Production uses the same database, so a migration is live immediately — note it in the PR.
+`scripts/backfill-users.ts`), 008 token purpose (setup | reset). Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
 

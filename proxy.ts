@@ -5,7 +5,7 @@ import { lookupSession, SESSION_COOKIE, touchSession } from "@/lib/auth/session"
 // Deny by default: every request except the public sign-in pages and static assets needs a valid session
 // (checked in the database on each request) holding the role of the area. Server actions and route
 // handlers also check for themselves, since an action can be posted to any path.
-const PUBLIC = ["/login", "/set-password"];
+const PUBLIC = ["/login", "/set-password", "/forgot-password"];
 
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
