@@ -57,6 +57,7 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
     assert.equal(requiredRole("/teacher/grades"), "teacher");
     assert.equal(requiredRole("/students/5/photo"), "admin");
     assert.equal(requiredRole("/student"), "student");
+    assert.equal(requiredRole("/account/photo"), null); // any signed-in user, own avatar only
     for (const bad of ["https://evil.com", "//evil.com", "/\\evil.com", "javascript:alert(1)", "", "/a\nb"]) assert.equal(safeNext(bad, "/home"), "/home", bad);
     assert.equal(safeNext("/teachers?page=2", "/"), "/teachers?page=2");
     console.log("ok  helpers: role areas, safe redirect targets");
@@ -262,6 +263,36 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
     console.log("ok  14. rate limit counter: 5 per 15 minutes per key, then refused; resets after the window");
 
     console.log("all auth library checks passed");
+
+    // ---- avatar: copied once at the first password set, admin → teacher → student; independent afterwards
+    {
+      const px = (n: number) => Buffer.from([0x89, 0x50, 0x4e, 0x47, n]).toString("base64");
+      const av = `avatar${D}`;
+      await admin("Avatar Person", av); // admin row has no photo, so the teacher's wins over the student's
+      await sql`INSERT INTO teachers (full_name, date_of_birth, email, photo, photo_type) VALUES ('Avatar Person', '1980-01-01', ${av}, decode(${px(2)}, 'base64'), 'image/png')`;
+      await sql`INSERT INTO students (first_name, last_name, date_of_birth, status, enrollment_date, email, photo, photo_type)
+        VALUES ('Avatar', 'Person', '2000-01-01', 'audit', '2090-08-01', ${av}, decode(${px(3)}, 'base64'), 'image/webp')`;
+      await syncUserFromRoleTables(av);
+      const photoOf = async () => (await sql`SELECT encode(photo, 'base64') AS b64, photo_type FROM users WHERE email = ${av}`)[0];
+      assert.equal((await photoOf()).b64, null, "no avatar before the first password is set");
+      const au = await user(av);
+      assert.ok(await consumeSetupToken((await issueSetupToken(au.id))!, pwHash));
+      assert.deepEqual(await photoOf(), { b64: px(2), photo_type: "image/png" }, "teacher photo (admin had none) copied");
+      // later role-table photo changes don't follow, and a password reset doesn't re-copy
+      await sql`UPDATE admins SET photo = decode(${px(1)}, 'base64'), photo_type = 'image/jpeg' WHERE email = ${av}`;
+      await sql`DELETE FROM password_setup_tokens WHERE user_id = ${au.id}`; // skip the email cooldown
+      assert.ok(await consumeSetupToken((await issueSetupToken(au.id, "reset"))!, pwHash));
+      assert.deepEqual(await photoOf(), { b64: px(2), photo_type: "image/png" }, "avatar is independent after the first sign-in");
+      // with no photo anywhere the account keeps none (the menu shows the generic avatar)
+      const none = `noavatar${D}`;
+      await admin("No Avatar", none);
+      await syncUserFromRoleTables(none);
+      assert.ok(await consumeSetupToken((await issueSetupToken((await user(none)).id))!, pwHash));
+      assert.equal((await sql`SELECT photo FROM users WHERE email = ${none}`)[0].photo, null);
+      assert.equal((await lookupSession(await newSession((await user(none)).id, "admin")))?.hasPhoto, false);
+      assert.equal((await lookupSession(await newSession(au.id, "admin")))?.hasPhoto, true);
+      console.log("ok  avatar copied at first sign-in (admin → teacher → student), independent afterwards");
+    }
   } finally {
     await cleanup();
   }

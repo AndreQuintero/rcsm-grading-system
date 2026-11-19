@@ -25,7 +25,8 @@ export async function proxy(req: NextRequest) {
   }
   // "/" is the admin home; other roles are sent to their own home instead of a 403
   if (pathname === "/" && !session.roles.includes("admin")) return NextResponse.redirect(new URL(ROLE_HOME[session.activeRole], req.url));
-  if (!session.roles.includes(requiredRole(pathname))) return new NextResponse("Forbidden", { status: 403 });
+  const need = requiredRole(pathname);
+  if (need && !session.roles.includes(need)) return new NextResponse("Forbidden", { status: 403 });
   if (session.stale) await touchSession(session.id);
   return NextResponse.next();
 }

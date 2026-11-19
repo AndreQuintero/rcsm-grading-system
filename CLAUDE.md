@@ -31,7 +31,7 @@ app/
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
   <students|teachers|admins>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
   login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
-                        account/actions.ts switchRole + logout
+                        account/actions.ts switchRole + logout; account/photo/route.ts the signed-in user's avatar
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
@@ -114,6 +114,10 @@ Conventions:
   that never set a password gets the first sign-in email from it. Cooldown/day cap are shared by both kinds.
 - Sessions: `sessions` table (id = SHA-256 of the cookie `rcsm_session`), roles re-read every request; idle 30 min /
   absolute 12 h, or 15 min / 8 h when the user holds admin. Role homes: admin `/`, teacher `/teacher`, student `/student`.
+- Avatar: `users.photo`/`photo_type`, copied **once** when the first password is set (`consumeSetupToken`, only if
+  the account had no password): admins → teachers → students, first with a photo. Independent afterwards (role-table
+  photo edits and password resets don't touch it). Sidebar shows it from `/account/photo` (own avatar, any role —
+  `requiredRole` returns null for `/account/*`), else `GenericAvatar`.
 - `auth_audit` logs events (never passwords, tokens or links). Security headers + CSP are in `next.config.ts`.
 - First admin / repair: `scripts/seed-admin.ts --name … --email … --dob …`; `scripts/backfill-users.ts` re-syncs all.
   **Editing `admins`/`teachers`/`students` directly in SQL skips the sync** (e.g. a changed email leaves the old
@@ -163,15 +167,16 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
-`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos. Production uses the same database, so a migration is live immediately — note it in the PR.
+`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar). Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
 
 - Work on branch `claude/cool-bell-cruur4`; push there. Open a PR into **`develop`** only when the user asks,
   and merge only when asked. No PR template exists. Keep model names out of commits/PRs.
 - Before committing: lint, build, self-checks, browser check of the changed flow, scan the diff for secrets.
-- Deploy only when asked: the Vercel production branch is not `develop`, so deploy with the Vercel MCP
-  `create_deployment` (teamId `team_3kcP2W0ShwMi0Oim9pDsdhht`, project `prj_50rccCSxjXk3X3sRjA2rwQ1Az26G`,
+- The Vercel production branch is **`develop`**: merging a PR into `develop` deploys to production by itself, and
+  pushes to the working branch only make previews. After a merge, check the new production deployment (below).
+  A manual redeploy, only when asked: Vercel MCP `create_deployment` (teamId `team_3kcP2W0ShwMi0Oim9pDsdhht`, project `prj_50rccCSxjXk3X3sRjA2rwQ1Az26G`,
   `target: "production"`, gitSource github `AndreQuintero/rcsm-grading-system` ref `develop`). Poll
   `get_deployment` until READY, confirm `rcsm-grading-system.vercel.app` is in the aliases, then check a page
   with `web_fetch_vercel_url` and `get_runtime_errors`. The site sits behind Vercel deployment protection.
@@ -182,7 +187,7 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: teacher/student areas are placeholders; `develop` does not auto-deploy to production; production needs
-  `APP_BASE_URL` and the EmailJS vars before the sign-in deploy, or nobody can get a setup link.
+- Open items: teacher/student areas are placeholders; production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
+  get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.

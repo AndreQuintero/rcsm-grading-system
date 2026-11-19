@@ -12,14 +12,14 @@ export const TIMEOUTS = { admin: { idleMinutes: 15, absoluteHours: 8 }, other: {
 
 const sessionId = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export type Session = { id: string; userId: number; username: string; email: string; activeRole: Role; roles: Role[]; stale: boolean };
+export type Session = { id: string; userId: number; username: string; email: string; activeRole: Role; roles: Role[]; stale: boolean; hasPhoto: boolean };
 
 // Validates a cookie token against the database: user active, roles read fresh (a removed role counts at once),
 // active role still held, idle and absolute timeouts not passed. No Next request APIs, so proxy.ts can use it.
 export async function lookupSession(token: string | undefined): Promise<Session | null> {
   if (!token || token.length > 100) return null;
   const [row] = await sql`
-    SELECT s.id, s.user_id, s.active_role::text AS active_role, u.username, u.email,
+    SELECT s.id, s.user_id, s.active_role::text AS active_role, u.username, u.email, u.photo IS NOT NULL AS has_photo,
       array_agg(r.role::text ORDER BY r.role) AS roles,
       s.last_seen_at < now() - interval '1 minute' AS stale
     FROM sessions s
@@ -41,6 +41,7 @@ export async function lookupSession(token: string | undefined): Promise<Session 
     activeRole: row.active_role as Role,
     roles: (row.roles as string[]).filter(isRole),
     stale: row.stale as boolean,
+    hasPhoto: row.has_photo as boolean,
   };
 }
 

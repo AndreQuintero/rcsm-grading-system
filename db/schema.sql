@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS users (
   failed_login_count int NOT NULL DEFAULT 0,
   locked_until timestamptz,
   is_active boolean NOT NULL DEFAULT true,
+  photo bytea, -- avatar copied from admins → teachers → students at the first password set; independent afterwards
+  photo_type text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
