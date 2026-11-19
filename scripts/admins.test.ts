@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { getAdmin, listAdmins, parseAdmin } from "../lib/admin";
 import { createAdmin } from "../app/admins/new/actions";
+import { formatDate } from "../lib/dates";
 
 const fd = (o: Record<string, string>) => {
   const f = new FormData();
@@ -44,6 +45,11 @@ const cleanup = () => sql`DELETE FROM admins WHERE email LIKE '%@admtest.example
     assert.equal((await listAdmins({ email: "@admtest.example.com", page: 2 })).admins.length, 2);
     assert.equal((await listAdmins({ name: "ada b", email: "ADMTEST" })).total, 1);
     assert.equal((await listAdmins({ name: "nobody-here" })).total, 0);
+
+    // display mask
+    assert.equal(formatDate("2026-11-19"), "November 19th, 2026");
+    assert.equal(formatDate("2001-01-02 14:30"), "January 2nd, 2001 14:30");
+    assert.equal(formatDate("1999-08-11"), "August 11th, 1999");
 
     console.log("all admin checks passed");
   } finally {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
+import { formatDate } from "@/lib/dates";
 import { Pager } from "@/components/pager";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -121,11 +122,11 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
             {students.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="pl-4 font-medium">{fullName(s)}</TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">{s.dob}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{formatDate(s.dob)}</TableCell>
                 <TableCell>
                   <StatusBadge status={s.status} />
                 </TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">{s.enrolled}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{formatDate(s.enrolled)}</TableCell>
                 <TableCell className="pr-4">
                   <div className="flex justify-end gap-1">
                     <EditLink href={`/students/${s.id}/edit`} label={`Edit ${fullName(s)}`} />

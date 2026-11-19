@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
+import { formatDate } from "@/lib/dates";
 import { Pager } from "@/components/pager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,9 +102,9 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
               <TableRow key={a.id}>
                 <TableCell className="pl-4 font-medium">{a.full_name}</TableCell>
                 <TableCell className="text-muted-foreground">{a.email}</TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">{a.dob}</TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">{a.created}</TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">{a.updated}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{formatDate(a.dob)}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{formatDate(a.created)}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{formatDate(a.updated)}</TableCell>
                 <TableCell className="pr-4">
                   <div className="flex justify-end gap-1">
                     <EditLink href={`/admins/${a.id}/edit`} label={`Edit ${a.full_name}`} />
