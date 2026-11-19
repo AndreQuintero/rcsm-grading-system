@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { getTeacher, listTeachers, parseIds, parseTeacher } from "../lib/teacher";
-import { createTeacher } from "../app/teachers/new/actions";
+import { getTeacher, insertTeacher, listTeachers, parseIds, parseTeacher } from "../lib/teacher";
 
 const fd = (o: Record<string, string>, subjectIds: (number | string)[] = []) => {
   const f = new FormData();
@@ -12,6 +11,7 @@ const fd = (o: Record<string, string>, subjectIds: (number | string)[] = []) => 
 const base = { fullName: " Ada Lovelace ", dateOfBirth: "1990-05-01", email: "Test.Teacher@Example.com" };
 const cleanup = async () => {
   await sql`DELETE FROM teachers WHERE email LIKE '%@tchtest.example.com' OR email = 'test.teacher@example.com'`;
+  await sql`DELETE FROM users WHERE email LIKE '%@tchtest.example.com' OR email = 'test.teacher@example.com'`;
   await sql`DELETE FROM subjects WHERE name LIKE 'TchTest %'`;
 };
 
@@ -36,22 +36,22 @@ const cleanup = async () => {
     assert.ok(parseTeacher(fd(base, [])).errors?.subjectIds);
 
     // create links the chosen subjects
-    assert.equal((await createTeacher({}, fd(base, [art, music]))).message, "Registered Ada Lovelace.");
+    assert.equal((await insertTeacher(fd(base, [art, music]))).message, "Registered Ada Lovelace.");
     const [ada] = await sql`SELECT id FROM teachers WHERE email = 'test.teacher@example.com'`;
     const got = await getTeacher(ada.id as number);
     assert.deepEqual([...(got!.subject_ids as number[])].sort(), [art, music].sort());
 
     // duplicate email
-    assert.match((await createTeacher({}, fd(base, [art]))).errors?.email ?? "", /already registered/);
+    assert.match((await insertTeacher(fd(base, [art]))).errors?.email ?? "", /already registered/);
 
     // unknown subject: error, and no half-saved teacher
-    const bad = await createTeacher({}, fd({ ...base, email: "ghost@tchtest.example.com" }, [art, 2147483000]));
+    const bad = await insertTeacher(fd({ ...base, email: "ghost@tchtest.example.com" }, [art, 2147483000]));
     assert.match(bad.errors?.subjectIds ?? "", /no longer exists/);
     assert.equal((await sql`SELECT id FROM teachers WHERE email = 'ghost@tchtest.example.com'`).length, 0);
 
     // listing: 12 teachers, 3 teach Art, 9 teach Music; paging and filters
     for (let i = 0; i < 12; i++)
-      await createTeacher({}, fd({ fullName: `TchTest ${String(i).padStart(2, "0")}`, dateOfBirth: "1980-01-01", email: `t${i}@tchtest.example.com` }, [i < 3 ? art : music]));
+      await insertTeacher(fd({ fullName: `TchTest ${String(i).padStart(2, "0")}`, dateOfBirth: "1980-01-01", email: `t${i}@tchtest.example.com` }, [i < 3 ? art : music]));
     const p1 = await listTeachers({ name: "tchtest", page: 1 });
     assert.equal(p1.total, 12);
     assert.equal(p1.teachers.length, 10);

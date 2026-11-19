@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { isRealDate, todayIso } from "@/lib/dates";
+import { syncUserFromRoleTables } from "@/lib/auth/sync";
 
 export const ADMIN_PAGE_SIZE = 10;
 
@@ -54,4 +55,26 @@ export async function listAdmins({ name = "", email = "", page = 1 }: { name?: s
     ORDER BY full_name, id
     LIMIT ${ADMIN_PAGE_SIZE} OFFSET ${(page - 1) * ADMIN_PAGE_SIZE}`;
   return { admins: rows, total: rows.length ? Number(rows[0].total) : 0 };
+}
+
+export type AdminFormState = {
+  errors?: Record<string, string>;
+  message?: string;
+  values?: Record<string, string>;
+};
+
+// Registers an admin, then gives them a sign-in account. Wrapped by the "use server" action (admin check);
+// scripts (seed-admin, self-checks) call it directly.
+export async function insertAdmin(formData: FormData): Promise<AdminFormState> {
+  const parsed = parseAdmin(formData);
+  if (!parsed.data) return { errors: parsed.errors, values: adminValues(formData) };
+
+  const { fullName, dateOfBirth, email } = parsed.data;
+  try {
+    await sql`INSERT INTO admins (full_name, date_of_birth, email) VALUES (${fullName}, ${dateOfBirth}, ${email})`;
+  } catch (e) {
+    return { errors: adminDbError(e), values: adminValues(formData) };
+  }
+  await syncUserFromRoleTables(email);
+  return { message: `Registered ${fullName}.` };
 }

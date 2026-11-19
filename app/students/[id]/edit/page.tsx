@@ -8,7 +8,7 @@ import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["First name", "Middle name", "Last name", "Date of birth", "Enrollment date"]} photo radios={{ name: "Status", count: 3 }} /></main>}>
+    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["Email", "First name", "Middle name", "Last name", "Date of birth", "Enrollment date"]} photo radios={{ name: "Status", count: 3 }} /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -30,6 +30,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
           firstName: s.first_name,
           middleName: s.middle_name ?? "",
           lastName: s.last_name,
+          email: s.email ?? "",
           dateOfBirth: s.dob,
           status: s.status,
           enrollmentDate: s.enrolled,

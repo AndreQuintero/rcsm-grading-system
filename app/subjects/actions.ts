@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
-import type { SubjectFormState } from "./new/actions";
+import type { SubjectFormState } from "@/lib/subject";
+import { requireRole } from "@/lib/auth/session";
 
 export async function updateSubject(id: number, rawName: string): Promise<SubjectFormState> {
+  await requireRole("admin");
   if (!Number.isInteger(id) || id < 1) throw new Error("Invalid subject id");
   const name = String(rawName).trim();
   if (!name) return { errors: "Enter a subject name." };
@@ -22,6 +24,7 @@ export async function updateSubject(id: number, rawName: string): Promise<Subjec
 }
 
 export async function deleteSubject(id: number): Promise<void> {
+  await requireRole("admin");
   if (!Number.isInteger(id) || id < 1) throw new Error("Invalid subject id");
   await sql`DELETE FROM subjects WHERE id = ${id}`;
   revalidatePath("/subjects");

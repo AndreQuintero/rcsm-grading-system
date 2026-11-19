@@ -14,6 +14,7 @@ export type StudentInput = {
   firstName: string;
   middleName: string | null;
   lastName: string;
+  email: string;
   dateOfBirth: string;
   status: Status;
   enrollmentDate: string;
@@ -30,6 +31,7 @@ export function parseStudent(formData: FormData): StudentParse {
   const firstName = text("firstName");
   const middleName = text("middleName") || null;
   const lastName = text("lastName");
+  const email = text("email").toLowerCase();
   const dateOfBirth = text("dateOfBirth");
   const status = text("status");
   const enrollmentDate = text("enrollmentDate");
@@ -39,6 +41,8 @@ export function parseStudent(formData: FormData): StudentParse {
   const errors: Record<string, string> = {};
   if (!firstName) errors.firstName = "First name is required.";
   if (!lastName) errors.lastName = "Last name is required.";
+  if (!email) errors.email = "Email is required.";
+  else if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email address.";
   if (!isRealDate(dateOfBirth)) errors.dateOfBirth = "Enter a valid date of birth.";
   else if (dateOfBirth > todayIso()) errors.dateOfBirth = "Date of birth cannot be in the future.";
   if (!(status in STATUSES)) errors.status = "Choose a status.";
@@ -55,6 +59,7 @@ export function parseStudent(formData: FormData): StudentParse {
       firstName,
       middleName,
       lastName,
+      email,
       dateOfBirth,
       status: status as Status,
       enrollmentDate,
@@ -66,6 +71,12 @@ export function parseStudent(formData: FormData): StudentParse {
 // Raw text fields, used to re-fill the form after a validation error (a file input cannot be re-filled).
 export function studentValues(formData: FormData): Record<string, string> {
   return Object.fromEntries(
-    ["firstName", "middleName", "lastName", "dateOfBirth", "status", "enrollmentDate"].map((k) => [k, String(formData.get(k) ?? "")]),
+    ["firstName", "middleName", "lastName", "email", "dateOfBirth", "status", "enrollmentDate"].map((k) => [k, String(formData.get(k) ?? "")]),
   );
+}
+
+// Maps Postgres errors the user can fix to form errors; anything else is rethrown.
+export function studentDbError(e: unknown): Record<string, string> {
+  if ((e as { code?: string }).code === "23505") return { email: "A student with this email is already registered." };
+  throw e;
 }

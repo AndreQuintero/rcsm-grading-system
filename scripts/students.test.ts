@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { parseStudent, PHOTO_MAX_BYTES } from "../lib/student";
-import { createStudent } from "../app/students/new/actions";
-import { getStudent, listStudents } from "../lib/student-queries";
+import { getStudent, insertStudent, listStudents } from "../lib/student-queries";
 import { batchPeriod } from "../lib/batch";
 
 // 1x1 PNG
@@ -10,8 +9,10 @@ const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
 );
+let emails = 0;
 const fd = (o: Record<string, string>, photo?: File) => {
   const f = new FormData();
+  f.set("email", `s${++emails}@stutest.example.com`);
   for (const [k, v] of Object.entries(o)) f.set(k, v);
   if (photo) f.set("photo", photo);
   return f;
@@ -20,6 +21,7 @@ const base = { firstName: " Grace ", middleName: "", lastName: "TestStu Hopper",
 // test batches live in years 2085-2100, which real data never has
 const cleanup = async () => {
   await sql`DELETE FROM students WHERE last_name LIKE 'TestStu %'`;
+  await sql`DELETE FROM users WHERE email LIKE '%@stutest.example.com'`;
   await sql`DELETE FROM batches WHERE year >= 2085`;
 };
 
@@ -27,9 +29,9 @@ const cleanup = async () => {
   await cleanup();
   try {
     // validation
-    const ok = parseStudent(fd(base));
+    const ok = parseStudent(fd({ ...base, email: " Grace@StuTest.Example.com " }));
     assert.deepEqual(ok.data, {
-      firstName: "Grace", middleName: null, lastName: "TestStu Hopper", dateOfBirth: "1990-12-09",
+      firstName: "Grace", middleName: null, lastName: "TestStu Hopper", email: "grace@stutest.example.com", dateOfBirth: "1990-12-09",
       status: "inactive", enrollmentDate: "2090-08-01", photo: null,
     });
     assert.ok(parseStudent(fd({ ...base, firstName: "" })).errors?.firstName);
@@ -37,6 +39,9 @@ const cleanup = async () => {
     assert.ok(parseStudent(fd({ ...base, dateOfBirth: "2026-02-31" })).errors?.dateOfBirth);
     assert.ok(parseStudent(fd({ ...base, dateOfBirth: "2999-01-01" })).errors?.dateOfBirth);
     assert.ok(parseStudent(fd({ ...base, status: "" })).errors?.status);
+    // email: required and well formed
+    assert.match(parseStudent(fd({ ...base, email: "" })).errors?.email ?? "", /required/);
+    assert.ok(parseStudent(fd({ ...base, email: "nope" })).errors?.email);
 
     // enrollment date: required for every status, and must be a real date
     for (const status of ["audit", "full_time", "inactive"])
@@ -54,7 +59,7 @@ const cleanup = async () => {
     assert.ok(parseStudent(fd(base, big)).errors?.photo);
 
     // create: stores the photo bytes and the enrollment date
-    assert.match((await createStudent({}, fd({ ...base, status: "audit", enrollmentDate: "2090-02-01", middleName: "Brewster" }, pic))).message ?? "",
+    assert.match((await insertStudent(fd({ ...base, status: "audit", enrollmentDate: "2090-02-01", middleName: "Brewster" }, pic))).message ?? "",
       /^Registered Grace TestStu Hopper\./);
     const [withPhoto] = await sql`SELECT middle_name, status, enrollment_date::text AS enrolled, photo_type,
       encode(photo, 'base64') AS b64 FROM students WHERE last_name = 'TestStu Hopper'`;
@@ -65,7 +70,7 @@ const cleanup = async () => {
     assert.equal(Buffer.from(withPhoto.b64 as string, "base64").equals(PNG), true);
 
     // create without a photo
-    await createStudent({}, fd({ ...base, firstName: "Ada", lastName: "TestStu Byron", status: "inactive" }));
+    await insertStudent(fd({ ...base, firstName: "Ada", lastName: "TestStu Byron", status: "inactive" }));
     const [noPhoto] = await sql`SELECT photo, enrollment_date::text AS enrolled FROM students WHERE last_name = 'TestStu Byron'`;
     assert.equal(noPhoto.photo, null);
     assert.equal(noPhoto.enrolled, "2090-08-01"); // an inactive student keeps its enrollment date
@@ -77,7 +82,7 @@ const cleanup = async () => {
       );
 
     // validation errors come back with the typed values
-    const bad = await createStudent({}, fd({ ...base, status: "audit", enrollmentDate: "" }));
+    const bad = await insertStudent(fd({ ...base, status: "audit", enrollmentDate: "" }));
     assert.equal(bad.values?.firstName, " Grace ");
     assert.ok(bad.errors?.enrollmentDate);
 
@@ -95,7 +100,7 @@ const cleanup = async () => {
       sql`INSERT INTO batches (number, year, semester) VALUES (${n}, ${year}, ${semester}) RETURNING id`.then((r) => r[0].id as number);
     const [first, second] = [await mk(850, 2090, 1), await mk(851, 2090, 2)];
     const reg = (last: string, status: string, enrollmentDate: string) =>
-      createStudent({}, fd({ ...base, firstName: "Auto", lastName: `TestStu ${last}`, status, enrollmentDate }));
+      insertStudent(fd({ ...base, firstName: "Auto", lastName: `TestStu ${last}`, status, enrollmentDate }));
     const batchOf = async (last: string) => (await sql`SELECT batch_id FROM students WHERE last_name = ${`TestStu ${last}`}`)[0].batch_id;
 
     let r = await reg("Aug", "full_time", "2090-08-01"); // June-December -> 1st semester

@@ -43,6 +43,13 @@ export function StudentForm({ studentId, hasPhoto = false, initial = {} }: Props
         <PhotoPicker existingUrl={studentId && hasPhoto ? `/students/${studentId}/photo` : null} />
         <FieldError message={e.photo} />
 
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" name="email" type="email" maxLength={254} defaultValue={v.email} required aria-invalid={invalid("email")} />
+          <p className="text-xs text-muted-foreground">The student signs in with this email.</p>
+          <FieldError message={e.email} />
+        </div>
+
         <div className="grid gap-6 sm:grid-cols-3">
           <div className="flex flex-col gap-2">
             <Label htmlFor="firstName">First name</Label>

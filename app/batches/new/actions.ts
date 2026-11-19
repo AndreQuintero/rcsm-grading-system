@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireRole } from "@/lib/auth/session";
 import { batchDbError, batchLabel, batchValues, createBatch, duplicatePeriodMessage, isDuplicateBatch, parseBatch } from "@/lib/batch";
 
 export type BatchFormState = {
@@ -10,6 +11,7 @@ export type BatchFormState = {
 };
 
 export async function createBatchAction(_prev: BatchFormState, formData: FormData): Promise<BatchFormState> {
+  await requireRole("admin");
   const parsed = parseBatch(formData);
   if (!parsed.data) return { errors: parsed.errors, values: batchValues(formData) };
   try {

@@ -1,19 +1,7 @@
-"use client";
-
-import { BookOpen, GraduationCap, Layers, ShieldCheck, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Suspense } from "react";
-import { cn } from "@/lib/utils";
-
-const NAV = [
-  { href: "/teachers", label: "Teachers", icon: Users },
-  { href: "/subjects", label: "Subjects", icon: BookOpen },
-  { href: "/students", label: "Students", icon: GraduationCap },
-  { href: "/batches", label: "Batches", icon: Layers },
-  { href: "/admins", label: "Admins", icon: ShieldCheck },
-];
+import { SessionNav } from "./SessionNav";
 
 // App navigation: a charcoal sidebar on desktop, a compact top bar on small screens.
 export function SiteHeader() {
@@ -30,9 +18,9 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        {/* the current path is request-time data under cacheComponents, so highlight it inside Suspense */}
-        <Suspense fallback={<NavLinks pathname="" />}>
-          <ActiveNavLinks />
+        {/* the session (cookie) is request-time data under cacheComponents, so it is read inside Suspense */}
+        <Suspense fallback={null}>
+          <SessionNav />
         </Suspense>
       </div>
 
@@ -47,34 +35,5 @@ export function SiteHeader() {
         <path d="M0 160v-20l44-30 30 16 40-30 36 26 30-18 40 24 36-18v50z" fill="currentColor" />
       </svg>
     </header>
-  );
-}
-
-function ActiveNavLinks() {
-  return <NavLinks pathname={usePathname()} />;
-}
-
-function NavLinks({ pathname }: { pathname: string }) {
-  return (
-    <nav aria-label="Main" className="flex gap-1 md:mt-10 md:flex-col">
-      {NAV.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(href + "/");
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-sidebar-foreground/80 outline-none transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-ring md:px-3",
-              active && "bg-sidebar-accent text-white md:shadow-[inset_3px_0_0_var(--sidebar-primary)]",
-            )}
-          >
-            <Icon className="size-4 shrink-0" aria-hidden="true" />
-            <span className="hidden sm:inline">{label}</span>
-            <span className="sr-only sm:hidden">{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
   );
 }
