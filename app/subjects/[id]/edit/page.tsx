@@ -8,7 +8,7 @@ import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["Subject name"]} /></main>}>
+    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Subject name"]} /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -21,7 +21,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   const s = Number.isInteger(n) && n > 0 ? await getSubject(n) : null;
   if (!s) notFound();
   return (
-    <main>
+    <main className="mx-auto max-w-3xl">
       <PageHeader title="Edit subject" description="Renaming a subject updates it for every teacher who teaches it." action={<BackLink href="/subjects" label="Back to subjects" />} />
       <SubjectForm subjectId={n} initialName={s.name} />
     </main>

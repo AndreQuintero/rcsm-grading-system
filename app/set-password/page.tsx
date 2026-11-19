@@ -6,7 +6,7 @@ import { SetPasswordForm } from "./SetPasswordForm";
 // Rendering this page never reads or uses the token (email scanners open links); only submitting the form does.
 export default function Page({ searchParams }: { searchParams: Promise<{ token?: string | string[] }> }) {
   return (
-    <main>
+    <main className="mx-auto max-w-3xl">
       <PageHeader title="Set your password" description="Choose the password you'll use to sign in." />
       <Suspense fallback={<FormSkeleton fields={["New password", "Confirm password"]} />}>
         <Form searchParams={searchParams} />

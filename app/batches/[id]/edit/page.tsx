@@ -8,7 +8,7 @@ import { BatchForm } from "../../new/BatchForm";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["Batch number", "Year"]} radios={{ name: "Semester", count: 2 }} cards="Students" /></main>}>
+    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Batch number", "Year"]} radios={{ name: "Semester", count: 2 }} cards="Students" /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -22,7 +22,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!b) notFound();
   const students = await eligibleStudents(n);
   return (
-    <main>
+    <main className="mx-auto max-w-3xl">
       <PageHeader title="Edit batch" description={`Update the ${batchLabel(b as { number: number; year: number; semester: number })} and its students.`} action={<BackLink href="/batches" label="Back to batches" />} />
       <BatchForm
         batchId={n}

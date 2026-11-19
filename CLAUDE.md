@@ -98,6 +98,11 @@ Conventions:
   "Invalid email or password." (dummy Argon2 verify when no user). 5 failures → lock 15 min, doubling.
 - Rate limits: 5 per 15 min per IP and per email for each step (`auth_rate_limits`); setup emails 1 per 5 min and
   5 per day (counted from `password_setup_tokens`). IP = first `x-forwarded-for` (trusted only behind Vercel).
+- Password rules (`lib/auth/password-rules.ts`, shared by the form and the server): 8–15 characters, a capital
+  letter, a lowercase letter, a special character (not a letter, digit or space) and not a common password
+  (`@zxcvbn-ts/language-common` list, compared lowercased with symbols removed). The set-password form shows the
+  checklist (met items crossed out, animated) and a strength bar; the button stays disabled until all are met.
+  Sign-in accepts up to 128 characters so passwords set under the earlier 12–128 rule still work.
 - Tokens: `<id>.<32-byte secret>`, SHA-256 stored, 60 min, single use, newer supersedes older; GET `/set-password`
   never touches the DB, the POST consumes it. No auto-login after setting a password.
 - Sessions: `sessions` table (id = SHA-256 of the cookie `rcsm_session`), roles re-read every request; idle 30 min /

@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
 import { FieldError } from "@/components/form-message";
+import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,13 @@ export function LoginForm({ next, passwordSet }: { next: string; passwordSet: bo
     if (formData.get("intent") === "restart") return { step: "email" } as LoginState;
     return prev.step === "password" ? submitPassword(prev, formData) : submitEmail(prev, formData);
   }, { step: "email" } as LoginState);
+  // Not a submit button: the first submit button is the form's default, so Enter would restart the flow.
+  const restart = () =>
+    startTransition(() => {
+      const f = new FormData();
+      f.set("intent", "restart");
+      action(f);
+    });
 
   return (
     <Card className="max-w-md [--card-spacing:--spacing(6)]">
@@ -45,13 +53,13 @@ export function LoginForm({ next, passwordSet }: { next: string; passwordSet: bo
               <input type="email" autoComplete="username" value={state.email ?? ""} readOnly hidden />
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="truncate text-muted-foreground">{state.email}</span>
-                <Button type="submit" name="intent" value="restart" variant="link" size="sm" formNoValidate className="h-auto px-0">
+                <Button type="button" onClick={restart} variant="link" size="sm" className="h-auto px-0">
                   Use another email
                 </Button>
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" autoComplete="current-password" maxLength={128} required autoFocus aria-invalid={Boolean(state.error) || undefined} />
+                <PasswordInput id="password" name="password" autoComplete="current-password" maxLength={128} required autoFocus aria-invalid={Boolean(state.error) || undefined} />
                 <FieldError message={state.error} />
               </div>
             </>

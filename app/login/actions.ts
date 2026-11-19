@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { sql } from "@/lib/db";
 import { audit } from "@/lib/auth/audit";
 import { startFirstSignIn } from "@/lib/auth/first-sign-in";
-import { verifyDummy, verifyPassword, PASSWORD_MAX } from "@/lib/auth/password";
+import { LOGIN_PASSWORD_MAX, verifyDummy, verifyPassword } from "@/lib/auth/password";
 import { allowAttempt, clientIp } from "@/lib/auth/rate-limit";
 import { highestRole, isEmail, isRole, normalizeEmail, requiredRole, ROLE_HOME, safeNext } from "@/lib/auth/roles";
 import { createSession } from "@/lib/auth/session";
@@ -36,8 +36,8 @@ export async function submitPassword(_prev: LoginState, formData: FormData): Pro
   const email = normalizeEmail(formData.get("email"));
   const password = String(formData.get("password") ?? "");
   const fail: LoginState = { step: "password", email, error: INVALID };
-  if (!isEmail(email) || !password || password.length > PASSWORD_MAX) {
-    await verifyDummy(password.slice(0, PASSWORD_MAX));
+  if (!isEmail(email) || !password || password.length > LOGIN_PASSWORD_MAX) {
+    await verifyDummy(password.slice(0, LOGIN_PASSWORD_MAX));
     return fail;
   }
 

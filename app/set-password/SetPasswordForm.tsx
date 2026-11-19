@@ -1,24 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { FormCard } from "@/components/form-card";
 import { FieldError } from "@/components/form-message";
+import { PasswordInput } from "@/components/password-input";
+import { PasswordStrength } from "@/components/password-strength";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PASSWORD_MAX, PASSWORD_MIN, unmetRules } from "@/lib/auth/password-rules";
 import { setPassword, type SetPasswordState } from "./actions";
 
 export function SetPasswordForm({ token }: { token: string }) {
   const [state, action, pending] = useActionState(setPassword, {} as SetPasswordState);
+  // controlled, so the checklist and bar follow every keystroke (the server checks the same rules again)
+  const [password, setPasswordValue] = useState("");
+  const ready = unmetRules(password).length === 0;
   const e = state.errors ?? {};
   return (
     <form action={action}>
       <FormCard
         footer={
-          <Button type="submit" size="lg" disabled={pending}>
-            {pending ? "Saving…" : "Set password"}
-          </Button>
+          <>
+            <Button type="submit" size="lg" disabled={pending || !ready}>
+              {pending ? "Saving…" : "Set password"}
+            </Button>
+            {!ready && <p className="text-sm text-muted-foreground">Meet every requirement to set your password.</p>}
+          </>
         }
       >
         {e.form && (
@@ -30,18 +38,29 @@ export function SetPasswordForm({ token }: { token: string }) {
           </div>
         )}
         <input type="hidden" name="token" value={token} />
-        <p className="text-sm text-muted-foreground">Use 12 to 128 characters. A long phrase is easy to remember and hard to guess.</p>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">New password</Label>
-            <Input id="password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required aria-invalid={Boolean(e.password) || undefined} />
-            <FieldError message={e.password} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="confirmPassword">Confirm password</Label>
-            <Input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" maxLength={128} required aria-invalid={Boolean(e.confirmPassword) || undefined} />
-            <FieldError message={e.confirmPassword} />
-          </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">New password</Label>
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="new-password"
+            minLength={PASSWORD_MIN}
+            maxLength={PASSWORD_MAX}
+            required
+            value={password}
+            onChange={(ev) => setPasswordValue(ev.target.value)}
+            aria-invalid={Boolean(e.password) || undefined}
+            aria-describedby="password-requirements"
+          />
+          <FieldError message={e.password} />
+        </div>
+        <div id="password-requirements">
+          <PasswordStrength password={password} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" maxLength={PASSWORD_MAX} required aria-invalid={Boolean(e.confirmPassword) || undefined} />
+          <FieldError message={e.confirmPassword} />
         </div>
       </FormCard>
     </form>
