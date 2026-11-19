@@ -18,7 +18,7 @@ export function NavLinks({ admin, homeHref }: { admin: boolean; homeHref: string
   const pathname = usePathname();
   const items = admin ? ADMIN_NAV : [{ href: homeHref, label: "Home", icon: Home }];
   return (
-    <nav aria-label="Main" className="flex gap-1 md:mt-10 md:flex-col">
+    <nav aria-label="Main" className="flex flex-col gap-1">
       {items.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
@@ -27,13 +27,12 @@ export function NavLinks({ admin, homeHref }: { admin: boolean; homeHref: string
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-sidebar-foreground/80 outline-none transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-ring md:px-3",
-              active && "bg-sidebar-accent text-white md:shadow-[inset_3px_0_0_var(--sidebar-primary)]",
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium md:py-2 text-sidebar-foreground/80 outline-none transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+              active && "bg-sidebar-accent text-white shadow-[inset_3px_0_0_var(--sidebar-primary)]",
             )}
           >
             <Icon className="size-4 shrink-0" aria-hidden="true" />
-            <span className="hidden sm:inline">{label}</span>
-            <span className="sr-only sm:hidden">{label}</span>
+            {label}
           </Link>
         );
       })}

@@ -22,6 +22,8 @@ check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 app/
   layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
   SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Admins); active link via usePathname in Suspense;
+                        below md a top bar with a burger: MobileMenu (components/ui/sheet, slides in from the right) shows the
+                        same SessionNav pieces (account card, links, switch role, sign out) and closes on navigation;
                         the session menu is hidden on the public sign-in pages (HideOnPublicPages, PUBLIC_PATHS in lib/auth/roles.ts,
                         shared with the proxy) because the root layout stays mounted when an expired session redirects to /login
   ConfirmDeleteButton   trash icon + AlertDialog; takes a bound server action (+ optional note)
@@ -38,7 +40,7 @@ app/
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
+components/   ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
