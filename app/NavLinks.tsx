@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, GraduationCap, Home, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BookOpen, CalendarRange, GraduationCap, Home, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { href: "/subjects", label: "Subjects", icon: BookOpen },
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/batches", label: "Batches", icon: Layers },
+  { href: "/academic-semesters", label: "Semesters", icon: CalendarRange },
   { href: "/admins", label: "Admins", icon: ShieldCheck },
   { href: "/users", label: "Users", icon: UserCog },
 ];

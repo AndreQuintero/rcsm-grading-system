@@ -8,7 +8,6 @@ import { useSavedRedirect } from "@/components/use-saved-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SubjectMultiSelect } from "../../SubjectMultiSelect";
 import { updateTeacher } from "../actions";
 import { createTeacher, type TeacherFormState } from "./actions";
 
@@ -16,11 +15,9 @@ type Props = {
   teacherId?: number;
   hasPhoto?: boolean;
   initial?: Record<string, string>;
-  subjectOptions: { id: number; name: string }[];
-  initialSubjectIds?: number[];
 };
 
-export function TeacherForm({ teacherId, hasPhoto = false, initial = {}, subjectOptions, initialSubjectIds = [] }: Props) {
+export function TeacherForm({ teacherId, hasPhoto = false, initial = {} }: Props) {
   const saved = useSavedRedirect("/teachers");
   const [state, action, pending] = useActionState(async (prev: TeacherFormState, formData: FormData) => {
     const r = teacherId ? await updateTeacher(teacherId, prev, formData) : await createTeacher(prev, formData);
@@ -62,15 +59,6 @@ export function TeacherForm({ teacherId, hasPhoto = false, initial = {}, subject
             <Input id="email" name="email" type="email" defaultValue={v.email} required aria-invalid={Boolean(e.email) || undefined} />
             <FieldError message={e.email} />
           </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <SubjectMultiSelect
-            label="Subjects taught"
-            name="subjectIds"
-            options={subjectOptions}
-            defaultValue={initialSubjectIds}
-          />
-          <FieldError message={e.subjectIds} />
         </div>
       </FormCard>
     </form>
