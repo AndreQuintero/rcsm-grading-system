@@ -133,7 +133,17 @@ Always clean up and confirm real rows are unchanged.
 Never register or edit records on the live site.
 
 Network: the sandbox allowlists the Neon hosts (`ep-royal-hall-bd9gqks6-pooler...`, `api.c-8.us-east-2.aws.neon.tech`
-— the driver calls the `api.` host), `api.vercel.com` and `ui.shadcn.com`.
+— the driver calls the `api.` host), `api.vercel.com`, `ui.shadcn.com` and `api.emailjs.com`. Saving the
+environment in the Claude settings UI has dropped a host added by tool before: re-check the list if a host is refused.
+
+Email (EmailJS) troubleshooting — the app logs only the status (`EmailJS send failed with status N`) and writes
+`setup_email_sent` / `setup_email_failed` to `auth_audit`:
+- 400 "template ID not found": wrong `EMAILJS_TEMPLATE_ID`, or a template from another EmailJS account than the keys.
+- 412: the Gmail service in EmailJS lost its authorisation → EmailJS dashboard → Email Services → Reconnect.
+- The sandbox's env vars (Claude environment settings) load only when the session starts; edits made mid-session
+  are not visible here. Vercel has its own copies (Production/Preview/Development) — to test with those without
+  touching production, deploy the branch as a **preview** (`create_deployment` without `target`).
+- Never send real emails from tests: the test scripts use `EMAIL_TRANSPORT=outbox`.
 
 ## Migrations
 
