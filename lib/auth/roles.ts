@@ -4,6 +4,9 @@
 export const ROLES = ["admin", "teacher", "student"] as const;
 export type Role = (typeof ROLES)[number];
 
+// Pages that need no session (sign-in flow); the proxy lets them through and the menu is not shown on them.
+export const PUBLIC_PATHS = ["/login", "/set-password", "/forgot-password"];
+
 export const ROLE_HOME: Record<Role, string> = { admin: "/", teacher: "/teacher", student: "/student" };
 export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", teacher: "Teacher", student: "Student" };
 
