@@ -31,14 +31,6 @@ export function TeacherList({ teachers, period }: { teachers: DashboardTeacher[]
                   {t.subjects.length} subject{t.subjects.length === 1 ? "" : "s"} this semester
                 </span>
               </span>
-              <span className="hidden max-w-[45%] flex-wrap justify-end gap-1 md:flex">
-                {t.subjects.slice(0, 2).map((s) => (
-                  <span key={s} className="truncate rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">{s}</span>
-                ))}
-                {t.subjects.length > 2 && (
-                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">+{t.subjects.length - 2}</span>
-                )}
-              </span>
             </button>
           </li>
         ))}
