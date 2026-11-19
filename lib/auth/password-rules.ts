@@ -28,3 +28,6 @@ export function passwordStrength(password: string): { score: StrengthScore; labe
   const score = (PASSWORD_RULES.length - unmetRules(password).length) as StrengthScore;
   return { score, label: ["Very weak", "Very weak", "Weak", "Fair", "Good", "Strong"][score] };
 }
+
+// Sign-in accepts up to 128 characters: passwords set under the earlier 12-128 rule must keep working.
+export const LOGIN_PASSWORD_MAX = 128;

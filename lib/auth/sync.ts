@@ -11,7 +11,8 @@ const FOUND = `found AS (
 )`;
 
 // Makes users/user_roles match the role tables for one email, in one transaction. Idempotent.
-// - creates the user (no password yet) or updates the username from the highest-priority table;
+// - creates the user (no password yet) or updates the username from the highest-priority table — only until the
+//   first password is set; after that the username is the user's own (edited on /account);
 // - adds/removes user_roles so they match exactly; a removed role ends that user's sessions;
 // - an email found nowhere deactivates the user (row kept) and ends their sessions.
 export async function syncUserFromRoleTables(rawEmail: string): Promise<void> {
@@ -23,8 +24,10 @@ export async function syncUserFromRoleTables(rawEmail: string): Promise<void> {
       best AS (SELECT name FROM found ORDER BY prio LIMIT 1),
       up AS (
         INSERT INTO users (email, username) SELECT $1, name FROM best
-        ON CONFLICT (email) DO UPDATE SET username = EXCLUDED.username, is_active = true, updated_at = now()
-          WHERE users.username IS DISTINCT FROM EXCLUDED.username OR NOT users.is_active
+        ON CONFLICT (email) DO UPDATE SET
+          username = CASE WHEN users.password_hash IS NULL THEN EXCLUDED.username ELSE users.username END,
+          is_active = true, updated_at = now()
+          WHERE (users.password_hash IS NULL AND users.username IS DISTINCT FROM EXCLUDED.username) OR NOT users.is_active
         RETURNING id
       ),
       off AS (

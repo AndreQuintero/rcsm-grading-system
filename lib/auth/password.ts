@@ -1,8 +1,7 @@
 import argon2 from "argon2";
 import { unmetRules } from "@/lib/auth/password-rules";
 
-// Sign-in accepts up to 128 characters: passwords set under the earlier 12-128 rule must keep working.
-export const LOGIN_PASSWORD_MAX = 128;
+export { LOGIN_PASSWORD_MAX } from "@/lib/auth/password-rules";
 
 export const hashPassword = (password: string) => argon2.hash(password, { type: argon2.argon2id });
 
