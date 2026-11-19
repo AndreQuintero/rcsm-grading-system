@@ -3,12 +3,9 @@ import { parseIds } from "@/lib/teacher";
 
 export const BATCH_PAGE_SIZE = 10;
 
-// 1 -> "1st", 2 -> "2nd", 11 -> "11th", 23 -> "23rd"
-export function ordinal(n: number): string {
-  const teen = n % 100 >= 11 && n % 100 <= 13;
-  const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
-  return `${n}${suffix}`;
-}
+import { ordinal } from "@/lib/dates";
+
+export { ordinal };
 
 export const batchLabel = (b: { number: number; year: number; semester: number }) =>
   `${ordinal(b.number)} batch, ${b.year} – ${ordinal(b.semester)} semester`;

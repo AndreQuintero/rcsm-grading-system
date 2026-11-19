@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
+import { formatDate } from "@/lib/dates";
 import { Pager } from "@/components/pager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
             {teachers.map((t) => (
               <TableRow key={t.id}>
                 <TableCell className="pl-4 font-medium">{t.full_name}</TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">{t.dob}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{formatDate(t.dob)}</TableCell>
                 <TableCell className="text-muted-foreground">{t.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
