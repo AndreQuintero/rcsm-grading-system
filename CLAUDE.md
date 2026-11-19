@@ -1,7 +1,7 @@
 # RCSM Grading System — project guide
 
-Admin web app for **Revival Cry School of Ministry**: register and manage teachers, subjects, students and
-batches (intakes of students). Read `AGENTS.md` too: this is Next.js 16, which differs from older versions —
+Admin web app for **Revival Cry School of Ministry**: register and manage teachers, subjects, students,
+batches (intakes of students) and admins. Read `AGENTS.md` too: this is Next.js 16, which differs from older versions —
 check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 
 ## Stack
@@ -19,7 +19,7 @@ check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 ```
 app/
   layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
-  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches); active link via usePathname in Suspense
+  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Admins); active link via usePathname in Suspense
   ConfirmDeleteButton   trash icon + AlertDialog; takes a bound server action (+ optional note)
   EditLink              pencil icon link with tooltip
   SubjectMultiSelect    searchable multi-select (chips, keyboard) posting hidden inputs
@@ -30,7 +30,7 @@ app/
   students/[id]/photo/route.ts  serves the student photo bytes (stored in Postgres)
 components/   page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
-lib/          db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, subject.ts, student.ts (client-safe:
+lib/          db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -71,6 +71,10 @@ Conventions:
   exists; on edit only if the student has no batch and the enrollment date changed. An edit never moves a
   student out of a batch. The toast says what happened.
 
+- `admins`: full name, email (unique, lowercased), date of birth, `created_at` (registered) and `updated_at`
+  (last modified). `updated_at` has no trigger: `updateAdmin` sets it with `updated_at = now()`. Roles come later.
+  The list shows both timestamps in UTC; filters are name and email.
+
 ## Running checks in this sandbox
 
 Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does not.
@@ -97,7 +101,7 @@ Network: the sandbox allowlists the Neon hosts (`ep-royal-hall-bd9gqks6-pooler..
 Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; one transaction), update
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
-semester). Production uses the same database, so a migration is live immediately — note it in the PR.
+semester), 006 admins. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
 
@@ -112,8 +116,9 @@ semester). Production uses the same database, so a migration is live immediately
 
 ## Working with the user
 
-- Show results: the user often asks for screenshots — take them with Playwright at deviceScaleFactor 2,
-  review them, and send with SendUserFile. Say clearly when screenshots contain temporary test data.
+- Screenshots: send them only for **major** features (the user said not every feature needs one). When you do,
+  take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
+  they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
 - Open items: the app has no authentication (personal data: birth dates, photos); `develop` does not
   auto-deploy to production.
