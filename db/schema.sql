@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS password_setup_tokens (
   id serial PRIMARY KEY,
   user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash text NOT NULL,
+  purpose text NOT NULL DEFAULT 'setup' CHECK (purpose IN ('setup', 'reset')), -- reset may replace a password
   expires_at timestamptz NOT NULL,
   used_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()

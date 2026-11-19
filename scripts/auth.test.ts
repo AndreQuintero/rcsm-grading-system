@@ -11,7 +11,7 @@ import { passwordStrength } from "../lib/auth/password-rules";
 import { checkSetupToken, consumeSetupToken, issueSetupToken, setupLink } from "../lib/auth/tokens";
 import { hit } from "../lib/auth/rate-limit";
 import { changeActiveRole, lookupSession } from "../lib/auth/session";
-import { startFirstSignIn } from "../lib/auth/first-sign-in";
+import { startFirstSignIn, startPasswordReset } from "../lib/auth/first-sign-in";
 import { highestRole, requiredRole, safeNext } from "../lib/auth/roles";
 import { createHash } from "node:crypto";
 
@@ -176,6 +176,7 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
     const mails = sentTo(first);
     assert.equal(mails.length, 1);
     assert.equal(mails[0].name, "First Login");
+    assert.equal(mails[0].subject, "First Login RCSM");
     assert.ok(mails[0].link.startsWith("https://app.example.test/set-password?token="), mails[0].link);
     assert.equal(setupLink("x").startsWith("https://app.example.test/"), true);
     // daily cap: 5 per day
@@ -224,6 +225,33 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
     const another = (await issueSetupToken(fu.id))!;
     assert.equal(await consumeSetupToken(another, await hashPassword("another long passphrase")), false);
     console.log("ok  12. password set -> no longer first login (no email, tokens can't overwrite it)");
+
+    // ---- forgotten password: a reset link (own subject) may replace the password, once
+    await sql`UPDATE password_setup_tokens SET created_at = now() - interval '2 days' WHERE user_id = ${fu.id}`;
+    await sql`UPDATE users SET failed_login_count = 4, locked_until = now() + interval '10 minutes' WHERE id = ${fu.id}`;
+    assert.equal(await startPasswordReset(first), "sent");
+    const resetMail = sentTo(first).at(-1);
+    assert.equal(resetMail.subject, "Reset password - RCSM");
+    assert.ok(resetMail.link.startsWith("https://app.example.test/set-password?token="));
+    const resetToken = new URL(resetMail.link).searchParams.get("token")!;
+    assert.equal((await sql`SELECT purpose FROM password_setup_tokens WHERE id = ${Number(resetToken.split(".")[0])}`)[0].purpose, "reset");
+    assert.equal(await startPasswordReset(first), "none", "same 5-minute cooldown as first sign-in emails");
+    const sReset = await newSession(fu.id, "admin");
+    assert.equal(await consumeSetupToken(resetToken, await hashPassword("New#Pass9x")), true);
+    const afterReset = await user(first);
+    assert.equal(await verifyPassword(afterReset.password_hash, "New#Pass9x"), true);
+    assert.equal(await verifyPassword(afterReset.password_hash, "correct horse battery staple"), false, "old password gone");
+    assert.equal(await lookupSession(sReset), null, "resetting ends existing sessions");
+    const [unlocked] = await sql`SELECT failed_login_count, locked_until FROM users WHERE id = ${fu.id}`;
+    assert.deepEqual([unlocked.failed_login_count, unlocked.locked_until], [0, null], "reset clears a lockout");
+    assert.equal(await consumeSetupToken(resetToken, await hashPassword("Other#Pass9x")), false, "reset link is single use");
+    // someone who never set a password gets the first sign-in email from this flow too; unknown emails get nothing
+    const never = `never.set${D}`;
+    await teacher("Never Set", never);
+    assert.equal(await startPasswordReset(never), "sent");
+    assert.equal(sentTo(never).at(-1).subject, "First Login RCSM");
+    assert.equal(await startPasswordReset(`nobody.reset${D}`), "none");
+    console.log("ok  forgot password: 'Reset password - RCSM' link replaces the password once, ends sessions, unlocks; first-login subject otherwise");
 
     // ---- 14 (counter part). 5 attempts per 15 minutes per key, then refused; window resets
     const key = `password:email:limit${D}`;

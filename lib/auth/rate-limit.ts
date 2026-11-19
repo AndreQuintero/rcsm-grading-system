@@ -16,7 +16,7 @@ export async function hit(key: string, max = RATE_MAX, windowMinutes = RATE_WIND
 }
 
 // Both the IP and the email are counted on every attempt; either one over the limit blocks.
-export async function allowAttempt(step: "email" | "password", ip: string, email: string): Promise<boolean> {
+export async function allowAttempt(step: "email" | "password" | "forgot", ip: string, email: string): Promise<boolean> {
   const [byIp, byEmail] = await Promise.all([hit(`${step}:ip:${ip}`), hit(`${step}:email:${email}`)]);
   return byIp && byEmail;
 }

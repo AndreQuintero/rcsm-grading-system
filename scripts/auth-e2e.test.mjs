@@ -134,6 +134,7 @@ const userId = async (email) => (await sql`SELECT id FROM users WHERE email = ${
     }
     assert.equal((await anon.get("/login")).status(), 200);
     assert.equal((await anon.get("/set-password?token=abc")).status(), 200);
+    assert.equal((await anon.get("/forgot-password")).status(), 200);
     assert.equal((await anon.get("/icon.png")).status(), 200);
     const h = (await anon.get("/login")).headers();
     assert.match(h["content-security-policy"], /frame-ancestors 'none'/);
@@ -155,6 +156,7 @@ const userId = async (email) => (await sql`SELECT id FROM users WHERE email = ${
 
     // ---- 2. exactly one setup email for the first-login account; a repeat within 5 minutes sends nothing
     assert.equal((await waitForMails(E("first"), 1)).length, 1);
+    assert.equal(mails(E("first"))[0].subject, "First Login RCSM");
     assert.equal(mails(E("haspw")).length + mails(E("unknown")).length, 0, "no email for unknown or has-password");
     const again = await stepEmail(browser, E("first"));
     await again.ctx.close();
@@ -350,6 +352,43 @@ const userId = async (email) => (await sql`SELECT id FROM users WHERE email = ${
     await ok14.ctx.close();
     assert.equal((await sql`SELECT failed_login_count FROM users WHERE id = ${lockId}`)[0].failed_login_count, 0);
     ok("14. per-IP limit after 5 (same answer), 5 wrong passwords -> 15-min lock (same message, audited), per-email limit, unlock resets the count");
+
+    // ---- forgotten password: link on the login page, same answer for every email, reset email, new password works
+    const fp = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": freshIp() } });
+    const fpp = await fp.newPage();
+    await fpp.goto(`${B}/login`);
+    await fpp.getByRole("link", { name: "I forgot my password" }).click();
+    await fpp.waitForURL(`${B}/forgot-password`);
+    const forgot = async (email) => {
+      await fpp.goto(`${B}/forgot-password`);
+      await fpp.fill("#email", email);
+      const [res] = await Promise.all([
+        fpp.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/forgot-password"),
+        fpp.click("button[type=submit]"),
+      ]);
+      await fpp.getByText("If this email is registered").waitFor();
+      return { status: res.status(), body: normalise(await res.text(), email), text: normalise(await fpp.locator("main").innerText(), email) };
+    };
+    const fr = [await forgot(E("nobody.forgot")), await forgot(E("haspw"))];
+    assert.deepEqual(fr[1], fr[0], "unknown and registered emails get the same answer");
+    const [resetMail] = await waitForMails(E("haspw"), 1);
+    assert.equal(resetMail.subject, "Reset password - RCSM");
+    assert.equal(mails(E("nobody.forgot")).length, 0);
+    const resetUrl = new URL(resetMail.link);
+    await fpp.goto(`${B}${resetUrl.pathname}${resetUrl.search}`);
+    await fpp.fill("#password", "Reset#Pass7");
+    await fpp.fill("#confirmPassword", "Reset#Pass7");
+    await fpp.click("button[type=submit]");
+    await fpp.waitForURL(/\/login\?set=1$/);
+    await fp.close();
+    const oldPw = await stepEmail(browser, E("haspw"));
+    await stepPassword(oldPw.page, PASSWORD);
+    await oldPw.page.getByText("Invalid email or password.").waitFor();
+    await oldPw.ctx.close();
+    const newPw = await login(browser, E("haspw"), "Reset#Pass7");
+    await newPw.page.waitForURL(`${B}/teacher`);
+    await newPw.ctx.close();
+    ok("forgot password: link on login, identical answer for unknown/registered, 'Reset password - RCSM' email, old password refused, new one signs in");
 
     console.log("all auth e2e checks passed");
   } finally {

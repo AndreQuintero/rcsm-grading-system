@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useActionState } from "react";
 import { FieldError } from "@/components/form-message";
 import { PasswordInput } from "@/components/password-input";
@@ -68,6 +69,9 @@ export function LoginForm({ next, passwordSet }: { next: string; passwordSet: bo
           <Button type="submit" size="lg" disabled={pending}>
             {state.step === "email" ? (pending ? "Checking…" : "Continue") : pending ? "Signing in…" : "Sign in"}
           </Button>
+          <Link href="/forgot-password" className="text-center text-sm font-medium text-primary underline-offset-4 hover:underline">
+            I forgot my password
+          </Link>
         </form>
       </CardContent>
     </Card>
