@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { FormCard } from "@/components/form-card";
-import { FieldError, SuccessMessage } from "@/components/form-message";
+import { FieldError } from "@/components/form-message";
+import { useSavedRedirect } from "@/components/use-saved-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,11 +19,10 @@ type Props = {
 };
 
 export function TeacherForm({ teacherId, initial = {}, subjectOptions, initialSubjectIds = [] }: Props) {
-  // Bumped after a successful registration to remount (clear) the subject picker.
-  const [pickerKey, setPickerKey] = useState(0);
+  const saved = useSavedRedirect("/teachers");
   const [state, action, pending] = useActionState(async (prev: TeacherFormState, formData: FormData) => {
     const r = teacherId ? await updateTeacher(teacherId, prev, formData) : await createTeacher(prev, formData);
-    if (!teacherId && !r.errors) setPickerKey((k) => k + 1);
+    if (!r.errors) saved(r.message);
     return r;
   }, { values: initial });
   const v = state.values ?? initial;
@@ -38,7 +38,6 @@ export function TeacherForm({ teacherId, initial = {}, subjectOptions, initialSu
                 ? pending ? "Saving…" : "Save changes"
                 : pending ? "Registering…" : "Register teacher"}
             </Button>
-            <SuccessMessage message={state.message} />
           </>
         }
       >
@@ -62,7 +61,6 @@ export function TeacherForm({ teacherId, initial = {}, subjectOptions, initialSu
         </div>
         <div className="flex flex-col gap-2">
           <SubjectMultiSelect
-            key={pickerKey}
             label="Subjects taught"
             name="subjectIds"
             options={subjectOptions}

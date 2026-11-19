@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
-// Form body in a card with a footer bar for the submit button and its result message.
+// Form body in a card with a footer bar for the submit button.
 export function FormCard({ children, footer }: { children: ReactNode; footer: ReactNode }) {
   return (
     <Card className="max-w-3xl overflow-visible [--card-spacing:--spacing(6)]">

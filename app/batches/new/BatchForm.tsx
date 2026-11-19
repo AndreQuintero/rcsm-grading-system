@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { FormCard } from "@/components/form-card";
-import { FieldError, SuccessMessage } from "@/components/form-message";
+import { FieldError } from "@/components/form-message";
+import { useSavedRedirect } from "@/components/use-saved-redirect";
 import { GenericAvatar } from "@/components/generic-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,10 @@ const SEMESTERS = [
 
 // Registers a batch, or edits one when batchId is given.
 export function BatchForm({ batchId, initial = {}, students }: Props) {
-  // Bumped after a successful registration to remount (clear) the student cards and their count.
-  const [cardsKey, setCardsKey] = useState(0);
+  const saved = useSavedRedirect("/batches");
   const [state, action, pending] = useActionState(async (prev: BatchFormState, formData: FormData) => {
     const r = batchId ? await updateBatchAction(batchId, prev, formData) : await createBatchAction(prev, formData);
-    if (!batchId && !r.errors) setCardsKey((k) => k + 1);
+    if (!r.errors) saved(r.message);
     return r;
   }, { values: initial });
   const v = state.values ?? initial;
@@ -45,7 +45,6 @@ export function BatchForm({ batchId, initial = {}, students }: Props) {
                 ? pending ? "Saving…" : "Save changes"
                 : pending ? "Registering…" : "Register batch"}
             </Button>
-            <SuccessMessage message={state.message} />
           </>
         }
       >
@@ -79,7 +78,7 @@ export function BatchForm({ batchId, initial = {}, students }: Props) {
           </fieldset>
         </div>
 
-        <StudentCards key={cardsKey} students={students} selected={selected} />
+        <StudentCards students={students} selected={selected} />
         <FieldError message={e.studentIds} />
       </FormCard>
     </form>
