@@ -1,6 +1,7 @@
 import { sql } from "@/lib/db";
 import { syncUserFromRoleTables } from "@/lib/auth/sync";
 import { autoBatchNote, batchPeriod } from "@/lib/batch";
+import { photoBase64 } from "@/lib/photo";
 import { parseStudent, studentDbError, studentValues } from "@/lib/student";
 
 export type StudentFormState = {
@@ -40,7 +41,7 @@ export async function insertStudent(formData: FormData): Promise<StudentFormStat
   if (!parsed.data) return { errors: parsed.errors, values: studentValues(formData) };
 
   const { firstName, middleName, lastName, email, dateOfBirth, status, enrollmentDate, photo } = parsed.data;
-  const photoB64 = photo ? Buffer.from(await photo.arrayBuffer()).toString("base64") : null;
+  const photoB64 = await photoBase64(photo);
   const period = batchPeriod(enrollmentDate);
   // One statement: the student joins the batch for their enrollment year and semester when one exists
   // (a year and semester has at most one batch, and the status does not matter); otherwise batch_id stays empty.

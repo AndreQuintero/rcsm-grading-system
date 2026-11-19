@@ -1,4 +1,7 @@
 import { isRealDate, todayIso } from "@/lib/dates";
+import { parsePhoto, PHOTO_MAX_BYTES } from "@/lib/photo";
+
+export { PHOTO_MAX_BYTES };
 
 export const STATUSES = {
   audit: "Audit",
@@ -6,9 +9,6 @@ export const STATUSES = {
   inactive: "Inactive",
 } as const;
 export type Status = keyof typeof STATUSES;
-
-export const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export type StudentInput = {
   firstName: string;
@@ -35,8 +35,7 @@ export function parseStudent(formData: FormData): StudentParse {
   const dateOfBirth = text("dateOfBirth");
   const status = text("status");
   const enrollmentDate = text("enrollmentDate");
-  const photo = formData.get("photo");
-  const hasPhoto = photo instanceof File && photo.size > 0;
+  const { photo, error: photoError } = parsePhoto(formData);
 
   const errors: Record<string, string> = {};
   if (!firstName) errors.firstName = "First name is required.";
@@ -48,10 +47,7 @@ export function parseStudent(formData: FormData): StudentParse {
   if (!(status in STATUSES)) errors.status = "Choose a status.";
   if (!enrollmentDate) errors.enrollmentDate = "Enrollment date is required.";
   else if (!isRealDate(enrollmentDate)) errors.enrollmentDate = "Enter a valid enrollment date.";
-  if (hasPhoto) {
-    if (!PHOTO_TYPES.includes(photo.type)) errors.photo = "The photo must be a JPEG, PNG or WebP image.";
-    else if (photo.size > PHOTO_MAX_BYTES) errors.photo = "The photo must be 2 MB or smaller.";
-  }
+  if (photoError) errors.photo = photoError;
 
   if (Object.keys(errors).length) return { errors };
   return {
@@ -63,7 +59,7 @@ export function parseStudent(formData: FormData): StudentParse {
       dateOfBirth,
       status: status as Status,
       enrollmentDate,
-      photo: hasPhoto ? photo : null,
+      photo,
     },
   };
 }

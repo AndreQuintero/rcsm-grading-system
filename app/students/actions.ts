@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { autoBatchNote, batchPeriod } from "@/lib/batch";
 import { requireRole } from "@/lib/auth/session";
 import { syncUserFromRoleTables } from "@/lib/auth/sync";
+import { photoUpdate } from "@/lib/photo";
 import { parseStudent, studentDbError, studentValues } from "@/lib/student";
 import type { StudentFormState } from "@/lib/student-queries";
 
@@ -16,8 +17,7 @@ export async function updateStudent(id: number, _prev: StudentFormState, formDat
 
   const { firstName, middleName, lastName, email, dateOfBirth, status, enrollmentDate, photo } = parsed.data;
   // A new photo replaces the stored one; "remove" clears it; otherwise the stored photo is kept.
-  const replacePhoto = Boolean(photo) || formData.get("removePhoto") === "on";
-  const photoB64 = photo ? Buffer.from(await photo.arrayBuffer()).toString("base64") : null;
+  const p = await photoUpdate(formData, photo);
   const period = batchPeriod(enrollmentDate);
   // The batch is only filled in automatically for a student who has none yet, whose enrollment date
   // changed; a student already in a batch is never moved by an edit.
@@ -30,8 +30,8 @@ export async function updateStudent(id: number, _prev: StudentFormState, formDat
       UPDATE students SET
         first_name = ${firstName}, middle_name = ${middleName}, last_name = ${lastName}, email = ${email},
         date_of_birth = ${dateOfBirth}, status = ${status}, enrollment_date = ${enrollmentDate},
-        photo = CASE WHEN ${replacePhoto}::boolean THEN decode(${photoB64}::text, 'base64') ELSE photo END,
-        photo_type = CASE WHEN ${replacePhoto}::boolean THEN ${photo?.type ?? null}::text ELSE photo_type END,
+        photo = CASE WHEN ${p.replace}::boolean THEN decode(${p.b64}::text, 'base64') ELSE photo END,
+        photo_type = CASE WHEN ${p.replace}::boolean THEN ${p.type}::text ELSE photo_type END,
         batch_id = CASE
           WHEN (SELECT batch_id FROM old) IS NULL
             AND (SELECT enrollment_date FROM old) IS DISTINCT FROM ${enrollmentDate}::date

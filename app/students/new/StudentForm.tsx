@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { STATUSES } from "@/lib/student";
 import { updateStudent } from "../actions";
-import { PhotoPicker } from "../PhotoPicker";
+import { PhotoPicker } from "@/components/photo-picker";
 import { createStudent, type StudentFormState } from "./actions";
 
 type Props = { studentId?: number; hasPhoto?: boolean; initial?: Record<string, string> };

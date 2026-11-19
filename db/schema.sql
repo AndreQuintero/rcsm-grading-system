@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS teachers (
   full_name text NOT NULL,
   date_of_birth date NOT NULL,
   email text NOT NULL UNIQUE,
+  photo bytea,
+  photo_type text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -58,6 +60,8 @@ CREATE TABLE IF NOT EXISTS admins (
   full_name text NOT NULL,
   email text NOT NULL UNIQUE,
   date_of_birth date NOT NULL,
+  photo bytea,
+  photo_type text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

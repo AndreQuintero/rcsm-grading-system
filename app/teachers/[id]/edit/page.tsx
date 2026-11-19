@@ -9,7 +9,7 @@ import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Full name", "Date of birth", "Email", "Subjects taught"]} /></main>}>
+    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Full name", "Date of birth", "Email", "Subjects taught"]} photo /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -29,6 +29,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
       <PageHeader title="Edit teacher" description={`Update ${t.full_name}’s details and subjects.`} action={<BackLink href="/teachers" label="Back to teachers" />} />
       <TeacherForm
         teacherId={n}
+        hasPhoto={t.has_photo as boolean}
         initial={{ fullName: t.full_name, dateOfBirth: t.dob, email: t.email }}
         subjectOptions={subjects}
         initialSubjectIds={t.subject_ids as number[]}

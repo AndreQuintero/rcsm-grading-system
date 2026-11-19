@@ -13,7 +13,7 @@ export default function Page() {
   return (
     <main className="mx-auto max-w-3xl">
       <PageHeader title="Register teacher" description="Add a teacher and choose the subjects they teach." action={<BackLink href="/teachers" label="Back to teachers" />} />
-      <Suspense fallback={<FormSkeleton fields={["Full name", "Date of birth", "Email", "Subjects taught"]} />}>
+      <Suspense fallback={<FormSkeleton fields={["Full name", "Date of birth", "Email", "Subjects taught"]} photo />}>
         <NewTeacher />
       </Suspense>
     </main>

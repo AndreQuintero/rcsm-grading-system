@@ -8,7 +8,7 @@ import { AdminForm } from "../../new/AdminForm";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Full name", "Email", "Date of birth"]} /></main>}>
+    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Full name", "Email", "Date of birth"]} photo /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -23,7 +23,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto max-w-3xl">
       <PageHeader title="Edit admin" description={`Update ${a.full_name}’s details.`} action={<BackLink href="/admins" label="Back to admins" />} />
-      <AdminForm adminId={n} initial={{ fullName: a.full_name, dateOfBirth: a.dob, email: a.email }} />
+      <AdminForm adminId={n} hasPhoto={a.has_photo as boolean} initial={{ fullName: a.full_name, dateOfBirth: a.dob, email: a.email }} />
     </main>
   );
 }

@@ -34,7 +34,7 @@ export function PhotoPicker({ existingUrl }: { existingUrl?: string | null }) {
         >
           <span className="block size-full overflow-hidden rounded-full">
             {src ? (
-              <Image src={src} alt="Student photo preview" width={112} height={112} unoptimized className="size-full object-cover" />
+              <Image src={src} alt="Photo preview" width={112} height={112} unoptimized className="size-full object-cover" />
             ) : (
               <GenericAvatar />
             )}
