@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { getAdmin, listAdmins, parseAdmin } from "../lib/admin";
-import { createAdmin } from "../app/admins/new/actions";
+import { getAdmin, insertAdmin, listAdmins, parseAdmin } from "../lib/admin";
 import { formatDate } from "../lib/dates";
 
 const fd = (o: Record<string, string>) => {
@@ -10,7 +9,10 @@ const fd = (o: Record<string, string>) => {
   return f;
 };
 const base = { fullName: " Ada Admin ", dateOfBirth: "1990-05-01", email: "Ada@AdmTest.example.com" };
-const cleanup = () => sql`DELETE FROM admins WHERE email LIKE '%@admtest.example.com'`;
+const cleanup = async () => {
+  await sql`DELETE FROM admins WHERE email LIKE '%@admtest.example.com'`;
+  await sql`DELETE FROM users WHERE email LIKE '%@admtest.example.com'`;
+};
 
 (async () => {
   await cleanup();
@@ -23,8 +25,8 @@ const cleanup = () => sql`DELETE FROM admins WHERE email LIKE '%@admtest.example
     assert.ok(parseAdmin(fd({ ...base, email: "nope" })).errors?.email);
 
     // create, timestamps set, duplicate email refused
-    assert.equal((await createAdmin({}, fd(base))).message, "Registered Ada Admin.");
-    assert.match((await createAdmin({}, fd(base))).errors?.email ?? "", /already registered/);
+    assert.equal((await insertAdmin(fd(base))).message, "Registered Ada Admin.");
+    assert.match((await insertAdmin(fd(base))).errors?.email ?? "", /already registered/);
     const [row] = await sql`SELECT id, created_at = updated_at AS same FROM admins WHERE email = 'ada@admtest.example.com'`;
     assert.equal(row.same, true);
     const id = row.id as number;

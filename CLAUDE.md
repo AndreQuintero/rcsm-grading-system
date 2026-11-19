@@ -11,7 +11,9 @@ check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 - React 19, TypeScript, Tailwind CSS v4, shadcn/ui (style "radix-nova", Radix primitives, `lucide-react` icons,
   `sonner` toasts). The shadcn class merger is the `cn` package (`lib/utils.ts` re-exports it).
 - Postgres on Neon via `@neondatabase/serverless` (HTTP driver, tagged-template `sql` in `lib/db.ts`).
-  `DATABASE_URL` is the only env var. **The sandbox and production share the same database.**
+  **The sandbox and production share the same database.**
+- Env vars (see `.env.example`): `DATABASE_URL`, `APP_BASE_URL` (setup links are built from it, never from the request),
+  `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_PUBLIC_KEY`, `EMAILJS_PRIVATE_KEY` (template params: email, link, name).
 - Hosted on Vercel (team `andre-quintero-projects`, project `rcsm-grading-system`).
 
 ## Layout
@@ -28,8 +30,12 @@ app/
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
   students/[id]/photo/route.ts  serves the student photo bytes (stored in Postgres)
+  login/, set-password/ public sign-in pages (two-step login; first-password form); account/actions.ts switchRole + logout
+  teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
+proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
+lib/auth/     roles (client-safe), sync, session, password (Argon2id), tokens, rate-limit, email (EmailJS), audit, first-sign-in
 lib/          db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
@@ -47,7 +53,13 @@ Conventions:
 - List filters are GET forms keyed on the active filters (`key={pageHref(1)}`) so "Clear filters" resets inputs.
 - Lists are 10 per page using `count(*) OVER()` for the total.
 - Update/delete actions call `revalidatePath`; create actions do not (so scripts can call them directly).
-- Every export from a `"use server"` file becomes an endpoint — keep plain helpers in `lib/`.
+- Every export from a `"use server"` file becomes an endpoint — keep plain helpers in `lib/`. **Any action can be posted
+  to any path**, so every action starts with `await requireRole("admin")` (or its role); route handlers check
+  `getSession()` too. The proxy alone is not enough.
+- Create logic lives in `lib/*` (`insertTeacher`, `insertAdmin`, `insertStudent`, `insertSubjects`); the `"use server"`
+  action = `requireRole` + that function, so scripts can call the lib function directly.
+- Writes to `admins`/`teachers`/`students` call `syncUserFromRoleTables(email)` afterwards (old and new email on an
+  email change, `RETURNING email` on delete).
 - Design: palette from the logo (charcoal `#2b2e33` sidebar, flame blue `#2e63cf` primary, paper `#f4f6f9`),
   Zilla Slab headings (`font-heading`), Geist body. Light mode only. Full time badge green, audit blue,
   inactive grey. Table headers sentence case, icon actions with tooltips.
@@ -75,6 +87,26 @@ Conventions:
   (last modified). `updated_at` has no trigger: `updateAdmin` sets it with `updated_at = now()`. Roles come later.
   The list shows both timestamps in UTC; filters are name and email.
 
+- `students.email`: required by the form, nullable in the DB (older rows), unique on `lower(email)`.
+
+### Sign-in (invite-only; see `lib/auth/`)
+- People exist only in the role tables. `users` (one per email, `password_hash` NULL = first sign-in pending) and
+  `user_roles` (role + `profile_id`, not a real FK) mirror them via `syncUserFromRoleTables` (idempotent, one
+  transaction): username from the highest role (admin > teacher > student; students = first middle last); removed
+  role or email gone everywhere → role row deleted / user inactive and their sessions deleted.
+- `/login` step 1 always answers the same; sync + setup email run in `after()`. Step 2 errors are always
+  "Invalid email or password." (dummy Argon2 verify when no user). 5 failures → lock 15 min, doubling.
+- Rate limits: 5 per 15 min per IP and per email for each step (`auth_rate_limits`); setup emails 1 per 5 min and
+  5 per day (counted from `password_setup_tokens`). IP = first `x-forwarded-for` (trusted only behind Vercel).
+- Tokens: `<id>.<32-byte secret>`, SHA-256 stored, 60 min, single use, newer supersedes older; GET `/set-password`
+  never touches the DB, the POST consumes it. No auto-login after setting a password.
+- Sessions: `sessions` table (id = SHA-256 of the cookie `rcsm_session`), roles re-read every request; idle 30 min /
+  absolute 12 h, or 15 min / 8 h when the user holds admin. Role homes: admin `/`, teacher `/teacher`, student `/student`.
+- `auth_audit` logs events (never passwords, tokens or links). Security headers + CSP are in `next.config.ts`.
+- First admin / repair: `scripts/seed-admin.ts --name … --email … --dob …`; `scripts/backfill-users.ts` re-syncs all.
+  **Editing `admins`/`teachers`/`students` directly in SQL skips the sync** (e.g. a changed email leaves the old
+  account active): run `scripts/backfill-users.ts` afterwards.
+
 ## Running checks in this sandbox
 
 Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does not.
@@ -83,25 +115,43 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `students`, `teachers`, `subjects` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `students`, `teachers`, `subjects`, `admins`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
+
+```bash
+NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_PATH=$(npm root -g) NO_PROXY=localhost,127.0.0.1 no_proxy=localhost,127.0.0.1 node scripts/auth-e2e.test.mjs
+```
 `npm run build` and `npm run lint` must pass (the build type-checks `scripts/` too). For browser checks, run
 `npx next start -p 3100` with the same env prefix and drive it with Playwright (installed globally); stop it
 with `pkill -f next-server` (killing `npx` alone leaves the server running).
 
 **Test data rules (shared database with real data):** test batches use years **2085–2100** and are cleaned with
 `DELETE FROM batches WHERE year >= 2085`; test students use recognisable last names and enrollment dates in
-those years, so they never auto-join a real batch. Always clean up and confirm real rows are unchanged.
+those years, so they never auto-join a real batch. Test people use `@…test.example.com` emails (`@authtest`,
+`@tchtest`, `@admtest`, `@stutest`); clean up their `users` and `auth_audit` rows too (the sync creates them).
+Always clean up and confirm real rows are unchanged.
 Never register or edit records on the live site.
 
 Network: the sandbox allowlists the Neon hosts (`ep-royal-hall-bd9gqks6-pooler...`, `api.c-8.us-east-2.aws.neon.tech`
-— the driver calls the `api.` host), `api.vercel.com` and `ui.shadcn.com`.
+— the driver calls the `api.` host), `api.vercel.com`, `ui.shadcn.com` and `api.emailjs.com`. Saving the
+environment in the Claude settings UI has dropped a host added by tool before: re-check the list if a host is refused.
+
+Email (EmailJS) troubleshooting — the app logs only the status (`EmailJS send failed with status N`) and writes
+`setup_email_sent` / `setup_email_failed` to `auth_audit`:
+- 400 "template ID not found": wrong `EMAILJS_TEMPLATE_ID`, or a template from another EmailJS account than the keys.
+- 412: the Gmail service in EmailJS lost its authorisation → EmailJS dashboard → Email Services → Reconnect.
+- The sandbox's env vars (Claude environment settings) load only when the session starts; edits made mid-session
+  are not visible here. Vercel has its own copies (Production/Preview/Development) — to test with those without
+  touching production, deploy the branch as a **preview** (`create_deployment` without `target`).
+- Never send real emails from tests: the test scripts use `EMAIL_TRANSPORT=outbox`.
 
 ## Migrations
 
 Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; one transaction), update
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
-semester), 006 admins. Production uses the same database, so a migration is live immediately — note it in the PR.
+semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
+`scripts/backfill-users.ts`). Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
 
@@ -120,7 +170,7 @@ semester), 006 admins. Production uses the same database, so a migration is live
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: the app has no authentication (personal data: birth dates, photos); `develop` does not
-  auto-deploy to production.
+- Open items: teacher/student areas are placeholders; `develop` does not auto-deploy to production; production needs
+  `APP_BASE_URL` and the EmailJS vars before the sign-in deploy, or nobody can get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.

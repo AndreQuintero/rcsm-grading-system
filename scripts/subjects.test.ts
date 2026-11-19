@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { createSubjects } from "../app/subjects/new/actions";
-import { getSubject, listSubjectPage } from "../lib/subject";
+import { getSubject, insertSubjects as createSubjects, listSubjectPage } from "../lib/subject";
 
 (async () => {
   await sql`DELETE FROM subjects WHERE name LIKE 'TestSubj %'`;

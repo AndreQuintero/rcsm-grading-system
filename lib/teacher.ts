@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { isRealDate, todayIso } from "@/lib/dates";
+import { syncUserFromRoleTables } from "@/lib/auth/sync";
 
 export type TeacherInput = {
   fullName: string;
@@ -90,4 +91,33 @@ export async function listTeachers({
     ORDER BY t.full_name, t.id
     LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`;
   return { teachers: rows, total: rows.length ? Number(rows[0].total) : 0 };
+}
+
+export type TeacherFormState = {
+  errors?: Record<string, string>;
+  message?: string;
+  values?: Record<string, string>;
+};
+
+// Registers a teacher with their subjects, then gives them a sign-in account (users/user_roles).
+// The "use server" action wraps this with the admin check; self-check scripts call it directly.
+export async function insertTeacher(formData: FormData): Promise<TeacherFormState> {
+  const parsed = parseTeacher(formData);
+  if (!parsed.data) return { errors: parsed.errors, values: formValues(formData) };
+
+  const { fullName, dateOfBirth, email, subjectIds } = parsed.data;
+  try {
+    // One statement, so the teacher and its subject links are saved together or not at all.
+    await sql`
+      WITH t AS (
+        INSERT INTO teachers (full_name, date_of_birth, email)
+        VALUES (${fullName}, ${dateOfBirth}, ${email}) RETURNING id
+      )
+      INSERT INTO teacher_subjects (teacher_id, subject_id)
+      SELECT t.id, unnest(${subjectIds}::int[]) FROM t`;
+  } catch (e) {
+    return { errors: teacherDbError(e), values: formValues(formData) };
+  }
+  await syncUserFromRoleTables(email);
+  return { message: `Registered ${fullName}.` };
 }
