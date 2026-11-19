@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { isRealDate, todayIso } from "@/lib/dates";
+import { parsePhoto, photoBase64 } from "@/lib/photo";
 import { syncUserFromRoleTables } from "@/lib/auth/sync";
 
 export type TeacherInput = {
@@ -7,6 +8,7 @@ export type TeacherInput = {
   dateOfBirth: string;
   email: string;
   subjectIds: number[];
+  photo: File | null;
 };
 
 export type TeacherParse =
@@ -25,7 +27,10 @@ export function parseTeacher(formData: FormData): TeacherParse {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const subjectIds = parseIds(formData.getAll("subjectIds"));
 
+  const { photo, error: photoError } = parsePhoto(formData);
+
   const errors: Record<string, string> = {};
+  if (photoError) errors.photo = photoError;
   const today = todayIso();
   if (!fullName) errors.fullName = "Full name is required.";
   if (!isRealDate(dateOfBirth))
@@ -35,7 +40,7 @@ export function parseTeacher(formData: FormData): TeacherParse {
   if (subjectIds.length === 0) errors.subjectIds = "Choose at least one subject.";
 
   if (Object.keys(errors).length) return { errors };
-  return { data: { fullName, dateOfBirth, email, subjectIds } };
+  return { data: { fullName, dateOfBirth, email, subjectIds, photo } };
 }
 
 // Raw text fields, used to re-fill the form after a validation error (the subject picker keeps its own state).
@@ -53,7 +58,7 @@ export function teacherDbError(e: unknown): Record<string, string> {
 
 export async function getTeacher(id: number) {
   const [t] = await sql`
-    SELECT t.id, t.full_name, t.date_of_birth::text AS dob, t.email,
+    SELECT t.id, t.full_name, t.date_of_birth::text AS dob, t.email, t.photo IS NOT NULL AS has_photo,
       COALESCE(array_agg(ts.subject_id) FILTER (WHERE ts.subject_id IS NOT NULL), '{}') AS subject_ids
     FROM teachers t
     LEFT JOIN teacher_subjects ts ON ts.teacher_id = t.id
@@ -105,13 +110,14 @@ export async function insertTeacher(formData: FormData): Promise<TeacherFormStat
   const parsed = parseTeacher(formData);
   if (!parsed.data) return { errors: parsed.errors, values: formValues(formData) };
 
-  const { fullName, dateOfBirth, email, subjectIds } = parsed.data;
+  const { fullName, dateOfBirth, email, subjectIds, photo } = parsed.data;
+  const photoB64 = await photoBase64(photo);
   try {
     // One statement, so the teacher and its subject links are saved together or not at all.
     await sql`
       WITH t AS (
-        INSERT INTO teachers (full_name, date_of_birth, email)
-        VALUES (${fullName}, ${dateOfBirth}, ${email}) RETURNING id
+        INSERT INTO teachers (full_name, date_of_birth, email, photo, photo_type)
+        VALUES (${fullName}, ${dateOfBirth}, ${email}, decode(${photoB64}::text, 'base64'), ${photo?.type ?? null}) RETURNING id
       )
       INSERT INTO teacher_subjects (teacher_id, subject_id)
       SELECT t.id, unnest(${subjectIds}::int[]) FROM t`;

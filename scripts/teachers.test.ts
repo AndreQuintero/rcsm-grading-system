@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
+import { PHOTO_MAX_BYTES } from "../lib/photo";
 import { getTeacher, insertTeacher, listTeachers, parseIds, parseTeacher } from "../lib/teacher";
 
 const fd = (o: Record<string, string>, subjectIds: (number | string)[] = []) => {
@@ -9,6 +10,7 @@ const fd = (o: Record<string, string>, subjectIds: (number | string)[] = []) => 
   return f;
 };
 const base = { fullName: " Ada Lovelace ", dateOfBirth: "1990-05-01", email: "Test.Teacher@Example.com" };
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 const cleanup = async () => {
   await sql`DELETE FROM teachers WHERE email LIKE '%@tchtest.example.com' OR email = 'test.teacher@example.com'`;
   await sql`DELETE FROM users WHERE email LIKE '%@tchtest.example.com' OR email = 'test.teacher@example.com'`;
@@ -27,7 +29,7 @@ const cleanup = async () => {
 
     // validation
     assert.deepEqual(parseTeacher(fd(base, [art, art, music])).data, {
-      fullName: "Ada Lovelace", dateOfBirth: "1990-05-01", email: "test.teacher@example.com", subjectIds: [art, music],
+      fullName: "Ada Lovelace", dateOfBirth: "1990-05-01", email: "test.teacher@example.com", subjectIds: [art, music], photo: null,
     });
     assert.ok(parseTeacher(fd({ ...base, fullName: "" }, [art])).errors?.fullName);
     assert.ok(parseTeacher(fd({ ...base, dateOfBirth: "2026-02-31" }, [art])).errors?.dateOfBirth);
@@ -69,6 +71,16 @@ const cleanup = async () => {
     assert.deepEqual((await getTeacher(ada.id as number))!.subject_ids, [art]);
 
     console.log("all teacher checks passed");
+
+    // optional photo: typed, size-limited, stored with the row
+    const withPic = (file: File) => { const f = fd({ ...base, email: "pic@tchtest.example.com" }, [art]); f.set("photo", file); return f; };
+    assert.ok(parseTeacher(withPic(new File([PNG], "a.gif", { type: "image/gif" }))).errors?.photo);
+    assert.ok(parseTeacher(withPic(new File([new Uint8Array(PHOTO_MAX_BYTES + 1)], "b.png", { type: "image/png" }))).errors?.photo);
+    assert.equal((await insertTeacher(withPic(new File([PNG], "a.png", { type: "image/png" })))).message, "Registered Ada Lovelace.");
+    const [p] = await sql`SELECT id, photo_type, encode(photo, 'base64') AS b64 FROM teachers WHERE email = 'pic@tchtest.example.com'`;
+    assert.equal(p.photo_type, "image/png");
+    assert.equal(Buffer.from(p.b64 as string, "base64").equals(PNG), true);
+    assert.equal((await getTeacher(p.id as number))?.has_photo, true);
   } finally {
     await cleanup();
   }

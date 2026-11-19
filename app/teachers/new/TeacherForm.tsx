@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { PhotoPicker } from "@/components/photo-picker";
 import { FormCard } from "@/components/form-card";
 import { FieldError } from "@/components/form-message";
 import { useSavedRedirect } from "@/components/use-saved-redirect";
@@ -13,12 +14,13 @@ import { createTeacher, type TeacherFormState } from "./actions";
 
 type Props = {
   teacherId?: number;
+  hasPhoto?: boolean;
   initial?: Record<string, string>;
   subjectOptions: { id: number; name: string }[];
   initialSubjectIds?: number[];
 };
 
-export function TeacherForm({ teacherId, initial = {}, subjectOptions, initialSubjectIds = [] }: Props) {
+export function TeacherForm({ teacherId, hasPhoto = false, initial = {}, subjectOptions, initialSubjectIds = [] }: Props) {
   const saved = useSavedRedirect("/teachers");
   const [state, action, pending] = useActionState(async (prev: TeacherFormState, formData: FormData) => {
     const r = teacherId ? await updateTeacher(teacherId, prev, formData) : await createTeacher(prev, formData);
@@ -42,6 +44,8 @@ export function TeacherForm({ teacherId, initial = {}, subjectOptions, initialSu
         }
       >
         <FieldError message={e.form} />
+        <PhotoPicker existingUrl={teacherId && hasPhoto ? `/teachers/${teacherId}/photo` : null} />
+        <FieldError message={e.photo} />
         <div className="flex flex-col gap-2">
           <Label htmlFor="fullName">Full name</Label>
           <Input id="fullName" name="fullName" defaultValue={v.fullName} required aria-invalid={Boolean(e.fullName) || undefined} />

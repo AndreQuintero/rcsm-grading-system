@@ -29,12 +29,12 @@ app/
   <feature>/new/page.tsx        register page;   <feature>/new/<Feature>Form.tsx  client form (create + edit)
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
-  students/[id]/photo/route.ts  serves the student photo bytes (stored in Postgres)
+  <students|teachers|admins>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
   login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
                         account/actions.ts switchRole + logout
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
+components/   photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), tokens, rate-limit, email (EmailJS), audit, first-sign-in
 lib/          db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
@@ -67,6 +67,8 @@ Conventions:
 
 ## Data model and business rules
 
+- Students, teachers and admins have an optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB; `lib/photo.ts`
+  parses it; an update keeps it unless a new file or "Remove current photo" is sent). Lists don't load or show it.
 - `teachers` (unique email) ↔ `subjects` (unique name) via `teacher_subjects` (many-to-many, cascade both sides).
   A teacher needs at least one subject.
 - `students`: first/middle(optional)/last name, date of birth, `status` in `audit | full_time | inactive`,
@@ -161,7 +163,7 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
-`scripts/backfill-users.ts`), 008 token purpose (setup | reset). Production uses the same database, so a migration is live immediately — note it in the PR.
+`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
 import { syncUserFromRoleTables } from "@/lib/auth/sync";
+import { photoUpdate } from "@/lib/photo";
 import { formValues, parseTeacher, teacherDbError } from "@/lib/teacher";
 import type { TeacherFormState } from "@/lib/teacher";
 
@@ -13,11 +14,15 @@ export async function updateTeacher(id: number, _prev: TeacherFormState, formDat
   const parsed = parseTeacher(formData);
   if (!parsed.data) return { errors: parsed.errors, values: formValues(formData) };
 
-  const { fullName, dateOfBirth, email, subjectIds } = parsed.data;
+  const { fullName, dateOfBirth, email, subjectIds, photo } = parsed.data;
+  // a new photo replaces the stored one, "remove" clears it, otherwise it is kept
+  const p = await photoUpdate(formData, photo);
   try {
     const [updated] = await sql.transaction([
       // "o" is the row before this statement, so the old email comes back for the account sync
-      sql`UPDATE teachers t SET full_name = ${fullName}, date_of_birth = ${dateOfBirth}, email = ${email}
+      sql`UPDATE teachers t SET full_name = ${fullName}, date_of_birth = ${dateOfBirth}, email = ${email},
+          photo = CASE WHEN ${p.replace}::boolean THEN decode(${p.b64}::text, 'base64') ELSE photo END,
+          photo_type = CASE WHEN ${p.replace}::boolean THEN ${p.type}::text ELSE photo_type END
         FROM (SELECT email AS old_email FROM teachers WHERE id = ${id}) o
         WHERE t.id = ${id} RETURNING t.id, o.old_email`,
       sql`DELETE FROM teacher_subjects WHERE teacher_id = ${id}`,

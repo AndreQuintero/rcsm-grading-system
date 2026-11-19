@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { getAdmin, insertAdmin, listAdmins, parseAdmin } from "../lib/admin";
+import { PHOTO_MAX_BYTES } from "../lib/photo";
 import { formatDate } from "../lib/dates";
 
 const fd = (o: Record<string, string>) => {
@@ -9,6 +10,8 @@ const fd = (o: Record<string, string>) => {
   return f;
 };
 const base = { fullName: " Ada Admin ", dateOfBirth: "1990-05-01", email: "Ada@AdmTest.example.com" };
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+const withPhoto = (o: Record<string, string>, file: File) => { const f = fd(o); f.set("photo", file); return f; };
 const cleanup = async () => {
   await sql`DELETE FROM admins WHERE email LIKE '%@admtest.example.com'`;
   await sql`DELETE FROM users WHERE email LIKE '%@admtest.example.com'`;
@@ -18,7 +21,7 @@ const cleanup = async () => {
   await cleanup();
   try {
     // validation
-    assert.deepEqual(parseAdmin(fd(base)).data, { fullName: "Ada Admin", dateOfBirth: "1990-05-01", email: "ada@admtest.example.com" });
+    assert.deepEqual(parseAdmin(fd(base)).data, { fullName: "Ada Admin", dateOfBirth: "1990-05-01", email: "ada@admtest.example.com", photo: null });
     assert.ok(parseAdmin(fd({ ...base, fullName: " " })).errors?.fullName);
     assert.ok(parseAdmin(fd({ ...base, dateOfBirth: "2026-02-31" })).errors?.dateOfBirth);
     assert.ok(parseAdmin(fd({ ...base, dateOfBirth: "2999-01-01" })).errors?.dateOfBirth);
@@ -54,6 +57,16 @@ const cleanup = async () => {
     assert.equal(formatDate("1999-08-11"), "August 11th, 1999");
 
     console.log("all admin checks passed");
+
+    // optional photo: typed, size-limited, stored with the row
+    const pic = new File([PNG], "a.png", { type: "image/png" });
+    const other = { ...base, email: "pic@admtest.example.com" };
+    assert.ok(parseAdmin(withPhoto(other, new File([PNG], "a.gif", { type: "image/gif" }))).errors?.photo);
+    assert.ok(parseAdmin(withPhoto(other, new File([new Uint8Array(PHOTO_MAX_BYTES + 1)], "b.png", { type: "image/png" }))).errors?.photo);
+    assert.equal((await insertAdmin(withPhoto(other, pic))).message, "Registered Ada Admin.");
+    const [p] = await sql`SELECT photo_type, encode(photo, 'base64') AS b64 FROM admins WHERE email = 'pic@admtest.example.com'`;
+    assert.equal(p.photo_type, "image/png");
+    assert.equal(Buffer.from(p.b64 as string, "base64").equals(PNG), true);
   } finally {
     await cleanup();
   }
