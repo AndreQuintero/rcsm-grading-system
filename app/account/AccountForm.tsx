@@ -5,16 +5,18 @@ import { toast } from "sonner";
 import { FormCard } from "@/components/form-card";
 import { FieldError } from "@/components/form-message";
 import { PhotoPicker } from "@/components/photo-picker";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { USERNAME_MAX, type AccountState } from "@/lib/auth/account-shared";
+import { ROLE_LABEL, type Role } from "@/lib/auth/roles";
 import { formatDate } from "@/lib/dates";
 import { updateAccountAction } from "./actions";
 
-type Props = { username: string; email: string; created: string; photoUrl: string | null };
+type Props = { username: string; email: string; created: string; photoUrl: string | null; roles: Role[] };
 
-export function AccountForm({ username, email, created, photoUrl }: Props) {
+export function AccountForm({ username, email, created, photoUrl, roles }: Props) {
   const [state, action, pending] = useActionState(async (prev: AccountState, formData: FormData) => {
     const r = await updateAccountAction(prev, formData);
     if (r.message) toast.success(r.message);
@@ -47,6 +49,16 @@ export function AccountForm({ username, email, created, photoUrl }: Props) {
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium leading-none">Member since</span>
             <p className="flex h-9 items-center text-sm">{formatDate(created)}</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium leading-none">Roles</span>
+          <div className="flex flex-wrap gap-2">
+            {roles.map((r) => (
+              <Badge key={r} variant="secondary" className="bg-accent font-medium text-accent-foreground">
+                {ROLE_LABEL[r]}
+              </Badge>
+            ))}
           </div>
         </div>
       </FormCard>
