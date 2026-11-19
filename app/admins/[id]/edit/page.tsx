@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 import { getAdmin } from "@/lib/admin";
 import { AdminForm } from "../../new/AdminForm";
 
@@ -20,7 +21,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!a) notFound();
   return (
     <main>
-      <PageHeader title="Edit admin" description={`Update ${a.full_name}’s details.`} />
+      <PageHeader title="Edit admin" description={`Update ${a.full_name}’s details.`} action={<BackLink href="/admins" label="Back to admins" />} />
       <AdminForm adminId={n} initial={{ fullName: a.full_name, dateOfBirth: a.dob, email: a.email }} />
     </main>
   );

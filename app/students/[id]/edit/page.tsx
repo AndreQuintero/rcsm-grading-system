@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getStudent } from "@/lib/student-queries";
 import { StudentForm } from "../../new/StudentForm";
 import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -20,7 +21,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!s) notFound();
   return (
     <main>
-      <PageHeader title="Edit student" description={`Update ${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}’s details.`} />
+      <PageHeader title="Edit student" description={`Update ${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}’s details.`} action={<BackLink href="/students" label="Back to students" />} />
       <StudentForm
         studentId={n}
         hasPhoto={s.has_photo as boolean}

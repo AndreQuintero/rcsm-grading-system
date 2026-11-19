@@ -6,11 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { allSubjects } from "@/lib/subject";
 import { TeacherForm } from "./TeacherForm";
 import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page() {
   return (
     <main>
-      <PageHeader title="Register teacher" description="Add a teacher and choose the subjects they teach." />
+      <PageHeader title="Register teacher" description="Add a teacher and choose the subjects they teach." action={<BackLink href="/teachers" label="Back to teachers" />} />
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <NewTeacher />
       </Suspense>

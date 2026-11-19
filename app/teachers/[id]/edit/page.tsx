@@ -4,6 +4,7 @@ import { allSubjects } from "@/lib/subject";
 import { getTeacher } from "@/lib/teacher";
 import { TeacherForm } from "../../new/TeacherForm";
 import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -24,7 +25,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!t) notFound();
   return (
     <main>
-      <PageHeader title="Edit teacher" description={`Update ${t.full_name}’s details and subjects.`} />
+      <PageHeader title="Edit teacher" description={`Update ${t.full_name}’s details and subjects.`} action={<BackLink href="/teachers" label="Back to teachers" />} />
       <TeacherForm
         teacherId={n}
         initial={{ fullName: t.full_name, dateOfBirth: t.dob, email: t.email }}
