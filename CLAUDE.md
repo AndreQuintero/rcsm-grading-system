@@ -174,8 +174,9 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
 - Work on branch `claude/cool-bell-cruur4`; push there. Open a PR into **`develop`** only when the user asks,
   and merge only when asked. No PR template exists. Keep model names out of commits/PRs.
 - Before committing: lint, build, self-checks, browser check of the changed flow, scan the diff for secrets.
-- Deploy only when asked: the Vercel production branch is not `develop`, so deploy with the Vercel MCP
-  `create_deployment` (teamId `team_3kcP2W0ShwMi0Oim9pDsdhht`, project `prj_50rccCSxjXk3X3sRjA2rwQ1Az26G`,
+- The Vercel production branch is **`develop`**: merging a PR into `develop` deploys to production by itself, and
+  pushes to the working branch only make previews. After a merge, check the new production deployment (below).
+  A manual redeploy, only when asked: Vercel MCP `create_deployment` (teamId `team_3kcP2W0ShwMi0Oim9pDsdhht`, project `prj_50rccCSxjXk3X3sRjA2rwQ1Az26G`,
   `target: "production"`, gitSource github `AndreQuintero/rcsm-grading-system` ref `develop`). Poll
   `get_deployment` until READY, confirm `rcsm-grading-system.vercel.app` is in the aliases, then check a page
   with `web_fetch_vercel_url` and `get_runtime_errors`. The site sits behind Vercel deployment protection.
@@ -186,7 +187,7 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: teacher/student areas are placeholders; `develop` does not auto-deploy to production; production needs
-  `APP_BASE_URL` and the EmailJS vars before the sign-in deploy, or nobody can get a setup link.
+- Open items: teacher/student areas are placeholders; production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
+  get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.
