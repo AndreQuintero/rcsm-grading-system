@@ -264,26 +264,39 @@ const userId = async (email) => (await sql`SELECT id FROM users WHERE email = ${
     await p11.goto(`${B}${link.pathname}${link.search}`);
     await p11.goto(`${B}${link.pathname}${link.search}`); // a scanner or a reload opening it twice
     assert.equal((await sql`SELECT used_at FROM password_setup_tokens WHERE id = ${tokenId}`)[0].used_at, null, "GET left the token unused");
-    // long enough for the browser's own check, but on the server's common-password list
-    await p11.fill("#password", "qwertyuiop123");
-    await p11.fill("#confirmPassword", "qwertyuiop123");
+    // requirements are listed before typing; each one is ticked off as it is met, and the bar follows
+    const submit = p11.locator("button[type=submit]");
+    const met = () => p11.locator("li[data-met=true]").count();
+    const bar = p11.getByRole("progressbar", { name: "Password strength" });
+    assert.equal(await p11.locator("li[data-met]").count(), 4);
+    assert.equal(await met(), 0);
+    assert.equal(await submit.isDisabled(), true, "nothing typed -> cannot submit");
+    for (const [typed, n, label] of [["abc", 1, "Weak"], ["Abc", 2, "Fair"], ["Abc!", 3, "Good"], ["Brand#New9", 4, "Strong"], ["brand#new9", 3, "Good"], ["Brand#New9", 4, "Strong"]]) {
+      await p11.fill("#password", typed);
+      assert.equal(await met(), n, typed);
+      assert.equal(await bar.getAttribute("aria-valuenow"), String(n), typed);
+      assert.equal(await bar.getAttribute("aria-valuetext"), label, typed);
+      assert.equal(await submit.isDisabled(), n < 4, `${typed}: button enabled only when all 4 are met`);
+    }
+    // the server checks again: a mismatched confirmation is refused and the link stays usable
+    await p11.fill("#confirmPassword", "Brand#New8");
     await p11.click("button[type=submit]");
-    await p11.getByText("This password is too common. Choose another.").waitFor();
+    await p11.getByText("The passwords don't match.").waitFor();
     assert.equal((await sql`SELECT used_at FROM password_setup_tokens WHERE id = ${tokenId}`)[0].used_at, null, "a rejected password keeps the link usable");
-    await p11.fill("#password", "my brand new passphrase");
-    await p11.fill("#confirmPassword", "my brand new passphrase");
+    await p11.fill("#password", "Brand#New9");
+    await p11.fill("#confirmPassword", "Brand#New9");
     await p11.click("button[type=submit]");
     await p11.waitForURL(/\/login\?set=1$/);
     await p11.getByText("Your password is set.").waitFor();
     assert.ok((await sql`SELECT used_at FROM password_setup_tokens WHERE id = ${tokenId}`)[0].used_at);
     assert.equal(await sessionCookie(ctx11), undefined, "no auto-login");
     await p11.goto(`${B}${link.pathname}${link.search}`);
-    await p11.fill("#password", "another brand new passphrase");
-    await p11.fill("#confirmPassword", "another brand new passphrase");
+    await p11.fill("#password", "Another#9x");
+    await p11.fill("#confirmPassword", "Another#9x");
     await p11.click("button[type=submit]");
     await p11.getByText("This link is invalid or has expired. Enter your email on the login page to get a new one.").waitFor();
     await ctx11.close();
-    const sp2 = await login(browser, E("setpw"), "my brand new passphrase");
+    const sp2 = await login(browser, E("setpw"), "Brand#New9");
     await sp2.page.waitForURL(`${B}/`);
     await sp2.ctx.close();
     const sp3 = await stepEmail(browser, E("setpw"));

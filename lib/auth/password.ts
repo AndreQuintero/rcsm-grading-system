@@ -1,12 +1,8 @@
 import argon2 from "argon2";
-import { dictionary } from "@zxcvbn-ts/language-common";
+import { unmetRules } from "@/lib/auth/password-rules";
 
-export const PASSWORD_MIN = 12;
-export const PASSWORD_MAX = 128;
-
-// shortcut: the bundled list has ~49k common passwords but only ~300 of 12+ characters; swap in a larger
-// breached-password list if stronger screening is needed.
-const COMMON = new Set((dictionary["passwords-common"] as string[]).map((p) => p.toLowerCase()));
+// Sign-in accepts up to 128 characters: passwords set under the earlier 12-128 rule must keep working.
+export const LOGIN_PASSWORD_MAX = 128;
 
 export const hashPassword = (password: string) => argon2.hash(password, { type: argon2.argon2id });
 
@@ -26,16 +22,15 @@ export async function verifyDummy(password: string): Promise<false> {
   return false;
 }
 
-// Length 12-128, matching confirmation, not a common password. No composition rules.
+// The requirements in password-rules.ts (also shown live on the form), plus a matching confirmation.
 export function parsePassword(
   formData: FormData,
 ): { password: string; errors?: undefined } | { errors: Record<string, string>; password?: undefined } {
   const password = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");
   const errors: Record<string, string> = {};
-  if (password.length < PASSWORD_MIN) errors.password = `Use at least ${PASSWORD_MIN} characters.`;
-  else if (password.length > PASSWORD_MAX) errors.password = `Use at most ${PASSWORD_MAX} characters.`;
-  else if (COMMON.has(password.toLowerCase())) errors.password = "This password is too common. Choose another.";
-  if (!errors.password && confirm !== password) errors.confirmPassword = "The passwords don't match.";
+  const unmet = unmetRules(password);
+  if (unmet.length) errors.password = `The password still needs: ${unmet.map((r) => r.label.toLowerCase()).join("; ")}.`;
+  else if (confirm !== password) errors.confirmPassword = "The passwords don't match.";
   return Object.keys(errors).length ? { errors } : { password };
 }

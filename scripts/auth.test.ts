@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { sql } from "../lib/db";
 import { syncUserFromRoleTables } from "../lib/auth/sync";
 import { hashPassword, parsePassword, verifyPassword } from "../lib/auth/password";
+import { passwordStrength } from "../lib/auth/password-rules";
 import { checkSetupToken, consumeSetupToken, issueSetupToken, setupLink } from "../lib/auth/tokens";
 import { hit } from "../lib/auth/rate-limit";
 import { changeActiveRole, lookupSession } from "../lib/auth/session";
@@ -62,16 +63,22 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
 
     // ---- password rules
     const pw = (p: string, c = p) => { const f = new FormData(); f.set("password", p); f.set("confirmPassword", c); return parsePassword(f); };
-    assert.match(pw("short").errors?.password ?? "", /12/);
-    assert.match(pw("x".repeat(129)).errors?.password ?? "", /128/);
-    assert.match(pw("qwertyuiop123").errors?.password ?? "", /common/);
-    assert.ok(pw("a perfectly fine passphrase", "different").errors?.confirmPassword);
-    assert.equal(pw("a perfectly fine passphrase").password, "a perfectly fine passphrase");
+    assert.match(pw("Ab!defg").errors?.password ?? "", /8 to 15 characters/); // 7
+    assert.match(pw("Abcdefgh!1234567").errors?.password ?? "", /8 to 15 characters/); // 16
+    assert.match(pw("abcdefg!").errors?.password ?? "", /capital letter/);
+    assert.match(pw("ABCDEFG!").errors?.password ?? "", /lowercase letter/);
+    assert.match(pw("Abcdefgh").errors?.password ?? "", /special character/);
+    assert.match(pw("Abcd efgh").errors?.password ?? "", /special character/, "a space is not a special character");
+    assert.match(pw("").errors?.password ?? "", /capital.*special.*8 to 15.*lowercase/);
+    assert.ok(pw("Abcdefg!", "Abcdefg?").errors?.confirmPassword);
+    for (const ok of ["Abcdefg!", "Ábcdefg@1", "Zz@zzzzzzzzzzzz"]) assert.equal(pw(ok).password, ok, ok); // 8, accents, 15
+    assert.deepEqual([passwordStrength(""), passwordStrength("abc"), passwordStrength("Abc!"), passwordStrength("Abcdefg!")].map((s) => s.score), [0, 1, 3, 4]);
+    assert.equal(passwordStrength("Abcdefg!").label, "Strong");
     const h = await hashPassword("a perfectly fine passphrase");
     assert.match(h, /^\$argon2id\$/);
     assert.equal(await verifyPassword(h, "a perfectly fine passphrase"), true);
     assert.equal(await verifyPassword(h, "wrong"), false);
-    console.log("ok  password rules: 12-128, confirmation, common list, Argon2id");
+    console.log("ok  password rules: capital, lowercase, special, 8-15, confirmation, strength score; Argon2id");
 
     // ---- 5. username priority
     const only = `only.teacher${D}`;
