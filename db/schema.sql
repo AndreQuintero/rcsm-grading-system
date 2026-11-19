@@ -22,13 +22,14 @@ CREATE TABLE IF NOT EXISTS teacher_subjects (
 CREATE INDEX IF NOT EXISTS teacher_subjects_subject_idx ON teacher_subjects (subject_id);
 
 -- Batches group students by intake: the Nth batch of a year, in its 1st or 2nd semester.
+-- A year and semester can have only one batch.
 CREATE TABLE IF NOT EXISTS batches (
   id serial PRIMARY KEY,
   number int NOT NULL CHECK (number > 0),
   year int NOT NULL CHECK (year BETWEEN 2000 AND 2100),
   semester int NOT NULL CHECK (semester IN (1, 2)),
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (number, year, semester)
+  UNIQUE (year, semester)
 );
 
 -- Every student has an enrollment date.

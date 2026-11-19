@@ -25,14 +25,11 @@ export function batchPeriod(enrollmentDate: string): { year: number; semester: 1
 export function autoBatchNote(
   attempted: boolean,
   period: { year: number; semester: number },
-  row: { number: number | null; year: number | null; semester: number | null; candidates: number },
+  row: { number: number | null; year: number | null; semester: number | null },
 ): string {
   if (!attempted) return "";
   if (row.number !== null) return ` Added to the ${batchLabel({ number: row.number, year: row.year!, semester: row.semester! })}.`;
-  const when = `${period.year} – ${ordinal(period.semester)} semester`;
-  return row.candidates === 0
-    ? ` No batch exists for ${when} yet, so none was assigned.`
-    : ` Several batches match ${when}, so none was assigned. Choose one in the batch form.`;
+  return ` No batch exists for ${period.year} – ${ordinal(period.semester)} semester yet, so none was assigned.`;
 }
 
 export type BatchInput = { number: number; year: number; semester: 1 | 2; studentIds: number[] };
@@ -69,10 +66,20 @@ export function batchValues(formData: FormData): Record<string, string> {
   };
 }
 
+// 23505 = unique_violation: another batch already has this year and semester.
+export const isDuplicateBatch = (e: unknown) => (e as { code?: string }).code === "23505";
+
+// Explains which batch holds the year and semester that could not be used (the one blocking a save).
+export async function duplicatePeriodMessage(year: number, semester: number): Promise<string> {
+  const [b] = await sql`SELECT number FROM batches WHERE year = ${year} AND semester = ${semester}`;
+  const when = `${year} – ${ordinal(semester)} semester`;
+  const holder = b ? `The ${ordinal(b.number as number)} batch is already registered for ${when}.` : `A batch is already registered for ${when}.`;
+  return `${holder} Each year and semester can have only one batch. Choose another year or semester, or edit that batch.`;
+}
+
 // Maps Postgres errors the user can fix to form errors; anything else is rethrown.
 export function batchDbError(e: unknown): Record<string, string> {
   const code = (e as { code?: string }).code;
-  if (code === "23505") return { number: "That batch already exists for this year and semester." };
   if (code === "22012")
     return { studentIds: "Some selected students are no longer available (already in another batch). Reload and try again." };
   if (code === "23503") return { form: "This batch no longer exists." };

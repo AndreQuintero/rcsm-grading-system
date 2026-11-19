@@ -17,10 +17,10 @@ const fd = (o: Record<string, string>, photo?: File) => {
   return f;
 };
 const base = { firstName: " Grace ", middleName: "", lastName: "TestStu Hopper", dateOfBirth: "1990-12-09", status: "inactive", enrollmentDate: "2090-08-01" };
-// test batches use numbers 850-859 in years 2090-2093, which real data never has
+// test batches live in years 2085-2100, which real data never has
 const cleanup = async () => {
   await sql`DELETE FROM students WHERE last_name LIKE 'TestStu %'`;
-  await sql`DELETE FROM batches WHERE number BETWEEN 850 AND 859`;
+  await sql`DELETE FROM batches WHERE year >= 2085`;
 };
 
 (async () => {
@@ -93,7 +93,7 @@ const cleanup = async () => {
     // automatic batch on registration
     const mk = (n: number, year: number, semester: number) =>
       sql`INSERT INTO batches (number, year, semester) VALUES (${n}, ${year}, ${semester}) RETURNING id`.then((r) => r[0].id as number);
-    const [first, second, dupA, dupB] = [await mk(850, 2090, 1), await mk(851, 2090, 2), await mk(852, 2091, 1), await mk(853, 2091, 1)];
+    const [first, second] = [await mk(850, 2090, 1), await mk(851, 2090, 2)];
     const reg = (last: string, status: string, enrollmentDate: string) =>
       createStudent({}, fd({ ...base, firstName: "Auto", lastName: `TestStu ${last}`, status, enrollmentDate }));
     const batchOf = async (last: string) => (await sql`SELECT batch_id FROM students WHERE last_name = ${`TestStu ${last}`}`)[0].batch_id;
@@ -117,20 +117,14 @@ const cleanup = async () => {
     r = await reg("NoBatch", "full_time", "2093-08-01");
     assert.equal(r.message, "Registered Auto TestStu NoBatch. No batch exists for 2093 – 1st semester yet, so none was assigned.");
     assert.equal(await batchOf("NoBatch"), null);
-    // the semester has to match too: 2090 has batches for both, 2091 only a 1st semester pair
+    // the semester has to match too: 2091 has no batch for either semester
     r = await reg("Wrong", "full_time", "2091-02-01");
     assert.match(r.message ?? "", /No batch exists for 2091 – 2nd semester/);
 
-    // several batches in the same year and semester: no guess
-    r = await reg("Many", "full_time", "2091-09-01");
-    assert.match(r.message ?? "", /Several batches match 2091 – 1st semester/);
-    assert.equal(await batchOf("Many"), null);
-    assert.ok(dupA && dupB);
-
-    // such a student can still be added later through the batch form's data layer
-    const [many] = await sql`SELECT id FROM students WHERE last_name = 'TestStu Many'`;
-    await sql`UPDATE students SET batch_id = ${dupA} WHERE id = ${many.id}`;
-    assert.equal(await batchOf("Many"), dupA);
+    // a student left without a batch can still be added later (a year and semester has at most one batch)
+    const [later] = await sql`SELECT id FROM students WHERE last_name = 'TestStu NoBatch'`;
+    await sql`UPDATE students SET batch_id = ${first} WHERE id = ${later.id}`;
+    assert.equal(await batchOf("NoBatch"), first);
 
     // listing: 12 students (3 audit, 9 full time), paging, name search and status filter
     for (let i = 0; i < 12; i++) {

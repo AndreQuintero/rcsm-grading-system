@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, Search } from "lucide-react";
+import { Check, Search, TriangleAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useState } from "react";
+import { toast } from "sonner";
 import { FormCard } from "@/components/form-card";
 import { FieldError } from "@/components/form-message";
 import { useSavedRedirect } from "@/components/use-saved-redirect";
@@ -12,6 +13,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { updateBatchAction } from "../actions";
 import { createBatchAction, type BatchFormState } from "./actions";
 
@@ -29,6 +31,9 @@ export function BatchForm({ batchId, initial = {}, students }: Props) {
   const [state, action, pending] = useActionState(async (prev: BatchFormState, formData: FormData) => {
     const r = batchId ? await updateBatchAction(batchId, prev, formData) : await createBatchAction(prev, formData);
     if (!r.errors) saved(r.message);
+    // the year and semester are already taken by another batch: say so loudly, the form keeps the message too
+    else if (r.errors.period)
+      toast.error(batchId ? "This batch can't be saved" : "This batch can't be registered", { description: r.errors.period, duration: 9000 });
     return r;
   }, { values: initial });
   const v = state.values ?? initial;
@@ -57,7 +62,7 @@ export function BatchForm({ batchId, initial = {}, students }: Props) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="year">Year</Label>
-            <Input id="year" name="year" type="number" min={2000} max={2100} step={1} defaultValue={v.year} required aria-invalid={Boolean(e.year) || undefined} />
+            <Input id="year" name="year" type="number" min={2000} max={2100} step={1} defaultValue={v.year} required aria-invalid={Boolean(e.year || e.period) || undefined} />
             <FieldError message={e.year} />
           </div>
           {/* native radios so React's form reset after saving keeps them in step with what is submitted */}
@@ -67,7 +72,10 @@ export function BatchForm({ batchId, initial = {}, students }: Props) {
               {SEMESTERS.map((s) => (
                 <label
                   key={s.value}
-                  className="flex h-8 cursor-pointer items-center gap-2.5 rounded-lg border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted/60 has-checked:border-primary has-checked:bg-accent has-checked:text-accent-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/30"
+                  className={cn(
+                    "flex h-8 cursor-pointer items-center gap-2.5 rounded-lg border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted/60 has-checked:border-primary has-checked:bg-accent has-checked:text-accent-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/30",
+                    e.period && "has-checked:border-destructive has-checked:bg-destructive/5 has-checked:text-destructive",
+                  )}
                 >
                   <input type="radio" name="semester" value={s.value} defaultChecked={v.semester === s.value} required className="size-4 accent-primary" />
                   {s.label}
@@ -77,6 +85,12 @@ export function BatchForm({ batchId, initial = {}, students }: Props) {
             <FieldError message={e.semester} />
           </fieldset>
         </div>
+        {e.period && (
+          <p role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            {e.period}
+          </p>
+        )}
 
         <StudentCards students={students} selected={selected} />
         <FieldError message={e.studentIds} />

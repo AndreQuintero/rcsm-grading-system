@@ -30,7 +30,7 @@ export async function updateStudent(id: number, _prev: StudentFormState, formDat
         batch_id = CASE
           WHEN (SELECT batch_id FROM old) IS NULL
             AND (SELECT enrollment_date FROM old) IS DISTINCT FROM ${enrollmentDate}::date
-          THEN (SELECT CASE WHEN count(*) = 1 THEN min(id) END FROM batches WHERE year = ${period.year} AND semester = ${period.semester})
+          THEN (SELECT id FROM batches WHERE year = ${period.year} AND semester = ${period.semester})
           ELSE batch_id
         END
       WHERE id = ${id}
@@ -38,8 +38,7 @@ export async function updateStudent(id: number, _prev: StudentFormState, formDat
     )
     SELECT b.number, b.year, b.semester,
       ((SELECT batch_id FROM old) IS NULL
-        AND (SELECT enrollment_date FROM old) IS DISTINCT FROM ${enrollmentDate}::date) AS attempted,
-      (SELECT count(*)::int FROM batches WHERE year = ${period.year} AND semester = ${period.semester}) AS candidates
+        AND (SELECT enrollment_date FROM old) IS DISTINCT FROM ${enrollmentDate}::date) AS attempted
     FROM upd LEFT JOIN batches b ON b.id = upd.batch_id`;
   if (!rows.length) return { errors: { form: "This student no longer exists." }, values: studentValues(formData) };
 
@@ -48,7 +47,6 @@ export async function updateStudent(id: number, _prev: StudentFormState, formDat
     number: row.number as number | null,
     year: row.year as number | null,
     semester: row.semester as number | null,
-    candidates: row.candidates as number,
   });
   revalidatePath("/students");
   revalidatePath("/batches", "layout"); // a batch's student count may have changed
