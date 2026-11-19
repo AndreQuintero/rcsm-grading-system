@@ -13,6 +13,28 @@ export function ordinal(n: number): string {
 export const batchLabel = (b: { number: number; year: number; semester: number }) =>
   `${ordinal(b.number)} batch, ${b.year} – ${ordinal(b.semester)} semester`;
 
+// The batch period an enrollment date falls in: the 1st semester runs June to December and the
+// 2nd January to May, both in the date's own calendar year ("2025-03-10" -> 2025, 2nd semester).
+export function batchPeriod(enrollmentDate: string): { year: number; semester: 1 | 2 } {
+  const [year, month] = enrollmentDate.split("-").map(Number);
+  return { year, semester: month >= 6 ? 1 : 2 };
+}
+
+// Sentence appended to the "Registered/Updated <name>." message, saying what the automatic batch did.
+// attempted is false when no automatic assignment applied (the student is already in a batch).
+export function autoBatchNote(
+  attempted: boolean,
+  period: { year: number; semester: number },
+  row: { number: number | null; year: number | null; semester: number | null; candidates: number },
+): string {
+  if (!attempted) return "";
+  if (row.number !== null) return ` Added to the ${batchLabel({ number: row.number, year: row.year!, semester: row.semester! })}.`;
+  const when = `${period.year} – ${ordinal(period.semester)} semester`;
+  return row.candidates === 0
+    ? ` No batch exists for ${when} yet, so none was assigned.`
+    : ` Several batches match ${when}, so none was assigned. Choose one in the batch form.`;
+}
+
 export type BatchInput = { number: number; year: number; semester: 1 | 2; studentIds: number[] };
 
 export type BatchParse =
@@ -52,18 +74,19 @@ export function batchDbError(e: unknown): Record<string, string> {
   const code = (e as { code?: string }).code;
   if (code === "23505") return { number: "That batch already exists for this year and semester." };
   if (code === "22012")
-    return { studentIds: "Some selected students are no longer available (inactive or already in a batch). Reload and try again." };
+    return { studentIds: "Some selected students are no longer available (already in another batch). Reload and try again." };
   if (code === "23503") return { form: "This batch no longer exists." };
   throw e;
 }
 
-// Students who can join a batch: not inactive and in no batch yet. When editing, the batch's own members too.
+// Students who can join a batch: those in no batch yet, whatever their status (inactive students keep a batch
+// as history). When editing, the batch's own members too.
 export async function eligibleStudents(batchId: number | null = null) {
   const rows = await sql`
     SELECT id, concat_ws(' ', first_name, middle_name, last_name) AS name, status,
       date_part('year', age(current_date, date_of_birth))::int AS age, photo IS NOT NULL AS has_photo
     FROM students
-    WHERE (status <> 'inactive' AND batch_id IS NULL) OR batch_id = ${batchId}
+    WHERE batch_id IS NULL OR batch_id = ${batchId}
     ORDER BY last_name, first_name, id`;
   return rows.map((r) => ({
     id: r.id as number,
@@ -81,7 +104,7 @@ export async function createBatch({ number, year, semester, studentIds }: BatchI
       INSERT INTO batches (number, year, semester) VALUES (${number}, ${year}, ${semester}) RETURNING id
     ), u AS (
       UPDATE students SET batch_id = (SELECT id FROM b)
-      WHERE id = ANY(${studentIds}::int[]) AND status <> 'inactive' AND batch_id IS NULL
+      WHERE id = ANY(${studentIds}::int[]) AND batch_id IS NULL
       RETURNING id
     )
     -- Division by zero (22012) aborts the whole statement when a chosen student was not available.
@@ -98,7 +121,7 @@ export async function updateBatch(id: number, { number, year, semester, studentI
     sql`WITH u AS (
           UPDATE students SET batch_id = ${id}
           WHERE id = ANY(${studentIds}::int[])
-            AND ((status <> 'inactive' AND batch_id IS NULL) OR batch_id = ${id})
+            AND (batch_id IS NULL OR batch_id = ${id})
           RETURNING id
         )
         -- Division by zero (22012) rolls the transaction back when a chosen student was not available.

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
+import { autoBatchNote, batchPeriod } from "@/lib/batch";
 import { parseStudent, studentValues } from "@/lib/student";
 import type { StudentFormState } from "./new/actions";
 
@@ -14,17 +15,45 @@ export async function updateStudent(id: number, _prev: StudentFormState, formDat
   // A new photo replaces the stored one; "remove" clears it; otherwise the stored photo is kept.
   const replacePhoto = Boolean(photo) || formData.get("removePhoto") === "on";
   const photoB64 = photo ? Buffer.from(await photo.arrayBuffer()).toString("base64") : null;
-  const rows = await sql`UPDATE students SET
-      first_name = ${firstName}, middle_name = ${middleName}, last_name = ${lastName},
-      date_of_birth = ${dateOfBirth}, status = ${status}, enrollment_date = ${enrollmentDate},
-      photo = CASE WHEN ${replacePhoto}::boolean THEN decode(${photoB64}::text, 'base64') ELSE photo END,
-      photo_type = CASE WHEN ${replacePhoto}::boolean THEN ${photo?.type ?? null}::text ELSE photo_type END
-    WHERE id = ${id} RETURNING id`;
+  const period = batchPeriod(enrollmentDate);
+  // The batch is only filled in automatically for a student who has none yet, whose enrollment date
+  // changed; a student already in a batch is never moved by an edit.
+  // "old" is the row as it was before this statement, so the comparison sees the previous values.
+  const rows = await sql`
+    WITH old AS (SELECT batch_id, enrollment_date FROM students WHERE id = ${id}),
+    upd AS (
+      UPDATE students SET
+        first_name = ${firstName}, middle_name = ${middleName}, last_name = ${lastName},
+        date_of_birth = ${dateOfBirth}, status = ${status}, enrollment_date = ${enrollmentDate},
+        photo = CASE WHEN ${replacePhoto}::boolean THEN decode(${photoB64}::text, 'base64') ELSE photo END,
+        photo_type = CASE WHEN ${replacePhoto}::boolean THEN ${photo?.type ?? null}::text ELSE photo_type END,
+        batch_id = CASE
+          WHEN (SELECT batch_id FROM old) IS NULL
+            AND (SELECT enrollment_date FROM old) IS DISTINCT FROM ${enrollmentDate}::date
+          THEN (SELECT CASE WHEN count(*) = 1 THEN min(id) END FROM batches WHERE year = ${period.year} AND semester = ${period.semester})
+          ELSE batch_id
+        END
+      WHERE id = ${id}
+      RETURNING id, batch_id
+    )
+    SELECT b.number, b.year, b.semester,
+      ((SELECT batch_id FROM old) IS NULL
+        AND (SELECT enrollment_date FROM old) IS DISTINCT FROM ${enrollmentDate}::date) AS attempted,
+      (SELECT count(*)::int FROM batches WHERE year = ${period.year} AND semester = ${period.semester}) AS candidates
+    FROM upd LEFT JOIN batches b ON b.id = upd.batch_id`;
   if (!rows.length) return { errors: { form: "This student no longer exists." }, values: studentValues(formData) };
 
+  const row = rows[0];
+  const note = autoBatchNote(row.attempted as boolean, period, {
+    number: row.number as number | null,
+    year: row.year as number | null,
+    semester: row.semester as number | null,
+    candidates: row.candidates as number,
+  });
   revalidatePath("/students");
+  revalidatePath("/batches", "layout"); // a batch's student count may have changed
   return {
-    message: `Updated ${firstName} ${lastName}.`,
+    message: `Updated ${firstName} ${lastName}.${note}`,
     values: { firstName, middleName: middleName ?? "", lastName, dateOfBirth, status, enrollmentDate },
   };
 }

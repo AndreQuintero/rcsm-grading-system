@@ -102,11 +102,11 @@ function StudentCards({ students, selected }: { students: Student[]; selected: n
           {count} of {students.length} selected
         </p>
       </div>
-      <p className="-mt-1 text-sm text-muted-foreground">Only students who are not inactive and not in another batch are listed.</p>
+      <p className="-mt-1 text-sm text-muted-foreground">Students who are not in another batch are listed, including inactive ones, so a batch keeps its history.</p>
 
       {students.length === 0 ? (
         <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-6">
-          <p className="text-sm text-muted-foreground">No students are available. Every student is either inactive or already in a batch.</p>
+          <p className="text-sm text-muted-foreground">No students are available. Every student is already in a batch.</p>
           <Button variant="outline" asChild>
             <Link href="/students/new">Register a student</Link>
           </Button>

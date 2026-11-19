@@ -40,7 +40,7 @@ const expectDbError = async (p: Promise<unknown>, field: string) => {
     assert.ok(parseBatch(fd({ number: "1", year: "2026", semester: "3" })).errors?.semester);
     assert.ok(parseBatch(fd({ number: "1", year: "2026", semester: "" })).errors?.semester);
 
-    // students: two eligible, one inactive, one that will already sit in another batch
+    // students: two active, one inactive (inactive students can be in a batch as history), one that will already sit in another batch
     const s = await sql`INSERT INTO students (first_name, last_name, date_of_birth, status, enrollment_date) VALUES
       ('Amy', 'BatchTest A', '2000-03-01', 'full_time', '2024-08-01'),
       ('Ben', 'BatchTest B', '1990-01-01', 'audit', '2024-08-01'),
@@ -49,9 +49,10 @@ const expectDbError = async (p: Promise<unknown>, field: string) => {
     const id = (l: string) => s.find((r) => r.last_name === `BatchTest ${l}`)!.id as number;
     const [a, bId, c, d] = [id("A"), id("B"), id("C"), id("D")];
 
-    // eligibility: not inactive and no batch yet; age is computed
+    // eligibility: anyone in no batch yet, whatever the status; age is computed
     let eligible = (await eligibleStudents()).filter((x) => x.name.includes("BatchTest"));
-    assert.deepEqual(eligible.map((x) => x.id).sort(), [a, bId, d].sort());
+    assert.deepEqual(eligible.map((x) => x.id).sort(), [a, bId, c, d].sort());
+    assert.equal(eligible.find((x) => x.id === c)!.status, "inactive");
     const ben = eligible.find((x) => x.id === bId)!;
     assert.equal(ben.age, new Date().getFullYear() - 1990 - (new Date() < new Date(new Date().getFullYear(), 0, 1) ? 1 : 0));
     assert.equal(ben.hasPhoto, false);
@@ -59,13 +60,17 @@ const expectDbError = async (p: Promise<unknown>, field: string) => {
     // create with D, then D is no longer eligible
     const other = await createBatch({ number: 901, year: 2026, semester: 1, studentIds: [d] });
     eligible = (await eligibleStudents()).filter((x) => x.name.includes("BatchTest"));
-    assert.deepEqual(eligible.map((x) => x.id).sort(), [a, bId].sort());
+    assert.deepEqual(eligible.map((x) => x.id).sort(), [a, bId, c].sort());
 
-    // all or nothing: an inactive or already-assigned student fails the whole create
-    await expectDbError(createBatch({ number: 902, year: 2026, semester: 1, studentIds: [a, c] }), "studentIds");
+    // all or nothing: a student already in another batch fails the whole create
     await expectDbError(createBatch({ number: 902, year: 2026, semester: 1, studentIds: [a, d] }), "studentIds");
     assert.equal((await sql`SELECT id FROM batches WHERE number = 902`).length, 0);
     assert.equal((await sql`SELECT batch_id FROM students WHERE id = ${a}`)[0].batch_id, null);
+
+    // an inactive student can join a batch (history), and then is no longer offered elsewhere
+    const history = await createBatch({ number: 906, year: 2026, semester: 1, studentIds: [c] });
+    assert.deepEqual((await getBatch(history))!.student_ids, [c]);
+    assert.equal((await sql`SELECT status FROM students WHERE id = ${c}`)[0].status, "inactive");
 
     // create with A and B
     const main = await createBatch({ number: 902, year: 2026, semester: 2, studentIds: [a, bId] });
