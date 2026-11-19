@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { EmptyAnimation } from "@/components/empty-animation";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
@@ -134,6 +135,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
             {semesters.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <EmptyAnimation />
                   {total === 0 ? (year !== null ? "No academic semesters match this year." : "No academic semesters registered yet.") : "No academic semesters on this page."}
                 </TableCell>
               </TableRow>

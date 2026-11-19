@@ -44,7 +44,8 @@ app/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
+components/   empty-animation (Lottie "nothing found" above every empty table message; lottie-web light player, no eval for the CSP;
+              JSON in components/lottie/), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)

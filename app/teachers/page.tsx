@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { EmptyAnimation } from "@/components/empty-animation";
 import { ListSkeleton } from "@/components/skeletons";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
@@ -114,6 +115,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
             {teachers.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                  <EmptyAnimation />
                   No teachers match these filters.
                 </TableCell>
               </TableRow>
