@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { FormSkeleton, HeaderSkeleton } from "@/components/skeletons";
 import { getStudent } from "@/lib/student-queries";
 import { StudentForm } from "../../new/StudentForm";
 import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><p className="text-sm text-muted-foreground">Loading…</p></main>}>
+    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["First name", "Middle name", "Last name", "Date of birth", "Enrollment date"]} photo radios={{ name: "Status", count: 3 }} /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -20,7 +22,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!s) notFound();
   return (
     <main>
-      <PageHeader title="Edit student" description={`Update ${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}’s details.`} />
+      <PageHeader title="Edit student" description={`Update ${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}’s details.`} action={<BackLink href="/students" label="Back to students" />} />
       <StudentForm
         studentId={n}
         hasPhoto={s.has_photo as boolean}

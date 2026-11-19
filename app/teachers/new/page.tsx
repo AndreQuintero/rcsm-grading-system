@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { FormSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { allSubjects } from "@/lib/subject";
 import { TeacherForm } from "./TeacherForm";
 import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page() {
   return (
     <main>
-      <PageHeader title="Register teacher" description="Add a teacher and choose the subjects they teach." />
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+      <PageHeader title="Register teacher" description="Add a teacher and choose the subjects they teach." action={<BackLink href="/teachers" label="Back to teachers" />} />
+      <Suspense fallback={<FormSkeleton fields={["Full name", "Date of birth", "Email", "Subjects taught"]} />}>
         <NewTeacher />
       </Suspense>
     </main>

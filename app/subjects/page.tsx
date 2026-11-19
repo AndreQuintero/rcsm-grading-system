@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { ListSkeleton } from "@/components/skeletons";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
@@ -33,7 +34,7 @@ const header = (
 
 export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <Suspense fallback={<main>{header}<p className="text-sm text-muted-foreground">Loading…</p></main>}>
+    <Suspense fallback={<main>{header}<ListSkeleton filters={["Name"]} columns={["Name", "Actions"]} /></main>}>
       <Results searchParams={searchParams} />
     </Suspense>
   );

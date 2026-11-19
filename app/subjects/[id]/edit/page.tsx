@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { FormSkeleton, HeaderSkeleton } from "@/components/skeletons";
 import { getSubject } from "@/lib/subject";
 import { SubjectForm } from "../../new/SubjectForm";
 import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><p className="text-sm text-muted-foreground">Loading…</p></main>}>
+    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["Subject name"]} /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -20,7 +22,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!s) notFound();
   return (
     <main>
-      <PageHeader title="Edit subject" description="Renaming a subject updates it for every teacher who teaches it." />
+      <PageHeader title="Edit subject" description="Renaming a subject updates it for every teacher who teaches it." action={<BackLink href="/subjects" label="Back to subjects" />} />
       <SubjectForm subjectId={n} initialName={s.name} />
     </main>
   );
