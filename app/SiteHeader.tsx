@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, GraduationCap, Users } from "lucide-react";
+import { BookOpen, GraduationCap, Layers, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,6 +11,7 @@ const NAV = [
   { href: "/teachers", label: "Teachers", icon: Users },
   { href: "/subjects", label: "Subjects", icon: BookOpen },
   { href: "/students", label: "Students", icon: GraduationCap },
+  { href: "/batches", label: "Batches", icon: Layers },
 ];
 
 // App navigation: a charcoal sidebar on desktop, a compact top bar on small screens.

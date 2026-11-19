@@ -1,0 +1,123 @@
+import assert from "node:assert/strict";
+import { sql } from "../lib/db";
+import { batchDbError, batchLabel, createBatch, eligibleStudents, getBatch, listBatches, ordinal, parseBatch, updateBatch } from "../lib/batch";
+
+const fd = (o: Record<string, string>, ids: (number | string)[] = []) => {
+  const f = new FormData();
+  for (const [k, v] of Object.entries(o)) f.set(k, v);
+  ids.forEach((id) => f.append("studentIds", String(id)));
+  return f;
+};
+// batch numbers 900+ keep test batches apart from real ones
+const cleanup = async () => {
+  await sql`DELETE FROM batches WHERE number >= 900`;
+  await sql`DELETE FROM students WHERE last_name LIKE 'BatchTest %'`;
+};
+const expectDbError = async (p: Promise<unknown>, field: string) => {
+  try {
+    await p;
+  } catch (e) {
+    assert.ok(batchDbError(e)[field], `expected a ${field} error, got ${(e as Error).message}`);
+    return;
+  }
+  assert.fail(`expected a ${field} error`);
+};
+
+(async () => {
+  await cleanup();
+  try {
+    // ordinals and labels
+    assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinal),
+      ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd", "101st", "111th"]);
+    assert.equal(batchLabel({ number: 1, year: 2026, semester: 2 }), "1st batch, 2026 – 2nd semester");
+
+    // validation
+    assert.deepEqual(parseBatch(fd({ number: "3", year: "2026", semester: "2" }, [5, 5, "x"])).data,
+      { number: 3, year: 2026, semester: 2, studentIds: [5] });
+    assert.ok(parseBatch(fd({ number: "0", year: "2026", semester: "1" })).errors?.number);
+    assert.ok(parseBatch(fd({ number: "1.5", year: "2026", semester: "1" })).errors?.number);
+    assert.ok(parseBatch(fd({ number: "1", year: "1999", semester: "1" })).errors?.year);
+    assert.ok(parseBatch(fd({ number: "1", year: "2026", semester: "3" })).errors?.semester);
+    assert.ok(parseBatch(fd({ number: "1", year: "2026", semester: "" })).errors?.semester);
+
+    // students: two eligible, one inactive, one that will already sit in another batch
+    const s = await sql`INSERT INTO students (first_name, last_name, date_of_birth, status, enrollment_date) VALUES
+      ('Amy', 'BatchTest A', '2000-03-01', 'full_time', '2024-08-01'),
+      ('Ben', 'BatchTest B', '1990-01-01', 'audit', '2024-08-01'),
+      ('Cal', 'BatchTest C', '1995-01-01', 'inactive', '2024-08-01'),
+      ('Dee', 'BatchTest D', '1998-01-01', 'full_time', '2024-08-01') RETURNING id, last_name`;
+    const id = (l: string) => s.find((r) => r.last_name === `BatchTest ${l}`)!.id as number;
+    const [a, bId, c, d] = [id("A"), id("B"), id("C"), id("D")];
+
+    // eligibility: not inactive and no batch yet; age is computed
+    let eligible = (await eligibleStudents()).filter((x) => x.name.includes("BatchTest"));
+    assert.deepEqual(eligible.map((x) => x.id).sort(), [a, bId, d].sort());
+    const ben = eligible.find((x) => x.id === bId)!;
+    assert.equal(ben.age, new Date().getFullYear() - 1990 - (new Date() < new Date(new Date().getFullYear(), 0, 1) ? 1 : 0));
+    assert.equal(ben.hasPhoto, false);
+
+    // create with D, then D is no longer eligible
+    const other = await createBatch({ number: 901, year: 2026, semester: 1, studentIds: [d] });
+    eligible = (await eligibleStudents()).filter((x) => x.name.includes("BatchTest"));
+    assert.deepEqual(eligible.map((x) => x.id).sort(), [a, bId].sort());
+
+    // all or nothing: an inactive or already-assigned student fails the whole create
+    await expectDbError(createBatch({ number: 902, year: 2026, semester: 1, studentIds: [a, c] }), "studentIds");
+    await expectDbError(createBatch({ number: 902, year: 2026, semester: 1, studentIds: [a, d] }), "studentIds");
+    assert.equal((await sql`SELECT id FROM batches WHERE number = 902`).length, 0);
+    assert.equal((await sql`SELECT batch_id FROM students WHERE id = ${a}`)[0].batch_id, null);
+
+    // create with A and B
+    const main = await createBatch({ number: 902, year: 2026, semester: 2, studentIds: [a, bId] });
+    assert.deepEqual([...((await getBatch(main))!.student_ids as number[])].sort(), [a, bId].sort());
+
+    // duplicate number + year + semester
+    await expectDbError(createBatch({ number: 902, year: 2026, semester: 2, studentIds: [] }), "number");
+    // same number in the other semester is a different batch
+    const empty = await createBatch({ number: 902, year: 2026, semester: 1, studentIds: [] });
+    assert.equal((await getBatch(empty))!.student_ids.length, 0);
+
+    // edit: the batch's own members are offered, plus free eligible students
+    const forEdit = (await eligibleStudents(main)).filter((x) => x.name.includes("BatchTest")).map((x) => x.id);
+    assert.deepEqual(forEdit.sort(), [a, bId].sort());
+
+    // update: drop B, rename; B becomes free again
+    assert.equal(await updateBatch(main, { number: 903, year: 2027, semester: 1, studentIds: [a] }), true);
+    const after = (await getBatch(main))!;
+    assert.deepEqual([after.number, after.year, after.semester, after.student_ids], [903, 2027, 1, [a]]);
+    assert.equal((await sql`SELECT batch_id FROM students WHERE id = ${bId}`)[0].batch_id, null);
+
+    // update stays all or nothing: adding D (in another batch) changes nothing
+    await expectDbError(updateBatch(main, { number: 904, year: 2027, semester: 1, studentIds: [a, d] }), "studentIds");
+    assert.equal((await getBatch(main))!.number, 903);
+
+    // a member who later turns inactive can stay in the batch
+    await sql`UPDATE students SET status = 'inactive' WHERE id = ${a}`;
+    assert.equal(await updateBatch(main, { number: 903, year: 2027, semester: 1, studentIds: [a] }), true);
+
+    // a missing batch
+    assert.equal(await updateBatch(2147483000, { number: 905, year: 2027, semester: 1, studentIds: [] }), false);
+
+    // list: filters by number and year, newest first, paged by 10
+    for (let i = 0; i < 11; i++) await createBatch({ number: 950 + i, year: 2030, semester: 1, studentIds: [] });
+    const p1 = await listBatches({ year: 2030 });
+    assert.equal(p1.total, 11);
+    assert.equal(p1.batches.length, 10);
+    assert.equal((await listBatches({ year: 2030, page: 2 })).batches.length, 1);
+    assert.equal((await listBatches({ number: 955, year: 2030 })).total, 1);
+    const listed = (await listBatches({ number: 903 })).batches[0];
+    assert.equal(listed.students, 1);
+
+    // deleting a batch keeps its students and frees them
+    await sql`DELETE FROM batches WHERE id = ${other}`;
+    assert.equal((await sql`SELECT batch_id FROM students WHERE id = ${d}`)[0].batch_id, null);
+    assert.equal((await sql`SELECT count(*)::int AS n FROM students WHERE id = ${d}`)[0].n, 1);
+
+    console.log("all batch checks passed");
+  } finally {
+    await cleanup();
+  }
+})().catch((e) => {
+  console.error("BATCH CHECK FAILED:", e);
+  process.exit(1);
+});

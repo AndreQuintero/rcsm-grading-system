@@ -20,10 +20,12 @@ export function ConfirmDeleteButton({
   action,
   name,
   noun,
+  note,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   name: string;
   noun: string;
+  note?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -51,6 +53,7 @@ export function ConfirmDeleteButton({
             <AlertDialogTitle>Delete {noun}?</AlertDialogTitle>
             <AlertDialogDescription>
               This permanently removes <strong className="text-foreground">{name}</strong>. It can&apos;t be undone.
+              {note && <> {note}</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

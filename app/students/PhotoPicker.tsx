@@ -3,18 +3,8 @@
 import { Camera, ImageUp } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { GenericAvatar } from "@/components/generic-avatar";
 import { Button } from "@/components/ui/button";
-
-// Shown when a student has no photo.
-function GenericAvatar() {
-  return (
-    <svg viewBox="0 0 128 128" aria-hidden="true" className="size-full text-muted-foreground">
-      <rect width="128" height="128" fill="currentColor" opacity="0.1" />
-      <circle cx="64" cy="50" r="22" fill="currentColor" opacity="0.35" />
-      <path d="M22 124c0-24 19-42 42-42s42 18 42 42z" fill="currentColor" opacity="0.35" />
-    </svg>
-  );
-}
 
 // Preview order: newly chosen file, else the stored photo (unless marked for removal), else the generic avatar.
 export function PhotoPicker({ existingUrl }: { existingUrl?: string | null }) {
