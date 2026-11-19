@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { FormCard } from "@/components/form-card";
 import { FieldError } from "@/components/form-message";
+import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setPassword, type SetPasswordState } from "./actions";
 
@@ -34,12 +34,12 @@ export function SetPasswordForm({ token }: { token: string }) {
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="password">New password</Label>
-            <Input id="password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required aria-invalid={Boolean(e.password) || undefined} />
+            <PasswordInput id="password" name="password" autoComplete="new-password" minLength={12} maxLength={128} required aria-invalid={Boolean(e.password) || undefined} />
             <FieldError message={e.password} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="confirmPassword">Confirm password</Label>
-            <Input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" maxLength={128} required aria-invalid={Boolean(e.confirmPassword) || undefined} />
+            <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" maxLength={128} required aria-invalid={Boolean(e.confirmPassword) || undefined} />
             <FieldError message={e.confirmPassword} />
           </div>
         </div>

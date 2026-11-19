@@ -7,7 +7,7 @@ type SearchParams = { next?: string | string[]; set?: string };
 
 export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <main>
+    <main className="mx-auto max-w-md">
       <PageHeader title="Sign in" description="Use the email the school registered for you." />
       <Suspense fallback={<FormSkeleton fields={["Email"]} />}>
         <Login searchParams={searchParams} />

@@ -193,7 +193,12 @@ const userId = async (email) => (await sql`SELECT id FROM users WHERE email = ${
     await p4.fill("#email", E("multi"));
     await p4.click("button[type=submit]");
     await p4.fill("#password", PASSWORD);
-    await p4.click("button[type=submit]:has-text('Sign in')");
+    // the eye toggle shows the password and hides it again
+    await p4.getByRole("button", { name: "Show password" }).click();
+    assert.equal(await p4.getAttribute("#password", "type"), "text");
+    await p4.getByRole("button", { name: "Hide password" }).click();
+    assert.equal(await p4.getAttribute("#password", "type"), "password");
+    await p4.press("#password", "Enter"); // Enter must sign in, not restart the flow
     await p4.waitForURL(`${B}/`);
     await p4.getByRole("button", { name: "Switch to Teacher" }).waitFor({ timeout: 5000 }); // nav updated without a reload
     const c4 = await sessionCookie(ctx4);

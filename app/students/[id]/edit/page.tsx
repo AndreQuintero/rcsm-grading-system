@@ -8,7 +8,7 @@ import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["Email", "First name", "Middle name", "Last name", "Date of birth", "Enrollment date"]} photo radios={{ name: "Status", count: 3 }} /></main>}>
+    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Email", "First name", "Middle name", "Last name", "Date of birth", "Enrollment date"]} photo radios={{ name: "Status", count: 3 }} /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -21,7 +21,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   const s = Number.isInteger(n) && n > 0 ? await getStudent(n) : null;
   if (!s) notFound();
   return (
-    <main>
+    <main className="mx-auto max-w-3xl">
       <PageHeader title="Edit student" description={`Update ${[s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}’s details.`} action={<BackLink href="/students" label="Back to students" />} />
       <StudentForm
         studentId={n}

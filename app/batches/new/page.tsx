@@ -8,7 +8,7 @@ import { BatchForm } from "./BatchForm";
 
 export default function Page() {
   return (
-    <main>
+    <main className="mx-auto max-w-3xl">
       <PageHeader title="Register batch" description="Set the batch number, year and semester, then choose its students." action={<BackLink href="/batches" label="Back to batches" />} />
       <Suspense fallback={<FormSkeleton fields={["Batch number", "Year"]} radios={{ name: "Semester", count: 2 }} cards="Students" />}>
         <NewBatch />
