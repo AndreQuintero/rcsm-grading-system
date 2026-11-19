@@ -31,6 +31,7 @@ async function Account() {
         email={a.email as string}
         created={a.created as string}
         photoUrl={a.has_photo ? `/account/photo?v=${s.photoVersion}` : null}
+        roles={s.roles}
       />
       <ChangePasswordForm />
     </div>
