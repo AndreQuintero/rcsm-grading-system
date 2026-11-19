@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
+import { HideOnPublicPages } from "./HideOnPublicPages";
 import { SessionNav } from "./SessionNav";
 
 // App navigation: a charcoal sidebar on desktop, a compact top bar on small screens.
@@ -20,7 +21,9 @@ export function SiteHeader() {
 
         {/* the session (cookie) is request-time data under cacheComponents, so it is read inside Suspense */}
         <Suspense fallback={null}>
-          <SessionNav />
+          <HideOnPublicPages>
+            <SessionNav />
+          </HideOnPublicPages>
         </Suspense>
       </div>
 
