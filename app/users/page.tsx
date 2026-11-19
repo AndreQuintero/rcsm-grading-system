@@ -1,6 +1,7 @@
 import { Eye } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { EmptyAnimation } from "@/components/empty-animation";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
@@ -118,6 +119,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
             {users.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <EmptyAnimation />
                   {total === 0 ? "No users match these filters." : "No users on this page."}
                 </TableCell>
               </TableRow>
