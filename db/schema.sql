@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_set_at timestamptz,
   failed_login_count int NOT NULL DEFAULT 0,
   locked_until timestamptz,
-  is_active boolean NOT NULL DEFAULT true,
+  is_active boolean NOT NULL DEFAULT true, -- owned by the role-table sync
+  disabled_at timestamptz, -- set by an admin (Users page): blocks sign-in; the sync never touches it
   photo bytea, -- avatar copied from admins → teachers → students at the first password set; independent afterwards
   photo_type text,
   created_at timestamptz NOT NULL DEFAULT now(),

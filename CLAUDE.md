@@ -38,13 +38,15 @@ app/
   account/               any signed-in user's own page (menu avatar/name links here): username + avatar edit, email
                         read-only, member since, role tags, change password (current + new, same rules/checklist); actions.ts also
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
+  users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
+                        edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+lib/          user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -104,6 +106,10 @@ Conventions:
   `user_roles` (role + `profile_id`, not a real FK) mirror them via `syncUserFromRoleTables` (idempotent, one
   transaction): username from the highest role (admin > teacher > student; students = first middle last); removed
   role or email gone everywhere → role row deleted / user inactive and their sessions deleted.
+- **Inactive (admin block)**: `users.disabled_at`, set on the Users page. It is separate from `is_active`, which the sync
+  owns and would undo. Every `is_active` check also requires `disabled_at IS NULL` (session lookup, token use, setup/reset
+  emails, account). Inactivating deletes the user's sessions. Login step 2 says "Your account is inactive…" only after the
+  correct password; a wrong password still gets the generic error.
 - `/login` step 1 always answers the same; sync + setup email run in `after()`. Step 2 errors are always
   "Invalid email or password." (dummy Argon2 verify when no user). 5 failures → lock 15 min, doubling.
 - Rate limits: 5 per 15 min per IP and per email for each step (`auth_rate_limits`); setup emails 1 per 5 min and
@@ -141,7 +147,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `students`, `teachers`, `subjects`, `admins`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `students`, `teachers`, `subjects`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash
@@ -177,7 +183,7 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
-`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar). Production uses the same database, so a migration is live immediately — note it in the PR.
+`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block). Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
 

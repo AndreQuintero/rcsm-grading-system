@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, GraduationCap, Home, Layers, ShieldCheck, Users } from "lucide-react";
+import { BookOpen, GraduationCap, Home, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const ADMIN_NAV = [
   { href: "/students", label: "Students", icon: GraduationCap },
   { href: "/batches", label: "Batches", icon: Layers },
   { href: "/admins", label: "Admins", icon: ShieldCheck },
+  { href: "/users", label: "Users", icon: UserCog },
 ];
 
 // Admins get the management pages; other roles get their home. The server decides which (and enforces it).

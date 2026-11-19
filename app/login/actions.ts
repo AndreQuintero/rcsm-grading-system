@@ -15,6 +15,7 @@ export type LoginState = { step: "email" | "password"; email?: string; message?:
 
 const SENT = "If this is your first sign-in, we've sent a link to your email to set your password.";
 const INVALID = "Invalid email or password.";
+const INACTIVE = "Your account is inactive. Please contact an administrator.";
 
 // Step 1. The answer is the same for every email (unknown, inactive, has a password, first sign-in, rate limited):
 // all account-dependent work runs after the response, so neither the body nor its timing tells them apart.
@@ -31,7 +32,8 @@ export async function submitEmail(_prev: LoginState, formData: FormData): Promis
 }
 
 // Step 2. Unknown email, inactive account, no password yet, locked, rate limited and wrong password all give the
-// same error, each after one Argon2 verification.
+// same error, each after one Argon2 verification. An account inactivated by an admin is named only after the
+// correct password.
 export async function submitPassword(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = normalizeEmail(formData.get("email"));
   const password = String(formData.get("password") ?? "");
@@ -49,7 +51,7 @@ export async function submitPassword(_prev: LoginState, formData: FormData): Pro
   }
 
   const [u] = await sql`
-    SELECT id, password_hash, is_active, coalesce(locked_until > now(), false) AS locked FROM users WHERE email = ${email}`;
+    SELECT id, password_hash, is_active, disabled_at IS NOT NULL AS disabled, coalesce(locked_until > now(), false) AS locked FROM users WHERE email = ${email}`;
   const reason = !u ? "unknown" : !u.is_active ? "inactive" : !u.password_hash ? "no_password" : u.locked ? "locked" : null;
   if (reason) {
     await verifyDummy(password);
@@ -70,6 +72,12 @@ export async function submitPassword(_prev: LoginState, formData: FormData): Pro
     await audit("login_failure", { userId, email, ip, detail: { reason: "wrong_password" } });
     if ((r.failed_login_count as number) % 5 === 0) await audit("account_locked", { userId, email, ip, detail: { failures: r.failed_login_count } });
     return fail;
+  }
+
+  // Told only after the right password, so the message can't be used to probe which emails exist.
+  if (u.disabled) {
+    await audit("login_failure", { userId, email, ip, detail: { reason: "disabled" } });
+    return { step: "password", email, error: INACTIVE };
   }
 
   const roles = (await sql`SELECT role::text AS role FROM user_roles WHERE user_id = ${userId}`).map((r) => r.role).filter(isRole);
