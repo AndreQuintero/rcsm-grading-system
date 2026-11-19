@@ -8,7 +8,7 @@ import { USERNAME_MAX, type AccountState, type ChangePasswordState } from "@/lib
 export async function getAccount(userId: number) {
   const [a] = await sql`
     SELECT username, email, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS created, photo IS NOT NULL AS has_photo
-    FROM users WHERE id = ${userId} AND is_active`;
+    FROM users WHERE id = ${userId} AND is_active AND disabled_at IS NULL`;
   return a ?? null;
 }
 
@@ -41,7 +41,7 @@ export async function changePassword(userId: number, email: string, sessionId: s
     return { errors: { form: "Too many attempts. Wait 15 minutes and try again." } };
   }
   const current = String(formData.get("currentPassword") ?? "");
-  const [u] = await sql`SELECT password_hash FROM users WHERE id = ${userId} AND is_active`;
+  const [u] = await sql`SELECT password_hash FROM users WHERE id = ${userId} AND is_active AND disabled_at IS NULL`;
   if (!u?.password_hash || !current || !(await verifyPassword(u.password_hash as string, current))) {
     await audit("password_change_failed", { userId, email });
     return { errors: { currentPassword: WRONG } };

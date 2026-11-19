@@ -26,7 +26,7 @@ async function sendPasswordLink(user: { id: number; username: string }, email: s
 // active with no password yet, email a first sign-in link.
 export async function startFirstSignIn(email: string): Promise<"sent" | "none"> {
   await syncUserFromRoleTables(email);
-  const [u] = await sql`SELECT id, username FROM users WHERE email = ${email} AND is_active AND password_hash IS NULL`;
+  const [u] = await sql`SELECT id, username FROM users WHERE email = ${email} AND is_active AND disabled_at IS NULL AND password_hash IS NULL`;
   return u ? sendPasswordLink({ id: u.id as number, username: u.username as string }, email, "setup") : "none";
 }
 
@@ -34,7 +34,7 @@ export async function startFirstSignIn(email: string): Promise<"sent" | "none"> 
 // link; one that never set a password gets the first sign-in link instead. Unknown or inactive: nothing.
 export async function startPasswordReset(email: string): Promise<"sent" | "none"> {
   await syncUserFromRoleTables(email);
-  const [u] = await sql`SELECT id, username, password_hash IS NOT NULL AS has_password FROM users WHERE email = ${email} AND is_active`;
+  const [u] = await sql`SELECT id, username, password_hash IS NOT NULL AS has_password FROM users WHERE email = ${email} AND is_active AND disabled_at IS NULL`;
   if (!u) return "none";
   return sendPasswordLink({ id: u.id as number, username: u.username as string }, email, u.has_password ? "reset" : "setup");
 }

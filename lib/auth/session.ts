@@ -23,7 +23,7 @@ export async function lookupSession(token: string | undefined): Promise<Session 
       array_agg(r.role::text ORDER BY r.role) AS roles,
       s.last_seen_at < now() - interval '1 minute' AS stale
     FROM sessions s
-    JOIN users u ON u.id = s.user_id AND u.is_active
+    JOIN users u ON u.id = s.user_id AND u.is_active AND u.disabled_at IS NULL
     JOIN user_roles r ON r.user_id = u.id
     WHERE s.id = ${sessionId(token)}
     GROUP BY s.id, u.id

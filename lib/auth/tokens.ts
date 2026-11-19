@@ -89,7 +89,7 @@ export async function consumeSetupToken(token: string, passwordHash: string): Pr
         photo = CASE WHEN users.password_hash IS NULL THEN pic.photo ELSE users.photo END,
         photo_type = CASE WHEN users.password_hash IS NULL THEN pic.photo_type ELSE users.photo_type END
       FROM tok LEFT JOIN pic ON true
-      WHERE users.id = tok.user_id AND users.is_active AND (users.password_hash IS NULL OR tok.purpose = 'reset')
+      WHERE users.id = tok.user_id AND users.is_active AND users.disabled_at IS NULL AND (users.password_hash IS NULL OR tok.purpose = 'reset')
       RETURNING users.id, users.email, tok.purpose
     ),
     ended AS (DELETE FROM sessions WHERE user_id IN (SELECT id FROM u)),
