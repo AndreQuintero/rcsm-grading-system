@@ -69,16 +69,18 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
     assert.match(pw("ABCDEFG!").errors?.password ?? "", /lowercase letter/);
     assert.match(pw("Abcdefgh").errors?.password ?? "", /special character/);
     assert.match(pw("Abcd efgh").errors?.password ?? "", /special character/, "a space is not a special character");
-    assert.match(pw("").errors?.password ?? "", /capital.*special.*8 to 15.*lowercase/);
+    assert.match(pw("").errors?.password ?? "", /capital.*special.*8 to 15.*lowercase.*common/);
+    for (const common of ["Password1!", "Qwerty123!", "Welcome1!", "Admin123!"]) assert.match(pw(common).errors?.password ?? "", /common password/, common);
     assert.ok(pw("Abcdefg!", "Abcdefg?").errors?.confirmPassword);
-    for (const ok of ["Abcdefg!", "Ábcdefg@1", "Zz@zzzzzzzzzzzz"]) assert.equal(pw(ok).password, ok, ok); // 8, accents, 15
-    assert.deepEqual([passwordStrength(""), passwordStrength("abc"), passwordStrength("Abc!"), passwordStrength("Abcdefg!")].map((s) => s.score), [0, 1, 3, 4]);
+    for (const ok of ["Abcdefg!", "Ábcdefg@1", "Zz@zzzzzzzzzzzz", "Brand#New9"]) assert.equal(pw(ok).password, ok, ok); // 8, accents, 15
+    // "abc": lowercase + not common; "Abc!": + capital + special; "Password1!": all but "not common"
+    assert.deepEqual(["", "abc", "Abc!", "Password1!", "Abcdefg!"].map((s) => passwordStrength(s).score), [0, 2, 4, 4, 5]);
     assert.equal(passwordStrength("Abcdefg!").label, "Strong");
     const h = await hashPassword("a perfectly fine passphrase");
     assert.match(h, /^\$argon2id\$/);
     assert.equal(await verifyPassword(h, "a perfectly fine passphrase"), true);
     assert.equal(await verifyPassword(h, "wrong"), false);
-    console.log("ok  password rules: capital, lowercase, special, 8-15, confirmation, strength score; Argon2id");
+    console.log("ok  password rules: capital, lowercase, special, 8-15, not common, confirmation, strength score; Argon2id");
 
     // ---- 5. username priority
     const only = `only.teacher${D}`;

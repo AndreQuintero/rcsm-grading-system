@@ -268,15 +268,15 @@ const userId = async (email) => (await sql`SELECT id FROM users WHERE email = ${
     const submit = p11.locator("button[type=submit]");
     const met = () => p11.locator("li[data-met=true]").count();
     const bar = p11.getByRole("progressbar", { name: "Password strength" });
-    assert.equal(await p11.locator("li[data-met]").count(), 4);
+    assert.equal(await p11.locator("li[data-met]").count(), 5);
     assert.equal(await met(), 0);
     assert.equal(await submit.isDisabled(), true, "nothing typed -> cannot submit");
-    for (const [typed, n, label] of [["abc", 1, "Weak"], ["Abc", 2, "Fair"], ["Abc!", 3, "Good"], ["Brand#New9", 4, "Strong"], ["brand#new9", 3, "Good"], ["Brand#New9", 4, "Strong"]]) {
+    for (const [typed, n, label] of [["abc", 2, "Weak"], ["Abc", 3, "Fair"], ["Abc!", 4, "Good"], ["Password1!", 4, "Good"], ["Brand#New9", 5, "Strong"], ["brand#new9", 4, "Good"], ["Brand#New9", 5, "Strong"]]) {
       await p11.fill("#password", typed);
       assert.equal(await met(), n, typed);
       assert.equal(await bar.getAttribute("aria-valuenow"), String(n), typed);
       assert.equal(await bar.getAttribute("aria-valuetext"), label, typed);
-      assert.equal(await submit.isDisabled(), n < 4, `${typed}: button enabled only when all 4 are met`);
+      assert.equal(await submit.isDisabled(), n < 5, `${typed}: button enabled only when all 5 are met`);
     }
     // the server checks again: a mismatched confirmation is refused and the link stays usable
     await p11.fill("#confirmPassword", "Brand#New8");

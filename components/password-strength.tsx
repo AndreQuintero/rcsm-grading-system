@@ -4,8 +4,9 @@ import { Check } from "lucide-react";
 import { passwordStrength, PASSWORD_RULES } from "@/lib/auth/password-rules";
 import { cn } from "@/lib/utils";
 
-const BAR = ["bg-transparent", "bg-destructive", "bg-amber-500", "bg-primary", "bg-success"];
-const TEXT = ["text-destructive", "text-destructive", "text-amber-600", "text-primary", "text-success"];
+// by score 0-5: very weak / weak red, fair orange, good blue, strong green
+const BAR = ["bg-transparent", "bg-destructive", "bg-destructive", "bg-amber-500", "bg-primary", "bg-success"];
+const TEXT = ["text-destructive", "text-destructive", "text-destructive", "text-amber-600", "text-primary", "text-success"];
 
 // Strength bar and the requirement checklist, shown before and while typing. A met requirement is crossed
 // out with an animated line (and un-crossed if it stops being met); the bar grows and changes colour.
