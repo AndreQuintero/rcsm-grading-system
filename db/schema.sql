@@ -48,3 +48,13 @@ CREATE TABLE IF NOT EXISTS students (
 );
 
 CREATE INDEX IF NOT EXISTS students_batch_idx ON students (batch_id);
+
+-- Admins who manage the system (roles will come later). updated_at is set by the update action.
+CREATE TABLE IF NOT EXISTS admins (
+  id serial PRIMARY KEY,
+  full_name text NOT NULL,
+  email text NOT NULL UNIQUE,
+  date_of_birth date NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
