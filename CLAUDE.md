@@ -104,6 +104,8 @@ Conventions:
   absolute 12 h, or 15 min / 8 h when the user holds admin. Role homes: admin `/`, teacher `/teacher`, student `/student`.
 - `auth_audit` logs events (never passwords, tokens or links). Security headers + CSP are in `next.config.ts`.
 - First admin / repair: `scripts/seed-admin.ts --name … --email … --dob …`; `scripts/backfill-users.ts` re-syncs all.
+  **Editing `admins`/`teachers`/`students` directly in SQL skips the sync** (e.g. a changed email leaves the old
+  account active): run `scripts/backfill-users.ts` afterwards.
 
 ## Running checks in this sandbox
 
