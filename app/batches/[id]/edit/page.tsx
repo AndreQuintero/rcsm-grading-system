@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { FormSkeleton, HeaderSkeleton } from "@/components/skeletons";
 import { PageHeader } from "@/components/page-header";
 import { BackLink } from "@/app/BackLink";
 import { batchLabel, eligibleStudents, getBatch } from "@/lib/batch";
@@ -7,7 +8,7 @@ import { BatchForm } from "../../new/BatchForm";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><p className="text-sm text-muted-foreground">Loading…</p></main>}>
+    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["Batch number", "Year"]} radios={{ name: "Semester", count: 2 }} cards="Students" /></main>}>
       <Edit params={params} />
     </Suspense>
   );

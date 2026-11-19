@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { FormSkeleton, HeaderSkeleton } from "@/components/skeletons";
 import { getStudent } from "@/lib/student-queries";
 import { StudentForm } from "../../new/StudentForm";
 import { PageHeader } from "@/components/page-header";
@@ -7,7 +8,7 @@ import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><p className="text-sm text-muted-foreground">Loading…</p></main>}>
+    <Suspense fallback={<main><HeaderSkeleton /><FormSkeleton fields={["First name", "Middle name", "Last name", "Date of birth", "Enrollment date"]} photo radios={{ name: "Status", count: 3 }} /></main>}>
       <Edit params={params} />
     </Suspense>
   );
