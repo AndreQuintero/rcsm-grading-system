@@ -36,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 md:py-12">{children}</div>
           </div>
           {/* the app is light-only, so the toasts are too */}
-          <Toaster theme="light" position="top-right" closeButton toastOptions={{ classNames: { toast: "cn-toast !gap-3 !shadow-lg", title: "!text-sm !font-medium" } }} />
+          <Toaster theme="light" position="top-right" closeButton toastOptions={{ classNames: { toast: "cn-toast !gap-3 !shadow-lg", title: "!text-sm !font-medium", error: "!border-l-4 !border-l-destructive" } }} />
         </TooltipProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { batchDbError, batchLabel, batchValues, createBatch, parseBatch } from "@/lib/batch";
+import { batchDbError, batchLabel, batchValues, createBatch, duplicatePeriodMessage, isDuplicateBatch, parseBatch } from "@/lib/batch";
 
 export type BatchFormState = {
   errors?: Record<string, string>;
@@ -15,7 +15,10 @@ export async function createBatchAction(_prev: BatchFormState, formData: FormDat
   try {
     await createBatch(parsed.data);
   } catch (e) {
-    return { errors: batchDbError(e), values: batchValues(formData) };
+    const errors = isDuplicateBatch(e)
+      ? { period: await duplicatePeriodMessage(parsed.data.year, parsed.data.semester) }
+      : batchDbError(e);
+    return { errors, values: batchValues(formData) };
   }
   // the assigned students leave the "available" list on this page, so re-render it
   revalidatePath("/batches", "layout");
