@@ -13,13 +13,13 @@ export const USER_STATUS_LABEL: Record<UserStatus, string> = {
 };
 
 const fmt = (col: string) => `to_char(${col} AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI')`;
-const STATUS = `CASE WHEN u.disabled_at IS NOT NULL THEN 'inactive' WHEN NOT u.is_active THEN 'no_roles'
+export const USER_STATUS_SQL = `CASE WHEN u.disabled_at IS NOT NULL THEN 'inactive' WHEN NOT u.is_active THEN 'no_roles'
   WHEN u.password_hash IS NULL THEN 'pending' ELSE 'active' END`;
 const ROLES = `coalesce((SELECT array_agg(r.role::text ORDER BY r.role) FROM user_roles r WHERE r.user_id = u.id), '{}')`;
 
 export async function listUsers({ username = "", email = "", page = 1 }: { username?: string; email?: string; page?: number }) {
   const rows = await sql.query(
-    `SELECT u.id, u.username, u.email, ${ROLES} AS roles, ${STATUS} AS status, u.photo IS NOT NULL AS has_photo,
+    `SELECT u.id, u.username, u.email, ${ROLES} AS roles, ${USER_STATUS_SQL} AS status, u.photo IS NOT NULL AS has_photo,
        ${fmt("u.created_at")} AS created, count(*) OVER() AS total
      FROM users u
      WHERE ($1 = '' OR u.username ILIKE '%' || $1 || '%') AND ($2 = '' OR u.email ILIKE '%' || $2 || '%')
@@ -32,7 +32,7 @@ export async function listUsers({ username = "", email = "", page = 1 }: { usern
 
 export async function getUser(id: number) {
   const [u] = await sql.query(
-    `SELECT u.id, u.username, u.email, ${ROLES} AS roles, ${STATUS} AS status, u.photo IS NOT NULL AS has_photo,
+    `SELECT u.id, u.username, u.email, ${ROLES} AS roles, ${USER_STATUS_SQL} AS status, u.photo IS NOT NULL AS has_photo,
        ${fmt("u.created_at")} AS created, ${fmt("u.password_set_at")} AS password_set, ${fmt("u.disabled_at")} AS disabled,
        CASE WHEN u.locked_until > now() THEN ${fmt("u.locked_until")} END AS locked_until,
        (SELECT ${fmt("max(a.created_at)")} FROM auth_audit a WHERE a.user_id = u.id AND a.event = 'login_success') AS last_login
