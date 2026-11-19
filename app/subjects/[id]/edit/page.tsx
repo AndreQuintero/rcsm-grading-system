@@ -22,7 +22,7 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   if (!s) notFound();
   return (
     <main className="mx-auto max-w-3xl">
-      <PageHeader title="Edit subject" description="Renaming a subject updates it for every teacher who teaches it." action={<BackLink href="/subjects" label="Back to subjects" />} />
+      <PageHeader title="Edit subject" description="Renaming a subject updates it in every academic semester that uses it." action={<BackLink href="/subjects" label="Back to subjects" />} />
       <SubjectForm subjectId={n} initialName={s.name} />
     </main>
   );

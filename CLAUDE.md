@@ -1,7 +1,7 @@
 # RCSM Grading System — project guide
 
 Admin web app for **Revival Cry School of Ministry**: register and manage teachers, subjects, students,
-batches (intakes of students) and admins. Read `AGENTS.md` too: this is Next.js 16, which differs from older versions —
+batches (intakes of students), academic semesters and admins, see the sign-in accounts (Users), with an admin dashboard at `/`. Read `AGENTS.md` too: this is Next.js 16, which differs from older versions —
 check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 
 ## Stack
@@ -20,33 +20,42 @@ check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 
 ```
 app/
+  page.tsx              admin dashboard (`/`): hero (student count + status bar, Lottie), stat row (teachers, subjects, admins,
+                        active users), semester picker (?semester=id; default = running today, else latest started, else nearest
+                        future — `pickDefault` in lib/dashboard.ts, 2nd semester Jan–May precedes 1st Jun–Dec), teachers (bottom
+                        Sheet drawer with that semester's subjects), one panel per batch (non-inactive students), empty state;
+                        client bits in app/_dashboard/ (SemesterSelect = shadcn Select pill, TeacherList, Avatar)
   layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
-  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Admins); active link via usePathname in Suspense;
+  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Semesters, Admins, Users); active link via usePathname in Suspense;
                         below md a top bar with a burger: MobileMenu (components/ui/sheet, slides in from the right) shows the
                         same SessionNav pieces (account card, links, switch role, sign out) and closes on navigation;
                         the session menu is hidden on the public sign-in pages (HideOnPublicPages, PUBLIC_PATHS in lib/auth/roles.ts,
                         shared with the proxy) because the root layout stays mounted when an expired session redirects to /login
   ConfirmDeleteButton   trash icon + AlertDialog; takes a bound server action (+ optional note)
   EditLink              pencil icon link with tooltip
-  SubjectMultiSelect    searchable multi-select (chips, keyboard) posting hidden inputs
+  SubjectMultiSelect    searchable multi-select (chips, keyboard) posting hidden inputs (semester form: one per teacher)
   <feature>/page.tsx            list page: PageHeader, filter Card (GET form), Table, Pager
   <feature>/new/page.tsx        register page;   <feature>/new/<Feature>Form.tsx  client form (create + edit)
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
-  <students|teachers|admins>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
+  <students|teachers|admins|users>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
   login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
   account/               any signed-in user's own page (menu avatar/name links here): username + avatar edit, email
                         read-only, member since, role tags, change password (current + new, same rules/checklist); actions.ts also
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
+  academic-semesters/    list (year filter) + register/edit (AcademicSemesterForm: year + semester radios, batch cards,
+                        teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
   users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
-              generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
+components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
+              its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
+              generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn; sheet = side panels, right for the mobile menu and bottom for the dashboard drawer, sliding their full size;
+              select = the dashboard semester picker)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+lib/          dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -78,8 +87,14 @@ Conventions:
 
 - Students, teachers and admins have an optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB; `lib/photo.ts`
   parses it; an update keeps it unless a new file or "Remove current photo" is sent). Lists don't load or show it.
-- `teachers` (unique email) ↔ `subjects` (unique name) via `teacher_subjects` (many-to-many, cascade both sides).
-  A teacher needs at least one subject.
+- `teachers` (unique email) and `subjects` (unique name) are not linked directly: what a teacher teaches is set per
+  **academic semester** (the old `teacher_subjects` table is dropped by migration 013).
+- `academic_semesters`: `year` (2000–2100) + `semester` (1/2), **`UNIQUE (year, semester)`** (duplicate → error toast +
+  alert). `academic_semester_batches`: any batches, several per semester, and a batch can be in many semesters; the
+  students take part through their batch. `academic_semester_teacher_subjects` (semester, teacher, subject): a teacher
+  is in the semester when they have ≥ 1 subject there; a subject may go to several teachers. Batches and teachers are
+  optional (plan first, fill later). All FKs cascade: deleting a batch/teacher/subject removes it from semesters;
+  deleting a semester keeps them. Create is one statement, update one transaction (replace the link rows).
 - `students`: first/middle(optional)/last name, date of birth, `status` in `audit | full_time | inactive`,
   `enrollment_date` (required for every status), optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB),
   `batch_id` (nullable, `ON DELETE SET NULL`).
@@ -147,7 +162,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `students`, `teachers`, `subjects`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash
@@ -183,7 +198,9 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
-`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block). Production uses the same database, so a migration is live immediately — note it in the PR.
+`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
+the deploy that stopped reading it). A migration that removes something production code still reads must wait
+for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
 
