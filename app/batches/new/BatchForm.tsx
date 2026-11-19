@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useState } from "react";
@@ -86,8 +86,14 @@ export function BatchForm({ batchId, initial = {}, students }: Props) {
   );
 }
 
+// Lower-case and strip accents, so "andre" finds "André".
+const fold = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
 function StudentCards({ students, selected }: { students: Student[]; selected: number[] }) {
   const [count, setCount] = useState(() => students.filter((s) => selected.includes(s.id)).length);
+  const [query, setQuery] = useState("");
+  const q = fold(query.trim());
+  const visible = students.filter((s) => fold(s.name).includes(q)).length;
 
   return (
     <div role="group" aria-labelledby="students-label" className="flex flex-col gap-3">
@@ -107,10 +113,27 @@ function StudentCards({ students, selected }: { students: Student[]; selected: n
           </Button>
         </div>
       ) : (
+        <>
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label="Search students by name"
+            placeholder="Search students by name"
+            value={query}
+            onChange={(ev) => setQuery(ev.target.value)}
+            // Enter here filters only; it must not submit the batch form
+            onKeyDown={(ev) => ev.key === "Enter" && ev.preventDefault()}
+            className="pl-8"
+          />
+        </div>
+        {visible === 0 && <p className="text-sm text-muted-foreground">No students match “{query.trim()}”.</p>}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {students.map((s) => (
             <label
               key={s.id}
+              // hidden, not removed: a selected student filtered out of view must still be submitted
+              hidden={!fold(s.name).includes(q)}
               className="group relative flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-3 transition-[border-color,background-color,box-shadow] hover:border-primary/40 has-checked:border-primary has-checked:bg-accent/50 has-checked:shadow-[inset_0_0_0_1px_var(--primary)] has-focus-visible:ring-3 has-focus-visible:ring-ring/30"
             >
               <input
@@ -144,6 +167,7 @@ function StudentCards({ students, selected }: { students: Student[]; selected: n
             </label>
           ))}
         </div>
+        </>
       )}
     </div>
   );
