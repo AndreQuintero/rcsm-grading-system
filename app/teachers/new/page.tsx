@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { FormSkeleton } from "@/components/skeletons";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { allSubjects } from "@/lib/subject";
 import { TeacherForm } from "./TeacherForm";
+import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page() {
   return (
-    <main>
-      <h1>Register teacher</h1>
-      <Suspense fallback={<p>Loading…</p>}>
+    <main className="mx-auto max-w-3xl">
+      <PageHeader title="Register teacher" description="Add a teacher and choose the subjects they teach." action={<BackLink href="/teachers" label="Back to teachers" />} />
+      <Suspense fallback={<FormSkeleton fields={["Full name", "Date of birth", "Email", "Subjects taught"]} photo />}>
         <NewTeacher />
       </Suspense>
     </main>
@@ -20,9 +25,16 @@ async function NewTeacher() {
   const subjects = await allSubjects();
   if (subjects.length === 0)
     return (
-      <p>
-        No subjects are registered yet. <Link href="/subjects/new">Register subjects</Link> first.
-      </p>
+      <Card className="max-w-3xl">
+        <CardContent className="flex flex-col items-start gap-3">
+          <p className="text-sm text-muted-foreground">
+            No subjects are registered yet. A teacher needs at least one subject, so register the subjects first.
+          </p>
+          <Button asChild>
+            <Link href="/subjects/new">Register subjects</Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   return <TeacherForm subjectOptions={subjects} />;
 }

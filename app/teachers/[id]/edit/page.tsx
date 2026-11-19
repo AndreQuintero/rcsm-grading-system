@@ -1,12 +1,15 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { FormSkeleton, HeaderSkeleton } from "@/components/skeletons";
 import { allSubjects } from "@/lib/subject";
 import { getTeacher } from "@/lib/teacher";
 import { TeacherForm } from "../../new/TeacherForm";
+import { PageHeader } from "@/components/page-header";
+import { BackLink } from "@/app/BackLink";
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<main><p>Loading…</p></main>}>
+    <Suspense fallback={<main className="mx-auto max-w-3xl"><HeaderSkeleton /><FormSkeleton fields={["Full name", "Date of birth", "Email", "Subjects taught"]} photo /></main>}>
       <Edit params={params} />
     </Suspense>
   );
@@ -22,10 +25,11 @@ async function Edit({ params }: { params: Promise<{ id: string }> }) {
   ]);
   if (!t) notFound();
   return (
-    <main>
-      <h1>Edit teacher</h1>
+    <main className="mx-auto max-w-3xl">
+      <PageHeader title="Edit teacher" description={`Update ${t.full_name}’s details and subjects.`} action={<BackLink href="/teachers" label="Back to teachers" />} />
       <TeacherForm
         teacherId={n}
+        hasPhoto={t.has_photo as boolean}
         initial={{ fullName: t.full_name, dateOfBirth: t.dob, email: t.email }}
         subjectOptions={subjects}
         initialSubjectIds={t.subject_ids as number[]}
