@@ -21,7 +21,11 @@ check `node_modules/next/dist/docs/` before using a Next API you are unsure of.
 ```
 app/
   layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
-  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Admins); active link via usePathname in Suspense
+  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Admins); active link via usePathname in Suspense;
+                        below md a top bar with a burger: MobileMenu (components/ui/sheet, slides in from the right) shows the
+                        same SessionNav pieces (account card, links, switch role, sign out) and closes on navigation;
+                        the session menu is hidden on the public sign-in pages (HideOnPublicPages, PUBLIC_PATHS in lib/auth/roles.ts,
+                        shared with the proxy) because the root layout stays mounted when an expired session redirects to /login
   ConfirmDeleteButton   trash icon + AlertDialog; takes a bound server action (+ optional note)
   EditLink              pencil icon link with tooltip
   SubjectMultiSelect    searchable multi-select (chips, keyboard) posting hidden inputs
@@ -32,13 +36,14 @@ app/
   <students|teachers|admins>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
   login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
   account/               any signed-in user's own page (menu avatar/name links here): username + avatar edit, email
-                        read-only, member since, change password (current + new, same rules/checklist); actions.ts also
+                        read-only, member since, role tags, change password (current + new, same rules/checklist); actions.ts also
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
+components/   ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn)
-lib/auth/     roles (client-safe), sync, session, password (Argon2id), tokens, rate-limit, email (EmailJS), audit, first-sign-in
+lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
+              first-sign-in, account (own profile + change password; account-shared = client-safe types)
 lib/          db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
@@ -89,7 +94,7 @@ Conventions:
   student out of a batch. The toast says what happened.
 
 - `admins`: full name, email (unique, lowercased), date of birth, `created_at` (registered) and `updated_at`
-  (last modified). `updated_at` has no trigger: `updateAdmin` sets it with `updated_at = now()`. Roles come later.
+  (last modified). `updated_at` has no trigger: `updateAdmin` sets it with `updated_at = now()`. Admin/teacher/student roles are derived from which table holds the email.
   The list shows both timestamps in UTC; filters are name and email.
 
 - `students.email`: required by the form, nullable in the DB (older rows), unique on `lower(email)`.
