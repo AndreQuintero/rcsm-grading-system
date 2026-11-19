@@ -31,7 +31,9 @@ app/
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
   <students|teachers|admins>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
   login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
-                        account/actions.ts switchRole + logout; account/photo/route.ts the signed-in user's avatar
+  account/               any signed-in user's own page (menu avatar/name links here): username + avatar edit, email
+                        read-only, member since, change password (current + new, same rules/checklist); actions.ts also
+                        switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
   teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge,
@@ -118,6 +120,9 @@ Conventions:
   the account had no password): admins → teachers → students, first with a photo. Independent afterwards (role-table
   photo edits and password resets don't touch it). Sidebar shows it from `/account/photo` (own avatar, any role —
   `requiredRole` returns null for `/account/*`), else `GenericAvatar`.
+- Username and avatar belong to the user once the first password is set: the sync only overwrites `username`
+  while `password_hash` is NULL. Changing the password (`lib/auth/account.ts`) needs the current one, is rate
+  limited per user, must differ from the current one, and ends the user's other sessions (this one stays).
 - `auth_audit` logs events (never passwords, tokens or links). Security headers + CSP are in `next.config.ts`.
 - First admin / repair: `scripts/seed-admin.ts --name … --email … --dob …`; `scripts/backfill-users.ts` re-syncs all.
   **Editing `admins`/`teachers`/`students` directly in SQL skips the sync** (e.g. a changed email leaves the old

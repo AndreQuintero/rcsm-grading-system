@@ -12,6 +12,7 @@ import { checkSetupToken, consumeSetupToken, issueSetupToken, setupLink } from "
 import { hit } from "../lib/auth/rate-limit";
 import { changeActiveRole, lookupSession } from "../lib/auth/session";
 import { startFirstSignIn, startPasswordReset } from "../lib/auth/first-sign-in";
+import { changePassword, getAccount, updateAccount } from "../lib/auth/account";
 import { highestRole, requiredRole, safeNext } from "../lib/auth/roles";
 import { createHash } from "node:crypto";
 
@@ -262,7 +263,6 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
     assert.equal(await hit(key), true, "new window");
     console.log("ok  14. rate limit counter: 5 per 15 minutes per key, then refused; resets after the window");
 
-    console.log("all auth library checks passed");
 
     // ---- avatar: copied once at the first password set, admin → teacher → student; independent afterwards
     {
@@ -292,7 +292,43 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
       assert.equal((await lookupSession(await newSession((await user(none)).id, "admin")))?.hasPhoto, false);
       assert.equal((await lookupSession(await newSession(au.id, "admin")))?.hasPhoto, true);
       console.log("ok  avatar copied at first sign-in (admin → teacher → student), independent afterwards");
+
+      // ---- account page: own username and avatar; username no longer follows the role tables after first sign-in
+      const f = (o: Record<string, string>) => { const x = new FormData(); for (const [k, v] of Object.entries(o)) x.set(k, v); return x; };
+      assert.ok((await updateAccount(au.id, f({ username: "  " }))).errors?.username);
+      assert.ok((await updateAccount(au.id, f({ username: "x".repeat(81) }))).errors?.username);
+      assert.equal((await updateAccount(au.id, f({ username: "  My   Own Name " }))).message, "Account updated.");
+      const acc = await getAccount(au.id);
+      assert.equal(acc?.username, "My Own Name");
+      assert.equal(acc?.has_photo, true, "a save without a new file keeps the avatar");
+      await sql`UPDATE admins SET full_name = 'Renamed In Admin' WHERE email = ${av}`;
+      await syncUserFromRoleTables(av);
+      assert.equal((await getAccount(au.id))?.username, "My Own Name", "sync leaves a signed-up user's username alone");
+      const rm = f({ username: "My Own Name", removePhoto: "on" });
+      await updateAccount(au.id, rm);
+      assert.equal((await getAccount(au.id))?.has_photo, false, "remove clears the avatar");
+      const withPic = f({ username: "My Own Name" });
+      withPic.set("photo", new File([Buffer.from(px(9), "base64")], "a.png", { type: "image/png" }));
+      await updateAccount(au.id, withPic);
+      assert.equal((await photoOf()).b64, px(9));
+
+      // ---- change password: current required, same rules, different from the current one; other sessions end
+      const keep = await newSession(au.id, "admin");
+      const other = await newSession(au.id, "admin");
+      const keepId = createHash("sha256").update(keep).digest("hex");
+      const cp = (cur: string, pw: string, conf = pw) => changePassword(au.id, av, keepId, f({ currentPassword: cur, password: pw, confirmPassword: conf }));
+      assert.ok((await cp("wrong password", "Fresh#Pass9")).errors?.currentPassword);
+      assert.ok((await cp("correct horse battery staple", "short")).errors?.password);
+      assert.ok((await cp("correct horse battery staple", "Fresh#Pass9", "Other#Pass9")).errors?.confirmPassword);
+      assert.equal((await cp("correct horse battery staple", "Fresh#Pass9")).changed, true);
+      assert.ok((await cp("Fresh#Pass9", "Fresh#Pass9")).errors?.password, "same as the current one");
+      const [h] = await sql`SELECT password_hash FROM users WHERE id = ${au.id}`;
+      assert.equal(await verifyPassword(h.password_hash as string, "Fresh#Pass9"), true);
+      assert.ok(await lookupSession(keep), "the session that changed it stays");
+      assert.equal(await lookupSession(other), null, "other sessions end");
+      console.log("ok  account: username/avatar edits (sync no longer overwrites), change password needs the current one");
     }
+    console.log("all auth library checks passed");
   } finally {
     await cleanup();
   }
