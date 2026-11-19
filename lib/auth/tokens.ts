@@ -72,11 +72,23 @@ export async function consumeSetupToken(token: string, passwordHash: string): Pr
       WHERE id = ${t.id} AND token_hash = ${t.hash} AND used_at IS NULL AND expires_at > now()
       FOR UPDATE
     ),
+    pic AS (
+      SELECT photo, photo_type FROM (
+        SELECT 1 AS k, photo, photo_type, email FROM admins
+        UNION ALL SELECT 2, photo, photo_type, email FROM teachers
+        UNION ALL SELECT 3, photo, photo_type, email FROM students
+      ) x
+      WHERE photo IS NOT NULL AND lower(email) = (SELECT email FROM users WHERE id = (SELECT user_id FROM tok))
+      ORDER BY k LIMIT 1
+    ),
     used AS (UPDATE password_setup_tokens SET used_at = now() WHERE id IN (SELECT id FROM tok)),
     u AS (
       UPDATE users SET password_hash = ${passwordHash}, password_set_at = now(),
-        failed_login_count = 0, locked_until = NULL, updated_at = now()
-      FROM tok
+        failed_login_count = 0, locked_until = NULL, updated_at = now(),
+        -- first sign-in only (no password yet): the avatar is copied from admins, then teachers, then students
+        photo = CASE WHEN users.password_hash IS NULL THEN pic.photo ELSE users.photo END,
+        photo_type = CASE WHEN users.password_hash IS NULL THEN pic.photo_type ELSE users.photo_type END
+      FROM tok LEFT JOIN pic ON true
       WHERE users.id = tok.user_id AND users.is_active AND (users.password_hash IS NULL OR tok.purpose = 'reset')
       RETURNING users.id, users.email, tok.purpose
     ),

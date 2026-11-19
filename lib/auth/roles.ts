@@ -14,8 +14,10 @@ export const normalizeEmail = (v: unknown) => String(v ?? "").trim().toLowerCase
 export const isEmail = (e: string) => e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 // The role a path belongs to. Note "/teachers" (admin page) is not "/teacher" (teacher area).
-export function requiredRole(pathname: string): Role {
+// null = any signed-in user (their own account things, e.g. the avatar).
+export function requiredRole(pathname: string): Role | null {
   const inArea = (base: string) => pathname === base || pathname.startsWith(base + "/");
+  if (inArea("/account")) return null;
   if (inArea("/teacher")) return "teacher";
   if (inArea("/student")) return "student";
   return "admin";

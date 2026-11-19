@@ -1,4 +1,5 @@
 import { LogOut, Repeat } from "lucide-react";
+import { GenericAvatar } from "@/components/generic-avatar";
 import { ROLE_HOME, ROLE_LABEL } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/session";
 import { logout, switchRole } from "./account/actions";
@@ -15,9 +16,19 @@ export async function SessionNav() {
     <div className="flex items-center gap-2 md:block">
       <NavLinks admin={s.activeRole === "admin"} homeHref={ROLE_HOME[s.activeRole]} />
       <div className="md:mt-8 md:border-t md:border-white/10 md:pt-5">
-        <div className="hidden px-2 md:block">
-          <p className="truncate text-sm font-medium text-white">{s.username}</p>
-          <p className="text-xs text-sidebar-foreground/70">{ROLE_LABEL[s.activeRole]}</p>
+        <div className="hidden items-center gap-3 px-2 md:flex">
+          <span className="size-9 shrink-0 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
+            {s.hasPhoto ? (
+              // eslint-disable-next-line @next/next/no-img-element -- private, session-bound image; next/image would cache it
+              <img src="/account/photo" alt="" width={36} height={36} className="size-full object-cover" />
+            ) : (
+              <GenericAvatar className="text-white" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-white">{s.username}</p>
+            <p className="text-xs text-sidebar-foreground/70">{ROLE_LABEL[s.activeRole]}</p>
+          </div>
         </div>
         <div className="flex gap-1 md:mt-3 md:flex-col">
           {others.map((r) => (

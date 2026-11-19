@@ -85,5 +85,6 @@ export async function submitPassword(_prev: LoginState, formData: FormData): Pro
   // Go back to the requested page only if it is internal and the user's roles allow it.
   revalidatePath("/", "layout"); // the root layout's sidebar now shows the signed-in navigation
   const next = safeNext(formData.get("next"), ROLE_HOME[active]);
-  redirect(roles.includes(requiredRole(next.split("?")[0])) ? next : ROLE_HOME[active]);
+  const need = requiredRole(next.split("?")[0]);
+  redirect(!need || roles.includes(need) ? next : ROLE_HOME[active]);
 }
