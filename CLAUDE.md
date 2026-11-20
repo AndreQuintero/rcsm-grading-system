@@ -27,7 +27,11 @@ app/
                         /student-records/<id>/<semester>), then "Top students" last (top 5 + ties by average total per subject,
                         dense places 1st/1st/2nd, inactive left out; semesterRanking + rankStudents in lib/dashboard.ts), empty state;
                         client bits in app/_dashboard/ (SemesterSelect = shadcn Select pill, TeacherList, Avatar)
-  layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
+  layout.tsx            root shell: NavigationProgress, SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
+  NavigationProgress    top loading bar (flame-blue gradient, glow, shimmer; shown after 120 ms, trickles to <90%). Starts on
+                        same-site link clicks (capture phase: <Link> preventDefaults), GET form submits, forms with
+                        `data-navigates` (switch role, sign out) and startNavigationProgress() (router.push/replace callers);
+                        ends when the address changed AND no `data-slot="skeleton"` is left (PPR shows the shell at once); 10 s cap
   SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Student records, Batches, Semesters, Admins, Users); active link via usePathname in Suspense;
                         below md a top bar with a burger: MobileMenu (components/ui/sheet, slides in from the right) shows the
                         same SessionNav pieces (account card, links, switch role, sign out) and closes on navigation;
@@ -108,6 +112,8 @@ Conventions:
   `connection()` — `cacheComponents` refuses to prerender otherwise.
 - List filters are GET forms keyed on the active filters (`key={pageHref(1)}`) so "Clear filters" resets inputs.
 - Lists are 10 per page using `count(*) OVER()` for the total.
+- Navigating from code (`router.push/replace`) calls `startNavigationProgress()` first; a server-action form that
+  redirects gets `data-navigates`. Loading fallbacks must use `Skeleton` (the bar waits for them to go).
 - Update/delete actions call `revalidatePath`; create actions do not (so scripts can call them directly).
 - Every export from a `"use server"` file becomes an endpoint — keep plain helpers in `lib/`. **Any action can be posted
   to any path**, so every action starts with `await requireRole("admin")` (or its role); route handlers check

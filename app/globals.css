@@ -88,6 +88,21 @@
   font-family: var(--font-zilla-slab), "Rockwell", Georgia, serif;
 }
 
+/* Light sweeping across the page-loading bar (app/NavigationProgress.tsx). */
+.nav-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: nav-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes nav-shimmer {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
