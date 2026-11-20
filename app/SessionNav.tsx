@@ -40,7 +40,7 @@ export async function SessionNav() {
       </div>
     </Link>
   );
-  const nav = <NavLinks admin={s.activeRole === "admin"} homeHref={ROLE_HOME[s.activeRole]} />;
+  const nav = <NavLinks role={s.activeRole} homeHref={ROLE_HOME[s.activeRole]} />;
   const actions = (
     <div className="flex flex-col gap-1">
       {others.map((r) => (

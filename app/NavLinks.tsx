@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarRange, GraduationCap, Home, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BookOpen, CalendarRange, ClipboardCheck, GraduationCap, Home, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -15,14 +15,20 @@ const ADMIN_NAV = [
   { href: "/users", label: "Users", icon: UserCog },
 ];
 
-// Admins get the management pages; other roles get their home. The server decides which (and enforces it).
-export function NavLinks({ admin, homeHref }: { admin: boolean; homeHref: string }) {
+const TEACHER_NAV = [
+  { href: "/teacher", label: "Home", icon: Home, exact: true },
+  { href: "/teacher/gradings", label: "Gradings", icon: ClipboardCheck },
+];
+
+// Each role gets its own pages; the server decides which (and enforces it).
+export function NavLinks({ role, homeHref }: { role: string; homeHref: string }) {
   const pathname = usePathname();
-  const items = admin ? ADMIN_NAV : [{ href: homeHref, label: "Home", icon: Home }];
+  const items: { href: string; label: string; icon: typeof Home; exact?: boolean }[] =
+    role === "admin" ? ADMIN_NAV : role === "teacher" ? TEACHER_NAV : [{ href: homeHref, label: "Home", icon: Home }];
   return (
     <nav aria-label="Main" className="flex flex-col gap-1">
-      {items.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(href + "/");
+      {items.map(({ href, label, icon: Icon, exact }) => {
+        const active = pathname === href || (!exact && pathname.startsWith(href + "/"));
         return (
           <Link
             key={href}
