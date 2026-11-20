@@ -48,7 +48,9 @@ app/
                         teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
   student-records/      admin "Student records": all students (name/email/batch incl. "No batch"/status filters, 10 per page);
                         [studentId] = hero (Calendar booking Lottie) + semester cards (graded count, total average, % of points)
-                        or a no-semesters state; [studentId]/[semesterId] = record (dashboard-style semester row: Calendar booking Lottie, period,
+                        plus a first "All semesters" card, or a no-semesters state; [studentId]/[semesterId] = record
+                        (semesterId "all" = every semester combined: cards tagged with their semester, bars averaged across
+                        semesters, picker option "All semesters") (dashboard-style semester row: Calendar booking Lottie, period,
                         graded count, and the SemesterSelect pill with pathTemplate over the student's semesters, always shown; StudentHero, GradeAverages, one card per subject with grades + its teachers +
                         comment, ScoreBars + ScoreGauge, no-grades state)
   users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/

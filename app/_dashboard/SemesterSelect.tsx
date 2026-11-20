@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type Choice = { id: number; label: string; current: boolean };
+type Choice = { id: number | string; label: string; current: boolean };
 
 // Picking a semester changes ?semester= so the server renders that semester's teachers and batches.
 // basePath gets ?semester=<id>; pathTemplate (e.g. "/student-records/5/{id}") puts the id in the path instead.
-export function SemesterSelect({ choices, value, basePath = "/", pathTemplate }: { choices: Choice[]; value: number; basePath?: string; pathTemplate?: string }) {
+export function SemesterSelect({ choices, value, basePath = "/", pathTemplate }: { choices: Choice[]; value: number | string; basePath?: string; pathTemplate?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   return (

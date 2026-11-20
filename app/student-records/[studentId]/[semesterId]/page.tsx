@@ -36,11 +36,19 @@ export default function Page({ params }: { params: Promise<Params> }) {
 async function Record({ params }: { params: Promise<Params> }) {
   await requireRole("admin");
   const p = await params;
-  const [id, semesterId] = [p.studentId, p.semesterId].map(Number);
-  if (![id, semesterId].every((n) => Number.isInteger(n) && n > 0)) notFound();
-  const [r, list] = await Promise.all([studentSemesterRecord(id, semesterId), studentSemesters(id)]);
-  if (!r || !list) notFound();
+  // "all" = every semester of the student in one record; otherwise one semester id
+  const all = p.semesterId === "all";
+  const id = Number(p.studentId);
+  const semesterId = all ? null : Number(p.semesterId);
+  if (!Number.isInteger(id) || id < 1 || (!all && !(Number.isInteger(semesterId) && semesterId! > 0))) notFound();
+  const list = await studentSemesters(id);
+  if (!list) notFound();
+  const records = await Promise.all((all ? list.semesters.map((s) => s.id) : [semesterId!]).map((sid) => studentSemesterRecord(id, sid)));
+  if (records.some((x) => !x)) notFound();
+  const rows = records.flatMap((rec) => rec!.rows.map((x) => ({ ...x, period: rec!.period })));
+  const r = { ...list, rows };
   const graded = r.rows.filter((x) => gradeTotal(x.grades).given > 0);
+  const semestersGraded = new Set(graded.map((x) => x.period.id)).size;
   const score = overallScore(graded);
   const nowKey = periodKey(batchPeriod(todayIso()));
 
@@ -48,7 +56,7 @@ async function Record({ params }: { params: Promise<Params> }) {
     <>
       <PageHeader
         title="Student record"
-        description="This student's grades in every subject of the semester, with the teachers who teach them."
+        description="This student's grades in every subject, with the teachers who teach them. Pick one semester or all of them."
         action={<BackLink href={`/student-records/${id}`} label="Back to this student's semesters" />}
       />
 
@@ -57,19 +65,24 @@ async function Record({ params }: { params: Promise<Params> }) {
         <div className="flex items-center gap-4">
           <LottiePlayer name="calendar-booking" className="hidden aspect-[16/9] w-28 shrink-0 sm:block" />
           <div>
-            <h2 id="semester" className="font-heading text-2xl font-bold">{periodLabel(r.period)}</h2>
+            <h2 id="semester" className="font-heading text-2xl font-bold">{all ? "All semesters" : periodLabel(records[0]!.period)}</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {r.rows.length
                 ? `${graded.length} of ${r.rows.length} subject${r.rows.length === 1 ? "" : "s"} graded`
                 : "No subjects grading this student yet"}
-              {list.semesters.length > 1 && `, ${list.semesters.length} semesters in total`}
+              {all
+                ? semestersGraded > 0 && `, across ${semestersGraded} graded semester${semestersGraded === 1 ? "" : "s"}`
+                : list.semesters.length > 1 && `, ${list.semesters.length} semesters in total`}
             </p>
           </div>
         </div>
         <SemesterSelect
           pathTemplate={`/student-records/${id}/{id}`}
-          value={semesterId}
-          choices={list.semesters.map((s) => ({ id: s.id, label: periodLabel(s), current: periodKey(s) === nowKey }))}
+          value={all ? "all" : semesterId!}
+          choices={[
+            { id: "all", label: "All semesters", current: false },
+            ...list.semesters.map((s) => ({ id: s.id, label: periodLabel(s), current: periodKey(s) === nowKey })),
+          ]}
         />
       </section>
 
@@ -80,7 +93,9 @@ async function Record({ params }: { params: Promise<Params> }) {
           <LottiePlayer name="data-not-found" className="aspect-[426/290] w-64" />
           <h2 id="no-records" className="mt-2 font-heading text-2xl font-bold">No records yet</h2>
           <p className="mt-2 max-w-md text-muted-foreground">
-            {r.rows.length ? "No grades have been saved for this student in this semester yet." : "No teacher has added this student's batch to a subject in this semester yet."}
+            {all
+              ? "No grades have been saved for this student in any semester yet."
+              : r.rows.length ? "No grades have been saved for this student in this semester yet." : "No teacher has added this student's batch to a subject in this semester yet."}
           </p>
         </section>
       ) : (
@@ -94,9 +109,12 @@ async function Record({ params }: { params: Promise<Params> }) {
             {r.rows.map((x) => {
               const t = gradeTotal(x.grades);
               return (
-                <li key={x.subjectId} className="rounded-2xl border border-border/70 p-5">
+                <li key={`${x.period.id}-${x.subjectId}`} className="rounded-2xl border border-border/70 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <h3 className="font-heading text-lg font-bold">{x.subject}</h3>
+                    <h3 className="font-heading text-lg font-bold">
+                      {x.subject}
+                      {all && <span className="ml-2 align-middle rounded-full bg-muted px-2.5 py-0.5 font-sans text-xs font-medium text-muted-foreground">{periodLabel(x.period)}</span>}
+                    </h3>
                     <p className="tabular-nums">
                       {t.given ? <><span className="font-heading text-2xl font-bold">{t.total}</span><span className="text-muted-foreground"> / 100</span></> : <span className="text-sm text-muted-foreground">Not graded</span>}
                     </p>
@@ -145,8 +163,8 @@ async function Record({ params }: { params: Promise<Params> }) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <section aria-labelledby="by-subject" className={`${panel} min-w-0 p-6 sm:p-8`}>
             <h2 id="by-subject" className="font-heading text-xl font-bold">Average total by subject</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Out of 100, for the subjects with grades in this semester.</p>
-            <ScoreBars data={subjectAverages(graded)} counted="none" />
+            <p className="mt-1 text-sm text-muted-foreground">{all ? "Out of 100. A subject taken in more than one semester shows the average of its totals." : "Out of 100, for the subjects with grades in this semester."}</p>
+            <ScoreBars data={subjectAverages(graded)} counted={all ? "semester" : "none"} />
           </section>
           <section aria-labelledby="overall" className={`${panel} flex flex-col p-6 sm:p-8`}>
             <h2 id="overall" className="font-heading text-xl font-bold">Overall performance</h2>
