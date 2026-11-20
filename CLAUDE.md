@@ -72,7 +72,7 @@ app/
                         GradeAverages, grades per semester+subject, ScoreBars (avg total per subject, CSS tooltip + sr-only
                         table) and ScoreGauge (points earned / possible for the grades given) from components/records/
   teacher/students/[id]/photo  student photo for a teacher the student is "assigned" to (same rule as score records)
-  teacher/page.tsx      teacher home: welcome + semester (picker over their semesters, default rule as the dashboard), stat row
+  teacher/page.tsx      teacher home: welcome + semester (picker over their semesters, always shown, default rule as the dashboard), stat row
                         (subjects, batches added, students, % fully graded), grading progress per subject, pending work
                         (subjects with no batch, students missing grades by type), class performance (ScoreBars) and up to 4 lowest
                         scores so far at ≤ 90% (ATTENTION_MAX_PCT) of points given (homeSummary) linking to records; no semester → empty state
