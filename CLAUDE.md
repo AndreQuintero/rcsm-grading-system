@@ -23,7 +23,8 @@ app/
   page.tsx              admin dashboard (`/`): hero (student count + status bar, Lottie), stat row (teachers, subjects, admins,
                         active users), semester picker (?semester=id; default = running today, else latest started, else nearest
                         future — `pickDefault` in lib/dashboard.ts, 2nd semester Jan–May precedes 1st Jun–Dec), teachers (bottom
-                        Sheet drawer with that semester's subjects), one panel per batch (non-inactive students), empty state;
+                        Sheet drawer with that semester's subjects), one panel per batch (non-inactive students, each linking to
+                        /student-records/<id>/<semester>), empty state;
                         client bits in app/_dashboard/ (SemesterSelect = shadcn Select pill, TeacherList, Avatar)
   layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
   SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Student records, Batches, Semesters, Admins, Users); active link via usePathname in Suspense;
