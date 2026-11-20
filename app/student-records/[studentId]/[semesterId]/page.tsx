@@ -47,19 +47,31 @@ async function Record({ params }: { params: Promise<Params> }) {
   return (
     <>
       <PageHeader
-        title={`${periodLabel(r.period)} record`}
+        title="Student record"
         description="This student's grades in every subject of the semester, with the teachers who teach them."
         action={<BackLink href={`/student-records/${id}`} label="Back to this student's semesters" />}
       />
-      {list.semesters.length > 1 && (
-        <div className="-mt-4 flex justify-end">
-          <SemesterSelect
-            pathTemplate={`/student-records/${id}/{id}`}
-            value={semesterId}
-            choices={list.semesters.map((s) => ({ id: s.id, label: periodLabel(s), current: periodKey(s) === nowKey }))}
-          />
+
+      {/* same semester row as the admin dashboard: pick any of this student's semesters */}
+      <section aria-labelledby="semester" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <LottiePlayer name="calendar-booking" className="hidden aspect-[16/9] w-28 shrink-0 sm:block" />
+          <div>
+            <h2 id="semester" className="font-heading text-2xl font-bold">{periodLabel(r.period)}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {r.rows.length
+                ? `${graded.length} of ${r.rows.length} subject${r.rows.length === 1 ? "" : "s"} graded`
+                : "No subjects grading this student yet"}
+              {list.semesters.length > 1 && `, ${list.semesters.length} semesters in total`}
+            </p>
+          </div>
         </div>
-      )}
+        <SemesterSelect
+          pathTemplate={`/student-records/${id}/{id}`}
+          value={semesterId}
+          choices={list.semesters.map((s) => ({ id: s.id, label: periodLabel(s), current: periodKey(s) === nowKey }))}
+        />
+      </section>
 
       <StudentHero student={r} photo={r.hasPhoto ? `/students/${r.id}/photo` : null} lottie="data-analysis" />
 
