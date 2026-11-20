@@ -184,14 +184,20 @@ async function Semester({ id, period, choices }: { id: number; period: string; c
             {b.students.length ? (
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {b.students.map((s) => (
-                  <li key={s.id} className="flex items-center gap-3 rounded-2xl bg-muted/45 p-3">
-                    <Avatar src={s.hasPhoto ? `/students/${s.id}/photo` : null} className="size-12" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{s.name}</p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        {s.age} years old <StatusBadge status={s.status} />
-                      </p>
-                    </div>
+                  <li key={s.id}>
+                    {/* the batch is in this semester, so it is one of the student's semesters (never a not-found record) */}
+                    <Link
+                      href={`/student-records/${s.id}/${id}`}
+                      className="flex items-center gap-3 rounded-2xl bg-muted/45 p-3 outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/40"
+                    >
+                      <Avatar src={s.hasPhoto ? `/students/${s.id}/photo` : null} className="size-12" />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{s.name}</p>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                          {s.age} years old <StatusBadge status={s.status} />
+                        </p>
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
