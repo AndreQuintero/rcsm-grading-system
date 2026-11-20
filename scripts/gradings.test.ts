@@ -2,7 +2,7 @@
 // "Gradetest" students, "TchTest" subjects; all removed at the end.
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { gradeAverages, gradeTotal, overallScore, parseGrades, subjectAverages } from "../lib/grading-shared";
+import { gradeAverages, gradeTotal, homeSummary, overallScore, parseGrades, subjectAverages, type Grades } from "../lib/grading-shared";
 import {
   bindBatch, saveGrades, studentGrading, studentRecord, subjectGrading, teacherCanSeeStudent, teacherSemesters,
   teacherStudentFilters, teacherStudents, teacherSubjects, teaches, unbindBatch,
@@ -43,6 +43,15 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     ]), [{ subject: "Worship", avg: 30, semesters: 2 }, { subject: "Music", avg: 25, semesters: 1 }], "ungraded rows skipped");
     assert.deepEqual(overallScore([{ grades: g4(20, 20) }, { grades: g4(25, null) }]), { earned: 65, possible: 75, pct: 87 });
     assert.deepEqual(overallScore([{ grades: g4(null, null) }]), { earned: 0, possible: 0, pct: null });
+    const st = (id: number, grades: Grades) => ({ id, name: `S${id}`, hasPhoto: false, grades });
+    const full = { midterm: 20, participation: 20, presence: 20, final_exam: 20 };
+    const home = homeSummary([
+      { subjectId: 1, subject: "Worship", students: [st(1, full), st(2, g4(5, null)), st(3, g4(null, null))] },
+      { subjectId: 2, subject: "Music", students: [st(4, full)] },
+    ]);
+    assert.deepEqual(home.missing, [{ subjectId: 1, subject: "Worship", students: 2, byType: { midterm: 1, participation: 2, presence: 2, final_exam: 2 } }]);
+    assert.deepEqual(home.averages, [{ subject: "Worship", avg: 42.5, semesters: 2 }, { subject: "Music", avg: 80, semesters: 1 }]);
+    assert.deepEqual(home.lowest.map((x) => [x.id, x.pct, x.total, x.possible]), [[2, 20, 5, 25], [1, 80, 80, 100], [4, 80, 80, 100]], "% of points given, ungraded skipped");
 
     // setup: a semester with two batches, one batch outside it, two teachers sharing a subject
     const [b1, b2, bOut] = await sql`INSERT INTO batches (number, year, semester) VALUES (1, 2085, 1), (2, 2086, 2), (3, 2087, 1) RETURNING id`;
