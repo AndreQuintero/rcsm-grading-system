@@ -3,6 +3,15 @@
 import { Layers, Plus, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { bindBatchAction, unbindBatchAction } from "../../actions";
 
@@ -12,6 +21,7 @@ type Batch = { id: number; label: string; bound: boolean; students: number };
 export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: number; subjectId: number; batches: Batch[] }) {
   const [pending, start] = useTransition();
   const [pick, setPick] = useState("");
+  const [confirm, setConfirm] = useState<Batch | null>(null);
   const bound = batches.filter((b) => b.bound);
   const free = batches.filter((b) => !b.bound);
 
@@ -24,6 +34,7 @@ export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: nu
   const remove = (b: Batch) =>
     start(async () => {
       await unbindBatchAction(semesterId, subjectId, b.id);
+      setConfirm(null);
       toast.success(`Removed the ${b.label}. Its students' grades are kept.`);
     });
 
@@ -39,7 +50,7 @@ export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: nu
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => remove(b)}
+                onClick={() => setConfirm(b)}
                 aria-label={`Remove the ${b.label} from this subject`}
                 className="grid size-6 place-items-center rounded-full outline-none hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
@@ -73,6 +84,31 @@ export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: nu
           ? <p className="text-sm text-muted-foreground">This semester has no batches yet. An admin adds them on the semester&apos;s page.</p>
           : <p className="text-sm text-muted-foreground">Every batch of this semester is added.</p>
       )}
+
+      <AlertDialog open={Boolean(confirm)} onOpenChange={(o) => !o && !pending && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove batch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The students of the <strong className="text-foreground">{confirm?.label}</strong> will no longer be listed in
+              this subject, for you and the other teachers of this subject. Their grades are kept and come back if you add
+              the batch again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button" disabled={pending}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={pending}
+              onClick={() => confirm && remove(confirm)}
+            >
+              {pending ? "Removing…" : "Remove batch"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
