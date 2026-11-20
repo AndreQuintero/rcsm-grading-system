@@ -96,3 +96,30 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Printing a record ("Export PDF" → Save as PDF): white paper, colours kept for the cards and charts, no decorative
+   animations, and no card split across two pages. Navigation and buttons carry print:hidden. */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    background: white;
+  }
+  [data-lottie] {
+    display: none !important;
+  }
+  li,
+  figure,
+  dl {
+    break-inside: avoid;
+  }
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+}

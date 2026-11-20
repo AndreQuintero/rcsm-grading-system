@@ -8,7 +8,7 @@ import { SessionNav } from "./SessionNav";
 // App navigation: a charcoal sidebar on desktop, a top bar with a burger menu on small screens.
 export function SiteHeader() {
   return (
-    <header className="relative z-10 shrink-0 overflow-hidden bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-screen md:w-64 md:flex-col">
+    <header className="relative z-10 shrink-0 print:hidden overflow-hidden bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-screen md:w-64 md:flex-col">
       <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:px-5 md:pt-7 md:pb-6">
         <Link href="/" className="flex items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
           <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_3px_rgba(255,255,255,0.08)] md:size-14">

@@ -5,6 +5,7 @@ import { LottiePlayer } from "@/components/lottie-player";
 import { GradeAverages } from "@/components/records/GradeAverages";
 import { ScoreBars } from "@/components/records/ScoreBars";
 import { ScoreGauge } from "@/components/records/ScoreGauge";
+import { ExportPdfButton } from "@/components/records/ExportPdfButton";
 import { StudentHero } from "@/components/records/StudentHero";
 import { periodLabel } from "@/lib/academic-semester";
 import { batchPeriod } from "@/lib/batch";
@@ -31,6 +32,11 @@ export function SemesterRecord({ view: v, base, studentPhoto, teacherPhotoBase, 
 
   return (
     <>
+      {/* only on paper: who and when, since the menu and page chrome are hidden in print */}
+      <p className="hidden text-sm text-muted-foreground print:block">
+        Revival Cry School of Ministry, student record printed on {formatDate(todayIso())}
+      </p>
+
       {/* same semester row as the admin dashboard: pick any of the student's semesters */}
       <section aria-labelledby="semester" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
@@ -47,14 +53,17 @@ export function SemesterRecord({ view: v, base, studentPhoto, teacherPhotoBase, 
             </p>
           </div>
         </div>
-        <SemesterSelect
-          pathTemplate={`${base}/{id}`}
-          value={all ? "all" : v.period!.id}
-          choices={[
-            { id: "all", label: "All semesters", current: false },
-            ...v.semesters.map((s) => ({ id: s.id, label: periodLabel(s), current: periodKey(s) === nowKey })),
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-3 print:hidden">
+          <ExportPdfButton fileName={`${v.student.name} – ${all ? "all semesters" : periodLabel(v.period!)} record`} />
+          <SemesterSelect
+            pathTemplate={`${base}/{id}`}
+            value={all ? "all" : v.period!.id}
+            choices={[
+              { id: "all", label: "All semesters", current: false },
+              ...v.semesters.map((s) => ({ id: s.id, label: periodLabel(s), current: periodKey(s) === nowKey })),
+            ]}
+          />
+        </div>
       </section>
 
       <StudentHero student={v.student} photo={studentPhoto} lottie="data-analysis" />
@@ -131,13 +140,13 @@ export function SemesterRecord({ view: v, base, studentPhoto, teacherPhotoBase, 
       )}
 
       {graded.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <section aria-labelledby="by-subject" className={`${panel} min-w-0 p-6 sm:p-8`}>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <section aria-labelledby="by-subject" className={`${panel} min-w-0 break-inside-avoid p-6 sm:p-8`}>
             <h2 id="by-subject" className="font-heading text-xl font-bold">Average total by subject</h2>
             <p className="mt-1 text-sm text-muted-foreground">{all ? "Out of 100. A subject taken in more than one semester shows the average of its totals." : "Out of 100, for the subjects with grades in this semester."}</p>
             <ScoreBars data={subjectAverages(graded)} counted={all ? "semester" : "none"} />
           </section>
-          <section aria-labelledby="overall" className={`${panel} flex flex-col p-6 sm:p-8`}>
+          <section aria-labelledby="overall" className={`${panel} flex break-inside-avoid flex-col p-6 sm:p-8`}>
             <h2 id="overall" className="font-heading text-xl font-bold">Overall performance</h2>
             <p className="mt-1 mb-6 text-sm text-muted-foreground">Points earned out of the points possible for the grades given so far.</p>
             <div className="flex flex-1 items-center justify-center">
