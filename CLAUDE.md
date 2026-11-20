@@ -26,7 +26,7 @@ app/
                         Sheet drawer with that semester's subjects), one panel per batch (non-inactive students), empty state;
                         client bits in app/_dashboard/ (SemesterSelect = shadcn Select pill, TeacherList, Avatar)
   layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
-  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Semesters, Admins, Users); active link via usePathname in Suspense;
+  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Student records, Batches, Semesters, Admins, Users); active link via usePathname in Suspense;
                         below md a top bar with a burger: MobileMenu (components/ui/sheet, slides in from the right) shows the
                         same SessionNav pieces (account card, links, switch role, sign out) and closes on navigation;
                         the session menu is hidden on the public sign-in pages (HideOnPublicPages, PUBLIC_PATHS in lib/auth/roles.ts,
@@ -45,6 +45,11 @@ app/
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
   academic-semesters/    list (year filter) + register/edit (AcademicSemesterForm: year + semester radios, batch cards,
                         teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
+  student-records/      admin "Student records": all students (name/email/batch incl. "No batch"/status filters, 10 per page);
+                        [studentId] = hero (Calendar booking Lottie) + semester cards (graded count, total average, % of points)
+                        or a no-semesters state; [studentId]/[semesterId] = record (SemesterSelect pathTemplate over the
+                        student's semesters, StudentHero, GradeAverages, one card per subject with grades + its teachers +
+                        comment, ScoreBars + ScoreGauge, no-grades state)
   users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
   teacher/gradings/     teacher area (menu: Home, Gradings, Score records): semester picker (?semester=, same default rule as the dashboard,
@@ -55,8 +60,7 @@ app/
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
                         inactive included; empty state links to Gradings); [studentId] = record: hero (Data Analysis Lottie),
                         GradeAverages, grades per semester+subject, ScoreBars (avg total per subject, CSS tooltip + sr-only
-                        table) and ScoreGauge (points earned / possible for the grades given) in _charts/
-  teacher/_shared/GradeAverages  the 5-indicator row (subject page and record page)
+                        table) and ScoreGauge (points earned / possible for the grades given) from components/records/
   teacher/students/[id]/photo  student photo for a teacher the student is "assigned" to (same rule as score records)
   teacher/page.tsx      teacher home: welcome + semester (picker over their semesters, default rule as the dashboard), stat row
                         (subjects, batches added, students, % fully graded), grading progress per subject, pending work
@@ -64,13 +68,15 @@ app/
                         scores so far at ≤ 90% (ATTENTION_MAX_PCT) of points given (homeSummary) linking to records; no semester → empty state
   student/              student home (placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
+components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, StudentHero; shared by the teacher and admin
+              record pages), lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
               its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn; sheet = side panels, right for the mobile menu and bottom for the dashboard drawer, sliding their full size;
               select = the dashboard semester picker)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
+lib/          student-records.ts (admin: listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord),
+              grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
               bind/unbindBatch, saveGrades, teacherStudents, teacherStudentFilters, studentRecord; ASSIGNED = a teacher's students:
               in a batch bound to one of their subjects, or graded in one), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades,
               gradeTotal, gradeAverages, subjectAverages, overallScore, homeSummary), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
@@ -121,6 +127,9 @@ Conventions:
 - **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
   (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
   grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
+- **Student records** (admin): a student's semesters = those including their batch, plus any with their grades; a
+  semester's subjects = their batch bound to the subject (batch still in the semester) or graded in it — the score-records
+  rule without a teacher filter. Each subject shows every teacher of it in that semester.
 - `students`: first/middle(optional)/last name, date of birth, `status` in `audit | full_time | inactive`,
   `enrollment_date` (required for every status), optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB),
   `batch_id` (nullable, `ON DELETE SET NULL`).
@@ -188,7 +197,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash

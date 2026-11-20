@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type Choice = { id: number; label: string; current: boolean };
 
 // Picking a semester changes ?semester= so the server renders that semester's teachers and batches.
-export function SemesterSelect({ choices, value, basePath = "/" }: { choices: Choice[]; value: number; basePath?: string }) {
+// basePath gets ?semester=<id>; pathTemplate (e.g. "/student-records/5/{id}") puts the id in the path instead.
+export function SemesterSelect({ choices, value, basePath = "/", pathTemplate }: { choices: Choice[]; value: number; basePath?: string; pathTemplate?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <Select value={String(value)} onValueChange={(v) => start(() => router.replace(`${basePath}?semester=${v}`, { scroll: false }))}>
+    <Select value={String(value)} onValueChange={(v) => start(() => router.replace(pathTemplate ? pathTemplate.replace("{id}", v) : `${basePath}?semester=${v}`, { scroll: false }))}>
       <SelectTrigger
         aria-label="Academic semester"
         className="h-11! gap-2.5 rounded-full border-0 bg-sidebar py-0 pr-4 pl-1.5 text-sm font-medium text-white shadow-[0_8px_24px_-8px_rgba(43,46,51,0.55)] transition-[background-color,box-shadow] hover:bg-sidebar/90 focus-visible:ring-sidebar-ring/60 [&>svg:last-child]:text-white/70"

@@ -9,6 +9,7 @@ const ADMIN_NAV = [
   { href: "/teachers", label: "Teachers", icon: Users },
   { href: "/subjects", label: "Subjects", icon: BookOpen },
   { href: "/students", label: "Students", icon: GraduationCap },
+  { href: "/student-records", label: "Student records", icon: ChartColumn },
   { href: "/batches", label: "Batches", icon: Layers },
   { href: "/academic-semesters", label: "Semesters", icon: CalendarRange },
   { href: "/admins", label: "Admins", icon: ShieldCheck },

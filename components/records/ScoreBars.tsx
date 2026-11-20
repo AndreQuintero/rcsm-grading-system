@@ -4,8 +4,9 @@
 const TICKS = [100, 80, 60, 40, 20, 0];
 const one = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 1 });
 
-// `counted` names what `semesters` counts: semesters on a student record, graded students on the teacher home.
-export function ScoreBars({ data, counted = "semester" }: { data: { subject: string; avg: number; semesters: number }[]; counted?: "semester" | "student graded" }) {
+// `counted` names what `semesters` counts: semesters on a student record, graded students on the teacher home;
+// "none" hides it (a single-semester record).
+export function ScoreBars({ data, counted = "semester" }: { data: { subject: string; avg: number; semesters: number }[]; counted?: "semester" | "student graded" | "none" }) {
   return (
     <figure className="flex flex-col gap-3">
       {/* scrolls sideways inside the panel when there are many subjects; the page itself never does */}
@@ -38,7 +39,7 @@ export function ScoreBars({ data, counted = "semester" }: { data: { subject: str
                     >
                       <span className="block font-medium">{d.subject}</span>
                       <span className="block text-white/80">Average total {one(d.avg)} / 100</span>
-                      <span className="block text-white/60">{d.semesters} {counted === "semester" ? (d.semesters === 1 ? "semester" : "semesters") : (d.semesters === 1 ? "student graded" : "students graded")}</span>
+                      {counted !== "none" && <span className="block text-white/60">{d.semesters} {counted === "semester" ? (d.semesters === 1 ? "semester" : "semesters") : (d.semesters === 1 ? "student graded" : "students graded")}</span>}
                     </span>
                     <span className="mb-1 text-xs font-medium tabular-nums">{one(d.avg)}</span>
                     <span

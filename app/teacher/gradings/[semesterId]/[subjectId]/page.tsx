@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { periodLabel } from "@/lib/academic-semester";
 import { requireTeacher, subjectGrading, teaches } from "@/lib/grading";
 import { GRADE_TYPES, gradeTotal } from "@/lib/grading-shared";
-import { GradeAverages } from "@/app/teacher/_shared/GradeAverages";
+import { GradeAverages } from "@/components/records/GradeAverages";
 import { BatchBinder } from "./BatchBinder";
 
 type Params = { semesterId: string; subjectId: string };

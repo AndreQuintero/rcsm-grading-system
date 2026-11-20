@@ -1,20 +1,19 @@
-import { ChevronRight, Mail } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackLink } from "@/app/BackLink";
-import { Avatar } from "@/app/_dashboard/Avatar";
-import { GradeAverages } from "@/app/teacher/_shared/GradeAverages";
+import { GradeAverages } from "@/components/records/GradeAverages";
+import { StudentHero } from "@/components/records/StudentHero";
 import { LottiePlayer } from "@/components/lottie-player";
 import { PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusBadge } from "@/components/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { periodLabel } from "@/lib/academic-semester";
 import { requireTeacher, studentRecord } from "@/lib/grading";
 import { GRADE_TYPES, gradeTotal, overallScore, subjectAverages } from "@/lib/grading-shared";
-import { ScoreBars } from "../_charts/ScoreBars";
-import { ScoreGauge } from "../_charts/ScoreGauge";
+import { ScoreBars } from "@/components/records/ScoreBars";
+import { ScoreGauge } from "@/components/records/ScoreGauge";
 
 const panel = "rounded-[1.75rem] border border-border/70 bg-card";
 const header = <PageHeader title="Score record" description="This student's grades in the subjects you teach." action={<BackLink href="/teacher/records" label="Back to score records" />} />;
@@ -41,26 +40,7 @@ async function Record({ params }: { params: Promise<{ studentId: string }> }) {
 
   return (
     <>
-      <section aria-labelledby="student" className={`${panel} grid items-center gap-6 overflow-hidden p-6 sm:p-8 md:grid-cols-[1fr_auto]`}>
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <Avatar src={r.hasPhoto ? `/teacher/students/${r.id}/photo` : null} className="size-24 ring-4 ring-accent" />
-          <div className="min-w-0">
-            <h2 id="student" className="font-heading text-3xl font-bold leading-tight">{r.name}</h2>
-            <div className="mt-2"><StatusBadge status={r.status} /></div>
-            <dl className="mt-4 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-              <div><dt className="text-muted-foreground">Age</dt><dd className="font-medium">{r.age} years old</dd></div>
-              <div><dt className="text-muted-foreground">Batch</dt><dd className="font-medium">{r.batch ?? "No batch"}</dd></div>
-              {r.email && (
-                <div className="min-w-0">
-                  <dt className="text-muted-foreground">Email</dt>
-                  <dd><a href={`mailto:${r.email}`} className="inline-flex items-center gap-1.5 break-all text-primary underline-offset-4 hover:underline"><Mail className="size-4 shrink-0" aria-hidden="true" />{r.email}</a></dd>
-                </div>
-              )}
-            </dl>
-          </div>
-        </div>
-        <LottiePlayer name="data-analysis" className="hidden size-48 md:block lg:size-56" />
-      </section>
+      <StudentHero student={r} photo={r.hasPhoto ? `/teacher/students/${r.id}/photo` : null} lottie="data-analysis" />
 
       {graded.length === 0 ? (
         <section aria-labelledby="no-records" className={`${panel} flex flex-col items-center px-6 py-10 text-center`}>
