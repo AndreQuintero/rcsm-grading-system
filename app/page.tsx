@@ -164,8 +164,6 @@ async function Semester({ id, period, choices }: { id: number; period: string; c
         )}
       </section>
 
-      {batches.length > 0 && <TopStudents ranking={ranking} semesterId={id} period={period} />}
-
       {batches.length === 0 && (
         <p className={cn(panel, "px-6 py-8 text-center text-sm text-muted-foreground")}>
           No batches in this semester yet. <Link href={`/academic-semesters/${id}/edit`} className="font-medium text-primary underline-offset-4 hover:underline">Add batches</Link>
@@ -209,6 +207,8 @@ async function Semester({ id, period, choices }: { id: number; period: string; c
           </section>
         );
       })}
+
+      {batches.length > 0 && <TopStudents ranking={ranking} semesterId={id} period={period} />}
     </>
   );
 }
