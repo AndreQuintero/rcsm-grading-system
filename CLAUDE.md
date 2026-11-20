@@ -66,7 +66,7 @@ app/
                         over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
                         batches (BatchBinder; removing asks for confirmation) and, once a batch is added, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
-                        (4 grades, live total, comment). Every page/action: requireTeacher() + teaches(semester, subject)
+                        (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
                         inactive included; empty state links to Gradings); [studentId] = record: hero (Data Analysis Lottie),
                         GradeAverages, grades per semester+subject, ScoreBars (avg total per subject, CSS tooltip + sr-only
