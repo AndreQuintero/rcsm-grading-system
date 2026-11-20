@@ -2,7 +2,7 @@
 // "Gradetest" students, "TchTest" subjects; all removed at the end.
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { gradeTotal, parseGrades } from "../lib/grading-shared";
+import { gradeAverages, gradeTotal, parseGrades } from "../lib/grading-shared";
 import {
   bindBatch, saveGrades, studentGrading, subjectGrading, teacherSemesters, teacherSubjects, teaches, unbindBatch,
 } from "../lib/grading";
@@ -26,6 +26,15 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     for (const bad of ["26", "-1", "12.5", "abc"]) assert.ok(parseGrades(fd({ midterm: bad })).errors?.midterm, bad);
     assert.ok(parseGrades(fd({ comment: "x".repeat(2001) })).errors?.comment);
     assert.deepEqual(gradeTotal({ midterm: 20, participation: null, presence: 25, final_exam: 0 }), { total: 45, given: 3 });
+    const av = gradeAverages([
+      { midterm: 20, participation: null, presence: 25, final_exam: null },
+      { midterm: 15, participation: 10, presence: null, final_exam: null },
+      { midterm: null, participation: null, presence: null, final_exam: null },
+    ]);
+    assert.deepEqual(av.midterm, { avg: 17.5, n: 2 });
+    assert.deepEqual(av.participation, { avg: 10, n: 1 });
+    assert.deepEqual(av.final_exam, { avg: null, n: 0 });
+    assert.deepEqual(av.total, { avg: 35, n: 2 }, "ungraded students don't pull the total down");
 
     // setup: a semester with two batches, one batch outside it, two teachers sharing a subject
     const [b1, b2, bOut] = await sql`INSERT INTO batches (number, year, semester) VALUES (1, 2085, 1), (2, 2086, 2), (3, 2087, 1) RETURNING id`;
