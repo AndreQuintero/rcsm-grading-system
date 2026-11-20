@@ -1,6 +1,8 @@
 // Client-safe grading rules, shared by the grade form and the server.
 
 export const GRADE_MAX = 25;
+// Teacher home: students at or below this share of their possible points are listed as needing attention.
+export const ATTENTION_MAX_PCT = 90;
 export const COMMENT_MAX = 2000;
 export const GRADE_TYPES = [
   { key: "midterm", label: "Midterm exam" },
@@ -73,7 +75,8 @@ export function overallScore(rows: { grades: Grades }[]) {
 type HomeStudent = { id: number; name: string; hasPhoto: boolean; grades: Grades };
 
 // Teacher home: per subject, who is still missing grades (and which types); the class average per subject; and the
-// 5 lowest scores so far, ranked by % of the points possible for the grades given (same rule as the record gauge).
+// up to 4 lowest scores so far at or below ATTENTION_MAX_PCT, ranked by % of the points possible for the grades given
+// (same rule as the record gauge).
 export function homeSummary(subjects: { subjectId: number; subject: string; students: HomeStudent[] }[]) {
   const missing = subjects
     .map((s) => {
@@ -86,7 +89,8 @@ export function homeSummary(subjects: { subjectId: number; subject: string; stud
     .flatMap((s) => s.students.map((x) => ({ ...x, subjectId: s.subjectId, subject: s.subject, ...gradeTotal(x.grades) })))
     .filter((x) => x.given > 0)
     .map((x) => ({ id: x.id, name: x.name, hasPhoto: x.hasPhoto, subjectId: x.subjectId, subject: x.subject, total: x.total, possible: x.given * GRADE_MAX, pct: Math.round((x.total / (x.given * GRADE_MAX)) * 100) }))
+    .filter((x) => x.pct <= ATTENTION_MAX_PCT)
     .sort((a, b) => a.pct - b.pct || a.total - b.total)
-    .slice(0, 5);
+    .slice(0, 4);
   return { missing, averages, lowest };
 }

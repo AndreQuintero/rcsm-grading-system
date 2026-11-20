@@ -60,8 +60,8 @@ app/
   teacher/students/[id]/photo  student photo for a teacher the student is "assigned" to (same rule as score records)
   teacher/page.tsx      teacher home: welcome + semester (picker over their semesters, default rule as the dashboard), stat row
                         (subjects, batches added, students, % fully graded), grading progress per subject, pending work
-                        (subjects with no batch, students missing grades by type), class performance (ScoreBars) and the 5 lowest
-                        scores so far by % of points given (homeSummary) linking to records; no semester → empty state
+                        (subjects with no batch, students missing grades by type), class performance (ScoreBars) and up to 4 lowest
+                        scores so far at ≤ 90% (ATTENTION_MAX_PCT) of points given (homeSummary) linking to records; no semester → empty state
   student/              student home (placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is

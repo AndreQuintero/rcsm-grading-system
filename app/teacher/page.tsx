@@ -11,7 +11,7 @@ import { batchPeriod } from "@/lib/batch";
 import { periodKey, pickDefault } from "@/lib/dashboard";
 import { formatDate, todayIso } from "@/lib/dates";
 import { requireTeacher, subjectGrading, teacherSemesters, teacherSubjects } from "@/lib/grading";
-import { GRADE_TYPES, homeSummary } from "@/lib/grading-shared";
+import { ATTENTION_MAX_PCT, GRADE_TYPES, homeSummary } from "@/lib/grading-shared";
 import { cn } from "@/lib/utils";
 import { ScoreBars } from "./records/_charts/ScoreBars";
 
@@ -178,7 +178,13 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
           </section>
           <section aria-labelledby="attention" className={cn(panel, "p-6 sm:p-8")}>
             <h2 id="attention" className="font-heading text-xl font-bold">Students who may need attention</h2>
-            <p className="mt-1 mb-4 text-sm text-muted-foreground">Lowest scores so far, as a share of the points possible for the grades given.</p>
+            <p className="mt-1 mb-4 text-sm text-muted-foreground">Lowest scores so far ({ATTENTION_MAX_PCT}% or below), as a share of the points possible for the grades given.</p>
+            {summary.lowest.length === 0 ? (
+              <p className="flex items-center gap-3 rounded-2xl bg-success/10 p-4 font-medium text-success">
+                <CheckCircle2 className="size-5 shrink-0" aria-hidden="true" />
+                Everyone is above {ATTENTION_MAX_PCT}% so far.
+              </p>
+            ) : (
             <ul className="flex flex-col gap-1">
               {summary.lowest.map((x) => (
                 <li key={`${x.id}-${x.subjectId}`}>
@@ -194,6 +200,7 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
                 </li>
               ))}
             </ul>
+            )}
           </section>
         </div>
       )}

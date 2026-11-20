@@ -49,6 +49,13 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
       { subjectId: 1, subject: "Worship", students: [st(1, full), st(2, g4(5, null)), st(3, g4(null, null))] },
       { subjectId: 2, subject: "Music", students: [st(4, full)] },
     ]);
+    const capped = homeSummary([{ subjectId: 3, subject: "Art", students: [
+      st(10, g4(10, 10)), st(11, g4(11, 11)), st(12, g4(12, 12)), st(13, g4(13, 13)), st(14, g4(14, 14)),
+      st(15, g4(23, 22)), st(16, g4(24, 23)),
+    ] }]);
+    assert.deepEqual(capped.lowest.map((x) => x.id), [10, 11, 12, 13], "at most 4");
+    const cut = homeSummary([{ subjectId: 3, subject: "Art", students: [st(15, g4(23, 22)), st(16, g4(24, 23))] }]);
+    assert.deepEqual(cut.lowest.map((x) => [x.id, x.pct]), [[15, 90]], "90% kept, 94% dropped");
     assert.deepEqual(home.missing, [{ subjectId: 1, subject: "Worship", students: 2, byType: { midterm: 1, participation: 2, presence: 2, final_exam: 2 } }]);
     assert.deepEqual(home.averages, [{ subject: "Worship", avg: 42.5, semesters: 2 }, { subject: "Music", avg: 80, semesters: 1 }]);
     assert.deepEqual(home.lowest.map((x) => [x.id, x.pct, x.total, x.possible]), [[2, 20, 5, 25], [1, 80, 80, 100], [4, 80, 80, 100]], "% of points given, ungraded skipped");
