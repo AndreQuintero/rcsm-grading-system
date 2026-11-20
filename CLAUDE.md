@@ -114,6 +114,9 @@ Conventions:
   Keyed by semester + subject, so every teacher of that subject in that semester shares batches and grades (last save
   wins, "Last saved by" shown). Only the semester's batches can be bound; a student is graded when their batch is bound
   and still in the semester and they are not inactive. Unbinding keeps grades. Total = sum of given grades / 100.
+- **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
+  (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
+  grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
 - `students`: first/middle(optional)/last name, date of birth, `status` in `audit | full_time | inactive`,
   `enrollment_date` (required for every status), optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB),
   `batch_id` (nullable, `ON DELETE SET NULL`).
