@@ -56,7 +56,7 @@ app/
                         semesters, picker option "All semesters") (dashboard-style semester row: Calendar booking Lottie, period,
                         graded count, and the SemesterSelect pill with pathTemplate over the student's semesters, always shown; StudentHero, GradeAverages, one card per subject with grades + its teachers +
                         comment, ScoreBars + ScoreGauge, no-grades state)
-  users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
+  users/                 admin view of sign-in accounts (users table): list (username/email/status filters; status = USER_STATUS_SQL, isUserStatus) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
   teacher/gradings/     teacher area (menu: Home, Gradings, Score records): semester picker (?semester=, same default rule as the dashboard,
                         over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
