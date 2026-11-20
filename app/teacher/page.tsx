@@ -77,9 +77,7 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div id="welcome">{welcome}</div>
-              {choices.length > 1 && (
-                <SemesterSelect basePath="/teacher" value={selected.id} choices={choices.map((c) => ({ id: c.id, label: periodLabel(c), current: periodKey(c) === nowKey }))} />
-              )}
+              <SemesterSelect basePath="/teacher" value={selected.id} choices={choices.map((c) => ({ id: c.id, label: periodLabel(c), current: periodKey(c) === nowKey }))} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Your semester</p>
