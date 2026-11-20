@@ -76,3 +76,37 @@ export async function semesterDetail(id: number) {
     })),
   };
 }
+
+export type RankedStudent = { id: number; name: string; batch: string | null; hasPhoto: boolean; subjects: number; score: number };
+
+// Dense places (98, 98, 95 → 1, 1, 2), best first then by name; keeps everyone placed no lower than the size-th row.
+export function rankStudents<T extends { name: string; score: number }>(rows: T[], size = 5): (T & { place: number })[] {
+  const sorted = [...rows].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  let place = 0;
+  const placed = sorted.map((r, i) => ({ ...r, place: i > 0 && r.score === sorted[i - 1].score ? place : ++place }));
+  const cut = placed[size - 1]?.place ?? Infinity;
+  return placed.filter((r) => r.place <= cut);
+}
+
+// The semester's best students who are not inactive: average of their subject totals (subjects with ≥ 1 grade),
+// rounded to one decimal so equal scores shown are equal places.
+export async function semesterRanking(id: number, size = 5) {
+  const rows = await sql`
+    SELECT st.id, concat_ws(' ', st.first_name, st.middle_name, st.last_name) AS name, st.photo IS NOT NULL AS has_photo,
+      b.number, b.year, b.semester, count(*)::int AS subjects,
+      round(avg(coalesce(g.midterm, 0) + coalesce(g.participation, 0) + coalesce(g.presence, 0) + coalesce(g.final_exam, 0)), 1)::float AS score
+    FROM grades g
+    JOIN students st ON st.id = g.student_id AND st.status <> 'inactive'
+    LEFT JOIN batches b ON b.id = st.batch_id
+    WHERE g.academic_semester_id = ${id}
+      AND num_nonnulls(g.midterm, g.participation, g.presence, g.final_exam) > 0
+    GROUP BY st.id, b.id`;
+  return rankStudents(
+    rows.map((r): RankedStudent => ({
+      id: r.id as number, name: r.name as string, hasPhoto: r.has_photo as boolean, subjects: r.subjects as number,
+      score: r.score as number,
+      batch: r.number === null ? null : batchLabel(r as { number: number; year: number; semester: number }),
+    })),
+    size,
+  );
+}

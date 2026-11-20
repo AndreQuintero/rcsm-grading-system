@@ -37,5 +37,5 @@ export function LottiePlayer({ name, className }: { name: AnimationName; classNa
       anim?.destroy();
     };
   }, [name]);
-  return <div ref={box} aria-hidden="true" className={cn("pointer-events-none", className)} />;
+  return <div ref={box} aria-hidden="true" data-lottie="" className={cn("pointer-events-none", className)} />;
 }

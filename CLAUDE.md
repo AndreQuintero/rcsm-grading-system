@@ -23,7 +23,8 @@ app/
   page.tsx              admin dashboard (`/`): hero (student count + status bar, Lottie), stat row (teachers, subjects, admins,
                         active users), semester picker (?semester=id; default = running today, else latest started, else nearest
                         future — `pickDefault` in lib/dashboard.ts, 2nd semester Jan–May precedes 1st Jun–Dec), teachers (bottom
-                        Sheet drawer with that semester's subjects), one panel per batch (non-inactive students, each linking to
+                        Sheet drawer with that semester's subjects), "Top students" (top 5 + ties by average total per subject, dense
+                        places 1st/1st/2nd, inactive left out; semesterRanking + rankStudents in lib/dashboard.ts), one panel per batch (non-inactive students, each linking to
                         /student-records/<id>/<semester>), empty state;
                         client bits in app/_dashboard/ (SemesterSelect = shadcn Select pill, TeacherList, Avatar)
   layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
@@ -75,7 +76,8 @@ app/
                         photo; teachers/[id]/photo = a teacher of a subject that grades the student. SessionNav (server) + NavLinks
                         (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord;
+components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord,
+              ExportPdfButton = "Export PDF": window.print() of the record with the file name as document.title;
               shared by the teacher, admin and student record pages; SemesterRecord/SemesterCards take a base path,
               photo routes and `self` wording), lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
               its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
@@ -88,7 +90,7 @@ lib/          student-records.ts (listStudentRecords, studentRecordBatches, stud
               grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
               bind/unbindBatch, saveGrades, teacherStudents, teacherStudentFilters, studentRecord; ASSIGNED = a teacher's students:
               in a batch bound to one of their subjects, or graded in one), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades,
-              gradeTotal, gradeAverages, subjectAverages, overallScore, homeSummary), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+              gradeTotal, gradeAverages, subjectAverages, overallScore, homeSummary), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail, semesterRanking, rankStudents), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -112,6 +114,9 @@ Conventions:
   action = `requireRole` + that function, so scripts can call the lib function directly.
 - Writes to `admins`/`teachers`/`students` call `syncUserFromRoleTables(email)` afterwards (old and new email on an
   email change, `RETURNING email` on delete).
+- Print / PDF: `@media print` in globals.css (white paper, exact colours, Lotties hidden, no break inside li/figure/dl,
+  headings kept with what follows); `print:hidden` on the sidebar, PageHeader actions and the record's picker/button;
+  `print:` variants give the record its desktop layout on paper. Admin and student records export the semester shown (or all).
 - Design: palette from the logo (charcoal `#2b2e33` sidebar, flame blue `#2e63cf` primary, paper `#f4f6f9`),
   Zilla Slab headings (`font-heading`), Geist body. Light mode only. Full time badge green, audit blue,
   inactive grey. Table headers sentence case, icon actions with tooltips.
