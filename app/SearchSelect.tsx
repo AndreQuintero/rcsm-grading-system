@@ -6,10 +6,27 @@ import { cn } from "@/lib/utils";
 
 type Option = { value: string; label: string };
 
-// Single-choice select you can type into to narrow a long list. The choice is posted as a hidden input named `name`,
-// so it drops into a plain GET filter form like a native <select>.
-export function SearchSelect({ id, name, options, defaultValue = "" }: { id: string; name: string; options: Option[]; defaultValue?: string }) {
-  const [value, setValue] = useState(() => (options.some((o) => o.value === defaultValue) ? defaultValue : options[0]?.value ?? ""));
+// Single-choice select you can type into to narrow a long list. With `name`, the choice is posted as a hidden input,
+// so it drops into a plain GET filter form like a native <select>. With `onPick`, picking is an action (e.g. "Add a
+// teacher…"): the option is handed over and the field goes back to its placeholder.
+export function SearchSelect({
+  id,
+  name,
+  options,
+  defaultValue = "",
+  placeholder,
+  onPick,
+  className,
+}: {
+  id: string;
+  name?: string;
+  options: Option[];
+  defaultValue?: string;
+  placeholder?: string;
+  onPick?: (value: string) => void;
+  className?: string;
+}) {
+  const [value, setValue] = useState(() => (options.some((o) => o.value === defaultValue) ? defaultValue : ""));
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -30,7 +47,8 @@ export function SearchSelect({ id, name, options, defaultValue = "" }: { id: str
     setQuery("");
   };
   const pick = (o: Option) => {
-    setValue(o.value);
+    if (onPick) onPick(o.value);
+    else setValue(o.value);
     close();
   };
 
@@ -61,7 +79,7 @@ export function SearchSelect({ id, name, options, defaultValue = "" }: { id: str
         aria-activedescendant={activeOption ? `${listId}-${matches.indexOf(activeOption)}` : undefined}
         autoComplete="off"
         value={open ? query : chosen?.label ?? ""}
-        placeholder={open ? `Search… (${chosen?.label ?? ""})` : undefined}
+        placeholder={open ? (chosen ? `Search… (${chosen.label})` : "Type to search…") : placeholder}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
@@ -71,7 +89,10 @@ export function SearchSelect({ id, name, options, defaultValue = "" }: { id: str
         onFocus={show}
         onBlur={close}
         onKeyDown={onKeyDown}
-        className="h-9 w-full cursor-pointer rounded-lg border border-input bg-transparent pr-8 pl-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:cursor-text focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+        className={cn(
+          "h-9 w-full cursor-pointer rounded-lg border border-input bg-transparent pr-8 pl-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:cursor-text focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
+          className,
+        )}
       />
       <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
       {open && (
@@ -108,7 +129,7 @@ export function SearchSelect({ id, name, options, defaultValue = "" }: { id: str
           )}
         </ul>
       )}
-      <input type="hidden" name={name} value={value} />
+      {name && <input type="hidden" name={name} value={value} />}
     </div>
   );
 }
