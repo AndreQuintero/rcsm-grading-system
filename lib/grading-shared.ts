@@ -46,3 +46,26 @@ export function gradeAverages(list: Grades[]) {
   ) as Record<GradeKey, { avg: number | null; n: number }>;
   return { ...byType, total: avg(list.map(gradeTotal).filter((t) => t.given > 0).map((t) => t.total)) };
 }
+
+// Bar chart data: one entry per subject name, averaging the totals of its graded semesters (rows with ≥ 1 grade).
+export function subjectAverages(rows: { subject: string; grades: Grades }[]) {
+  const by = new Map<string, number[]>();
+  for (const r of rows) {
+    const t = gradeTotal(r.grades);
+    if (t.given) by.set(r.subject, [...(by.get(r.subject) ?? []), t.total]);
+  }
+  return [...by].map(([subject, totals]) => ({
+    subject,
+    avg: Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10,
+    semesters: totals.length,
+  }));
+}
+
+// Gauge data: points earned out of the points possible for the grades given so far (25 per grade), so a subject that
+// is only half graded doesn't count as half failed.
+export function overallScore(rows: { grades: Grades }[]) {
+  let earned = 0, given = 0;
+  for (const r of rows) { const t = gradeTotal(r.grades); earned += t.total; given += t.given; }
+  const possible = given * GRADE_MAX;
+  return { earned, possible, pct: possible ? Math.round((earned / possible) * 100) : null };
+}

@@ -125,14 +125,109 @@ export async function studentGrading(semesterId: number, subjectId: number, stud
   };
 }
 
-// A teacher may see a student's photo when the student's batch is in a semester the teacher teaches in.
+// "Assigned" (semester, subject, student) rows for a teacher: students in a batch added to one of the teacher's
+// subjects (batch still in the semester), plus anyone with grades in those subjects. Inactive students included.
+// $1 = teacher id.
+const ASSIGNED = `
+  WITH links AS (
+    SELECT academic_semester_id AS sem, subject_id AS subj FROM academic_semester_teacher_subjects WHERE teacher_id = $1
+  )
+  SELECT l.sem, l.subj, st.id AS student_id FROM links l
+  JOIN subject_batches sb ON sb.academic_semester_id = l.sem AND sb.subject_id = l.subj
+  JOIN academic_semester_batches ab ON ab.academic_semester_id = sb.academic_semester_id AND ab.batch_id = sb.batch_id
+  JOIN students st ON st.batch_id = sb.batch_id
+  UNION
+  SELECT l.sem, l.subj, g.student_id FROM links l
+  JOIN grades g ON g.academic_semester_id = l.sem AND g.subject_id = l.subj`;
+
+// Photos follow the same rule as the score records.
 export async function teacherCanSeeStudent(teacherId: number, studentId: number): Promise<boolean> {
-  const [r] = await sql`
-    SELECT 1 FROM students st
-    JOIN academic_semester_batches ab ON ab.batch_id = st.batch_id
-    JOIN academic_semester_teacher_subjects x ON x.academic_semester_id = ab.academic_semester_id
-    WHERE st.id = ${studentId} AND x.teacher_id = ${teacherId} LIMIT 1`;
+  const [r] = await sql.query(`SELECT 1 FROM (${ASSIGNED}) a WHERE a.student_id = $2 LIMIT 1`, [teacherId, studentId]);
   return Boolean(r);
+}
+
+export const RECORDS_PAGE_SIZE = 10;
+
+// The teacher's students across all semesters, 10 per page. name: substring of the full name; batchId: the
+// student's current batch; semesterId: linked to the teacher in that semester.
+export async function teacherStudents(
+  teacherId: number,
+  { name = "", batchId = null, semesterId = null, page = 1 }: { name?: string; batchId?: number | null; semesterId?: number | null; page?: number } = {},
+) {
+  const rows = await sql.query(
+    `SELECT st.id, concat_ws(' ', st.first_name, st.middle_name, st.last_name) AS name, st.status, st.photo IS NOT NULL AS has_photo,
+       b.number, b.year, b.semester,
+       (SELECT count(*) FROM (${ASSIGNED}) a2 JOIN grades g ON g.academic_semester_id = a2.sem AND g.subject_id = a2.subj
+          AND g.student_id = a2.student_id
+        WHERE a2.student_id = st.id AND num_nonnulls(g.midterm, g.participation, g.presence, g.final_exam) > 0)::int AS graded,
+       count(*) OVER() AS total
+     FROM students st
+     LEFT JOIN batches b ON b.id = st.batch_id
+     WHERE st.id IN (SELECT student_id FROM (${ASSIGNED}) a WHERE $4::int IS NULL OR a.sem = $4)
+       AND ($2 = '' OR concat_ws(' ', st.first_name, st.middle_name, st.last_name) ILIKE '%' || $2 || '%')
+       AND ($3::int IS NULL OR st.batch_id = $3)
+     ORDER BY st.last_name, st.first_name, st.id
+     LIMIT ${RECORDS_PAGE_SIZE} OFFSET $5`,
+    [teacherId, name, batchId, semesterId, (page - 1) * RECORDS_PAGE_SIZE],
+  );
+  return {
+    students: rows.map((r) => ({
+      id: r.id as number, name: r.name as string, status: r.status as string, hasPhoto: r.has_photo as boolean,
+      batch: r.number === null ? null : batchLabel(r as { number: number; year: number; semester: number }),
+      graded: r.graded as number,
+    })),
+    total: rows.length ? Number(rows[0].total) : 0,
+  };
+}
+
+// Options for the list filters: the current batches of the teacher's students, and the teacher's semesters.
+export async function teacherStudentFilters(teacherId: number) {
+  const [batches, semesters] = await Promise.all([
+    sql.query(
+      `SELECT DISTINCT b.id, b.number, b.year, b.semester FROM batches b JOIN students st ON st.batch_id = b.id
+       WHERE st.id IN (SELECT student_id FROM (${ASSIGNED}) a) ORDER BY b.year DESC, b.semester DESC, b.number DESC`,
+      [teacherId],
+    ),
+    teacherSemesters(teacherId),
+  ]);
+  return {
+    batches: batches.map((b) => ({ id: b.id as number, label: batchLabel(b as { number: number; year: number; semester: number }) })),
+    semesters,
+  };
+}
+
+// A student's record for this teacher: details plus one row per (semester, subject) of the teacher's they are
+// assigned to, newest first. null when the student isn't one of the teacher's (→ not found).
+export async function studentRecord(teacherId: number, studentId: number) {
+  const [[st], rows] = await Promise.all([
+    sql`SELECT st.id, concat_ws(' ', st.first_name, st.middle_name, st.last_name) AS name, st.email, st.status,
+          date_part('year', age(current_date, st.date_of_birth))::int AS age, st.photo IS NOT NULL AS has_photo,
+          b.number, b.year, b.semester
+        FROM students st LEFT JOIN batches b ON b.id = st.batch_id WHERE st.id = ${studentId}`,
+    sql.query(
+      `SELECT a.sem, a.subj, sub.name AS subject, sem.year, sem.semester,
+         g.midterm, g.participation, g.presence, g.final_exam
+       FROM (${ASSIGNED}) a
+       JOIN subjects sub ON sub.id = a.subj
+       JOIN academic_semesters sem ON sem.id = a.sem
+       LEFT JOIN grades g ON g.academic_semester_id = a.sem AND g.subject_id = a.subj AND g.student_id = a.student_id
+       WHERE a.student_id = $2`,
+      [teacherId, studentId],
+    ),
+  ]);
+  if (!st || !rows.length) return null;
+  return {
+    id: st.id as number, name: st.name as string, email: (st.email as string) ?? null, status: st.status as string,
+    age: st.age as number, hasPhoto: st.has_photo as boolean,
+    batch: st.number === null ? null : batchLabel(st as { number: number; year: number; semester: number }),
+    rows: rows
+      .map((r) => ({
+        semesterId: r.sem as number, subjectId: r.subj as number, subject: r.subject as string,
+        period: { year: r.year as number, semester: r.semester as number },
+        grades: { midterm: r.midterm, participation: r.participation, presence: r.presence, final_exam: r.final_exam } as Grades,
+      }))
+      .sort((a, b) => periodKey(b.period) - periodKey(a.period) || a.subject.localeCompare(b.subject)),
+  };
 }
 
 // Only a batch that is in the semester can be bound. Returns false otherwise.

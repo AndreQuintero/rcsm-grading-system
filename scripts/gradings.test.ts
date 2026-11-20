@@ -2,9 +2,10 @@
 // "Gradetest" students, "TchTest" subjects; all removed at the end.
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { gradeAverages, gradeTotal, parseGrades } from "../lib/grading-shared";
+import { gradeAverages, gradeTotal, overallScore, parseGrades, subjectAverages } from "../lib/grading-shared";
 import {
-  bindBatch, saveGrades, studentGrading, subjectGrading, teacherSemesters, teacherSubjects, teaches, unbindBatch,
+  bindBatch, saveGrades, studentGrading, studentRecord, subjectGrading, teacherCanSeeStudent, teacherSemesters,
+  teacherStudentFilters, teacherStudents, teacherSubjects, teaches, unbindBatch,
 } from "../lib/grading";
 
 const cleanup = async () => {
@@ -35,10 +36,17 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     assert.deepEqual(av.participation, { avg: 10, n: 1 });
     assert.deepEqual(av.final_exam, { avg: null, n: 0 });
     assert.deepEqual(av.total, { avg: 35, n: 2 }, "ungraded students don't pull the total down");
+    const g4 = (m: number | null, p: number | null) => ({ midterm: m, participation: p, presence: null, final_exam: null });
+    assert.deepEqual(subjectAverages([
+      { subject: "Worship", grades: g4(20, 20) }, { subject: "Worship", grades: g4(10, 10) },
+      { subject: "Music", grades: g4(25, null) }, { subject: "Art", grades: g4(null, null) },
+    ]), [{ subject: "Worship", avg: 30, semesters: 2 }, { subject: "Music", avg: 25, semesters: 1 }], "ungraded rows skipped");
+    assert.deepEqual(overallScore([{ grades: g4(20, 20) }, { grades: g4(25, null) }]), { earned: 65, possible: 75, pct: 87 });
+    assert.deepEqual(overallScore([{ grades: g4(null, null) }]), { earned: 0, possible: 0, pct: null });
 
     // setup: a semester with two batches, one batch outside it, two teachers sharing a subject
     const [b1, b2, bOut] = await sql`INSERT INTO batches (number, year, semester) VALUES (1, 2085, 1), (2, 2086, 2), (3, 2087, 1) RETURNING id`;
-    const [s1, , sInactive, sOther, sOut] = await sql`INSERT INTO students (first_name, last_name, date_of_birth, status, enrollment_date, batch_id) VALUES
+    const [s1, s2, sInactive, sOther, sOut] = await sql`INSERT INTO students (first_name, last_name, date_of_birth, status, enrollment_date, batch_id) VALUES
       ('Gradetest', 'Alpha', '2000-01-01', 'full_time', '2085-08-01', ${b1.id}), ('Gradetest', 'Beta', '2000-01-01', 'audit', '2085-08-01', ${b1.id}),
       ('Gradetest', 'Gone', '2000-01-01', 'inactive', '2085-08-01', ${b1.id}), ('Gradetest', 'Other', '2000-01-01', 'audit', '2086-02-01', ${b2.id}),
       ('Gradetest', 'Outside', '2000-01-01', 'audit', '2087-08-01', ${bOut.id}) RETURNING id`;
@@ -88,6 +96,27 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     assert.equal((await subjectGrading(sem.id, worship.id))!.students.length, 0);
     await bindBatch(sem.id, worship.id, b1.id);
     assert.equal((await studentGrading(sem.id, worship.id, s1.id))!.grades.midterm, 22);
+
+    // score records: the teacher's students across semesters (batch students incl. inactive, plus graded ones)
+    const names = async (t: number, f = {}) => (await teacherStudents(t, f)).students.map((x) => x.name.replace("Gradetest ", "")).sort();
+    assert.deepEqual(await names(t1.id), ["Alpha", "Beta", "Gone"]);
+    assert.deepEqual(await names(t3.id), []);
+    assert.deepEqual(await names(t1.id, { name: "bet" }), ["Beta"]);
+    assert.deepEqual(await names(t1.id, { batchId: b2.id }), []);
+    assert.deepEqual(await names(t1.id, { semesterId: old.id }), []);
+    assert.deepEqual(await names(t1.id, { semesterId: sem.id }), ["Alpha", "Beta", "Gone"]);
+    assert.equal((await teacherStudents(t1.id)).students.find((x) => x.id === s1.id)!.graded, 1);
+    assert.deepEqual((await teacherStudentFilters(t1.id)).batches.map((b) => b.id), [b1.id]);
+    await unbindBatch(sem.id, worship.id, b1.id);
+    assert.deepEqual(await names(t1.id), ["Alpha"], "graded students stay after their batch is removed");
+    assert.equal(await teacherCanSeeStudent(t1.id, s1.id), true);
+    assert.equal(await teacherCanSeeStudent(t1.id, s2.id), false);
+    await bindBatch(sem.id, worship.id, b1.id);
+    const rec = await studentRecord(t1.id, s1.id);
+    assert.deepEqual(rec!.rows.map((r) => [r.subject, gradeTotal(r.grades).total]), [["TchTest Worship", 97]]);
+    assert.equal(await studentRecord(t3.id, s1.id), null, "not this teacher's student");
+    assert.equal(await studentRecord(t2.id, sOther.id), null);
+    assert.equal((await studentRecord(t2.id, s2.id))!.rows.length, 1, "assigned but not graded yet");
 
     console.log("all grading checks passed");
   } finally {
