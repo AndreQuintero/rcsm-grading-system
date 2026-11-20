@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { FieldError } from "@/components/form-message";
+import { useSavedRedirect } from "@/components/use-saved-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +20,11 @@ export function GradeForm({ semesterId, subjectId, studentId, grades, comment, s
     ...Object.fromEntries(GRADE_TYPES.map((t) => [t.key, grades[t.key] === null ? "" : String(grades[t.key])])),
     comment,
   }));
+  // after a save, back to the subject's students
+  const savedRedirect = useSavedRedirect(`/teacher/gradings/${semesterId}/${subjectId}`);
   const [state, action, pending] = useActionState(async (prev: GradeFormState, fd: FormData) => {
     const r = await saveGradesAction(semesterId, subjectId, studentId, prev, fd);
-    if (r.message) toast.success(r.message);
+    if (r.message) savedRedirect(r.message);
     else if (r.errors?.form) toast.error(r.errors.form);
     return r;
   }, {});
