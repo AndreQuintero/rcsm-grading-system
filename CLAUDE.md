@@ -47,7 +47,12 @@ app/
                         teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
   users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
-  teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
+  teacher/gradings/     teacher area (menu: Home, Gradings): semester picker (?semester=, same default rule as the dashboard,
+                        over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
+                        batches (BatchBinder) and lists the students with grades; .../[studentId] = student card + GradeForm
+                        (4 grades, live total, comment). Every page/action: requireTeacher() + teaches(semester, subject)
+  teacher/students/[id]/photo  student photo for a teacher teaching in a semester the student's batch is in
+  teacher/, student/    role homes (student: placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
               its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
@@ -55,7 +60,8 @@ components/   lottie-player (LottiePlayer by name; lottie-web light player, no e
               select = the dashboard semester picker)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+lib/          grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
+              bind/unbindBatch, saveGrades), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades, gradeTotal), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -95,6 +101,11 @@ Conventions:
   is in the semester when they have ≥ 1 subject there; a subject may go to several teachers. Batches and teachers are
   optional (plan first, fill later). All FKs cascade: deleting a batch/teacher/subject removes it from semesters;
   deleting a semester keeps them. Create is one statement, update one transaction (replace the link rows).
+- **Gradings** (migration 014): `subject_batches` (semester, subject, batch) and `grades` (semester, subject, student:
+  `midterm`, `participation`, `presence`, `final_exam` each whole 0–25 or NULL = not given, `comment` ≤ 2000, `updated_by`).
+  Keyed by semester + subject, so every teacher of that subject in that semester shares batches and grades (last save
+  wins, "Last saved by" shown). Only the semester's batches can be bound; a student is graded when their batch is bound
+  and still in the semester and they are not inactive. Unbinding keeps grades. Total = sum of given grades / 100.
 - `students`: first/middle(optional)/last name, date of birth, `status` in `audit | full_time | inactive`,
   `enrollment_date` (required for every status), optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB),
   `batch_id` (nullable, `ON DELETE SET NULL`).
@@ -162,7 +173,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash
@@ -199,7 +210,7 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
-the deploy that stopped reading it). A migration that removes something production code still reads must wait
+the deploy that stopped reading it), 014 gradings (subject_batches, grades). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
@@ -220,7 +231,7 @@ for that code's deploy, since the database is shared. Production uses the same d
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: teacher/student areas are placeholders; production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
+- Open items: the student area is a placeholder (teachers have Gradings); production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
   get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.
