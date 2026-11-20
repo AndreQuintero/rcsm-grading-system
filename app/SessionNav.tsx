@@ -44,14 +44,14 @@ export async function SessionNav() {
   const actions = (
     <div className="flex flex-col gap-1">
       {others.map((r) => (
-        <form key={r} action={switchRole.bind(null, r)}>
+        <form key={r} action={switchRole.bind(null, r)} data-navigates>
           <button type="submit" className={button}>
             <Repeat className="size-4 shrink-0" aria-hidden="true" />
             Switch to {ROLE_LABEL[r]}
           </button>
         </form>
       ))}
-      <form action={logout}>
+      <form action={logout} data-navigates>
         <button type="submit" className={button}>
           <LogOut className="size-4 shrink-0" aria-hidden="true" />
           Sign out

@@ -3,6 +3,7 @@
 import { CalendarRange, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { startNavigationProgress } from "@/app/NavigationProgress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Choice = { id: number | string; label: string; current: boolean };
@@ -13,7 +14,7 @@ export function SemesterSelect({ choices, value, basePath = "/", pathTemplate }:
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <Select value={String(value)} onValueChange={(v) => start(() => router.replace(pathTemplate ? pathTemplate.replace("{id}", v) : `${basePath}?semester=${v}`, { scroll: false }))}>
+    <Select value={String(value)} onValueChange={(v) => { startNavigationProgress(); start(() => router.replace(pathTemplate ? pathTemplate.replace("{id}", v) : `${basePath}?semester=${v}`, { scroll: false })); }}>
       <SelectTrigger
         aria-label="Academic semester"
         className="h-11! gap-2.5 rounded-full border-0 bg-sidebar py-0 pr-4 pl-1.5 text-sm font-medium text-white shadow-[0_8px_24px_-8px_rgba(43,46,51,0.55)] transition-[background-color,box-shadow] hover:bg-sidebar/90 focus-visible:ring-sidebar-ring/60 [&>svg:last-child]:text-white/70"
