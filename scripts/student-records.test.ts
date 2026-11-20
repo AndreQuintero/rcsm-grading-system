@@ -2,7 +2,7 @@
 // @tchtest teachers, "TchTest" subjects; all removed at the end.
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
-import { listStudentRecords, studentSemesterRecord, studentSemesters } from "../lib/student-records";
+import { listStudentRecords, studentCanSeeTeacher, studentRecordView, studentSemesterRecord, studentSemesters } from "../lib/student-records";
 
 const cleanup = async () => {
   await sql`DELETE FROM academic_semesters WHERE year >= 2085`;
@@ -59,6 +59,20 @@ const ids = async (q: ReturnType<typeof sql>) => (await q).map((r) => r.id as nu
       [["TchTest Worship", 22, "Good", ["TchTest Ada", "TchTest Bob"]]]);
     assert.equal((await studentSemesterRecord(ben, s1))!.rows.length, 1, "inactive students keep their record");
     assert.equal(await studentSemesterRecord(cid, s1), null, "not one of Cid's semesters");
+    // record view: one semester or all of them; a foreign semester is null
+    const one1 = await studentRecordView(amy, s1);
+    assert.deepEqual([one1!.all, one1!.period!.id, one1!.rows.map((r) => r.subject)], [false, s1, ["TchTest Worship"]]);
+    const allV = await studentRecordView(amy, "all");
+    assert.deepEqual(allV!.rows.map((r) => [r.period.id, r.subject]).sort(), [[s1, "TchTest Worship"], [s3, "TchTest Art"]].sort());
+    assert.equal(allV!.period, null);
+    assert.equal(await studentRecordView(cid, s1), null);
+    assert.deepEqual((await studentRecordView(dee, "all"))!.rows, []);
+    // teacher photos for a student: only teachers of a subject that grades them
+    assert.equal(await studentCanSeeTeacher(amy, ada), true);
+    assert.equal(await studentCanSeeTeacher(amy, bob), true, "Bob teaches Worship (s1) and Art (s3)");
+    assert.equal(await studentCanSeeTeacher(cid, ada), false);
+    assert.equal(await studentCanSeeTeacher(dee, bob), false);
+
     // history: Amy moves to b2; s3 (graded) stays, s1 stays only because she has grades there
     await sql`UPDATE students SET batch_id = ${b2} WHERE id = ${amy}`;
     assert.deepEqual((await studentSemesters(amy))!.semesters.map((s) => s.id), [s3, s1]);
