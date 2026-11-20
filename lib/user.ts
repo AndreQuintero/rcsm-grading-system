@@ -2,18 +2,17 @@ import { sql } from "@/lib/db";
 
 export const USER_PAGE_SIZE = 10;
 
-// inactive = blocked by an admin; no_roles = the email left every role table (the sync deactivated it);
-// pending = no password set yet (first sign-in not done).
-export type UserStatus = "active" | "inactive" | "no_roles" | "pending";
+// inactive = blocked by an admin; pending = no password set yet (first sign-in not done). An account whose email
+// left every role table is deleted by the sync, so every listed user has a role.
+export type UserStatus = "active" | "inactive" | "pending";
 export const USER_STATUS_LABEL: Record<UserStatus, string> = {
   active: "Active",
   inactive: "Inactive",
-  no_roles: "No roles",
   pending: "Pending first sign-in",
 };
 
 const fmt = (col: string) => `to_char(${col} AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI')`;
-export const USER_STATUS_SQL = `CASE WHEN u.disabled_at IS NOT NULL THEN 'inactive' WHEN NOT u.is_active THEN 'no_roles'
+export const USER_STATUS_SQL = `CASE WHEN u.disabled_at IS NOT NULL THEN 'inactive'
   WHEN u.password_hash IS NULL THEN 'pending' ELSE 'active' END`;
 const ROLES = `coalesce((SELECT array_agg(r.role::text ORDER BY r.role) FROM user_roles r WHERE r.user_id = u.id), '{}')`;
 

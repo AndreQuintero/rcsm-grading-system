@@ -14,7 +14,8 @@ const FOUND = `found AS (
 // - creates the user (no password yet) or updates the username from the highest-priority table — only until the
 //   first password is set; after that the username is the user's own (edited on /account);
 // - adds/removes user_roles so they match exactly; a removed role ends that user's sessions;
-// - an email found nowhere deactivates the user (row kept) and ends their sessions.
+// - an email found nowhere (e.g. the old email after an email change) deletes the user; their sessions, roles and
+//   tokens go with it (FK cascade) and grades they saved keep no author ("a former user").
 export async function syncUserFromRoleTables(rawEmail: string): Promise<void> {
   const email = normalizeEmail(rawEmail);
   if (!email) return;
@@ -30,14 +31,8 @@ export async function syncUserFromRoleTables(rawEmail: string): Promise<void> {
           WHERE (users.password_hash IS NULL AND users.username IS DISTINCT FROM EXCLUDED.username) OR NOT users.is_active
         RETURNING id
       ),
-      off AS (
-        UPDATE users SET is_active = false, updated_at = now()
-        WHERE email = $1 AND is_active AND NOT EXISTS (SELECT 1 FROM found)
-        RETURNING id
-      ),
-      off_audit AS (INSERT INTO auth_audit (event, user_id, email) SELECT 'user_deactivated', id, $1 FROM off),
-      off_sessions AS (DELETE FROM sessions WHERE user_id IN (SELECT id FROM off))
-      SELECT 1`,
+      gone AS (DELETE FROM users WHERE email = $1 AND NOT EXISTS (SELECT 1 FROM found) RETURNING id)
+      INSERT INTO auth_audit (event, user_id, email) SELECT 'user_deleted', id, $1 FROM gone`,
       [email],
     ),
     sql.query(

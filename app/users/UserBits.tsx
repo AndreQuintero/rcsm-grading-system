@@ -8,7 +8,6 @@ const TONE: Record<UserStatus, string> = {
   active: "bg-success/12 text-success",
   pending: "bg-primary/12 text-primary",
   inactive: "bg-destructive/10 text-destructive",
-  no_roles: "bg-muted text-muted-foreground",
 };
 
 export function UserStatusBadge({ status }: { status: string }) {
