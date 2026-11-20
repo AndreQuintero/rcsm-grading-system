@@ -35,6 +35,7 @@ app/
                         shared with the proxy) because the root layout stays mounted when an expired session redirects to /login
   ConfirmDeleteButton   trash icon + AlertDialog; takes a bound server action (+ optional note)
   EditLink              pencil icon link with tooltip
+  SearchSelect          single-choice select you can type into (hidden input; Student records batch filter)
   SubjectMultiSelect    searchable multi-select (chips, keyboard) posting hidden inputs (semester form: one per teacher)
   <feature>/page.tsx            list page: PageHeader, filter Card (GET form), Table, Pager
   <feature>/new/page.tsx        register page;   <feature>/new/<Feature>Form.tsx  client form (create + edit)
