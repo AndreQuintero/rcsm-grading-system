@@ -46,7 +46,7 @@ async function Subject({ params }: { params: Promise<Params> }) {
         <BatchBinder semesterId={semesterId} subjectId={subjectId} batches={g.batches} />
       </section>
 
-      <Averages students={g.students} />
+      {g.batches.some((b) => b.bound) && <Averages students={g.students} />}
 
       <section aria-labelledby="students" className={panel}>
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
