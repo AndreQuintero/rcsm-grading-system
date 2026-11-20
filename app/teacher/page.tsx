@@ -13,7 +13,7 @@ import { formatDate, todayIso } from "@/lib/dates";
 import { requireTeacher, subjectGrading, teacherSemesters, teacherSubjects } from "@/lib/grading";
 import { ATTENTION_MAX_PCT, GRADE_TYPES, homeSummary } from "@/lib/grading-shared";
 import { cn } from "@/lib/utils";
-import { ScoreBars } from "./records/_charts/ScoreBars";
+import { ScoreBars } from "@/components/records/ScoreBars";
 
 type SearchParams = { semester?: string };
 const panel = "rounded-[1.75rem] border border-border/70 bg-card";
