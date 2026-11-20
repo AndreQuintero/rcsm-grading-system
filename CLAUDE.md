@@ -58,7 +58,11 @@ app/
                         table) and ScoreGauge (points earned / possible for the grades given) in _charts/
   teacher/_shared/GradeAverages  the 5-indicator row (subject page and record page)
   teacher/students/[id]/photo  student photo for a teacher the student is "assigned" to (same rule as score records)
-  teacher/, student/    role homes (student: placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
+  teacher/page.tsx      teacher home: welcome + semester (picker over their semesters, default rule as the dashboard), stat row
+                        (subjects, batches added, students, % fully graded), grading progress per subject, pending work
+                        (subjects with no batch, students missing grades by type), class performance (ScoreBars) and the 5 lowest
+                        scores so far by % of points given (homeSummary) linking to records; no semester → empty state
+  student/              student home (placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
               its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
@@ -69,7 +73,7 @@ lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-
 lib/          grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
               bind/unbindBatch, saveGrades, teacherStudents, teacherStudentFilters, studentRecord; ASSIGNED = a teacher's students:
               in a batch bound to one of their subjects, or graded in one), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades,
-              gradeTotal, gradeAverages, subjectAverages, overallScore), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+              gradeTotal, gradeAverages, subjectAverages, overallScore, homeSummary), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -242,7 +246,7 @@ for that code's deploy, since the database is shared. Production uses the same d
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: the student area is a placeholder (teachers have Gradings); production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
+- Open items: the student area is a placeholder (teachers have Home, Gradings, Score records); production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
   get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.

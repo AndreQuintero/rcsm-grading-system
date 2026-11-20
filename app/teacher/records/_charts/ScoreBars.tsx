@@ -4,7 +4,8 @@
 const TICKS = [100, 80, 60, 40, 20, 0];
 const one = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 1 });
 
-export function ScoreBars({ data }: { data: { subject: string; avg: number; semesters: number }[] }) {
+// `counted` names what `semesters` counts: semesters on a student record, graded students on the teacher home.
+export function ScoreBars({ data, counted = "semester" }: { data: { subject: string; avg: number; semesters: number }[]; counted?: "semester" | "student graded" }) {
   return (
     <figure className="flex flex-col gap-3">
       {/* scrolls sideways inside the panel when there are many subjects; the page itself never does */}
@@ -37,7 +38,7 @@ export function ScoreBars({ data }: { data: { subject: string; avg: number; seme
                     >
                       <span className="block font-medium">{d.subject}</span>
                       <span className="block text-white/80">Average total {one(d.avg)} / 100</span>
-                      <span className="block text-white/60">{d.semesters} semester{d.semesters === 1 ? "" : "s"}</span>
+                      <span className="block text-white/60">{d.semesters} {counted === "semester" ? (d.semesters === 1 ? "semester" : "semesters") : (d.semesters === 1 ? "student graded" : "students graded")}</span>
                     </span>
                     <span className="mb-1 text-xs font-medium tabular-nums">{one(d.avg)}</span>
                     <span
@@ -59,7 +60,7 @@ export function ScoreBars({ data }: { data: { subject: string; avg: number; seme
       </div>
       <table className="sr-only">
         <caption>Average total by subject</caption>
-        <thead><tr><th scope="col">Subject</th><th scope="col">Average total out of 100</th><th scope="col">Semesters</th></tr></thead>
+        <thead><tr><th scope="col">Subject</th><th scope="col">Average total out of 100</th><th scope="col">{counted === "semester" ? "Semesters" : "Students graded"}</th></tr></thead>
         <tbody>{data.map((d) => <tr key={d.subject}><th scope="row">{d.subject}</th><td>{one(d.avg)}</td><td>{d.semesters}</td></tr>)}</tbody>
       </table>
     </figure>

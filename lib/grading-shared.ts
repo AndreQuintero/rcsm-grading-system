@@ -69,3 +69,24 @@ export function overallScore(rows: { grades: Grades }[]) {
   const possible = given * GRADE_MAX;
   return { earned, possible, pct: possible ? Math.round((earned / possible) * 100) : null };
 }
+
+type HomeStudent = { id: number; name: string; hasPhoto: boolean; grades: Grades };
+
+// Teacher home: per subject, who is still missing grades (and which types); the class average per subject; and the
+// 5 lowest scores so far, ranked by % of the points possible for the grades given (same rule as the record gauge).
+export function homeSummary(subjects: { subjectId: number; subject: string; students: HomeStudent[] }[]) {
+  const missing = subjects
+    .map((s) => {
+      const byType = Object.fromEntries(GRADE_TYPES.map((t) => [t.key, s.students.filter((x) => x.grades[t.key] === null).length])) as Record<GradeKey, number>;
+      return { subjectId: s.subjectId, subject: s.subject, students: s.students.filter((x) => gradeTotal(x.grades).given < 4).length, byType };
+    })
+    .filter((m) => m.students > 0);
+  const averages = subjectAverages(subjects.flatMap((s) => s.students.map((x) => ({ subject: s.subject, grades: x.grades }))));
+  const lowest = subjects
+    .flatMap((s) => s.students.map((x) => ({ ...x, subjectId: s.subjectId, subject: s.subject, ...gradeTotal(x.grades) })))
+    .filter((x) => x.given > 0)
+    .map((x) => ({ id: x.id, name: x.name, hasPhoto: x.hasPhoto, subjectId: x.subjectId, subject: x.subject, total: x.total, possible: x.given * GRADE_MAX, pct: Math.round((x.total / (x.given * GRADE_MAX)) * 100) }))
+    .sort((a, b) => a.pct - b.pct || a.total - b.total)
+    .slice(0, 5);
+  return { missing, averages, lowest };
+}
