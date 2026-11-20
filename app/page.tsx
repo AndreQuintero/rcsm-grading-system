@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { periodLabel } from "@/lib/academic-semester";
 import { getSession } from "@/lib/auth/session";
 import { batchPeriod } from "@/lib/batch";
-import { dashboardCounts, periodKey, pickDefault, semesterChoices, semesterDetail } from "@/lib/dashboard";
+import { dashboardCounts, periodKey, pickDefault, semesterChoices, semesterDetail, semesterRanking, type RankedStudent } from "@/lib/dashboard";
 import { formatDate, todayIso } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./_dashboard/Avatar";
@@ -129,7 +129,7 @@ function Overview({ firstName, counts }: { firstName: string; counts: Awaited<Re
 }
 
 async function Semester({ id, period, choices }: { id: number; period: string; choices: { id: number; label: string; current: boolean }[] }) {
-  const { teachers, batches } = await semesterDetail(id);
+  const [{ teachers, batches }, ranking] = await Promise.all([semesterDetail(id), semesterRanking(id)]);
   const students = batches.reduce((n, b) => n + b.students.length, 0);
 
   return (
@@ -163,6 +163,8 @@ async function Semester({ id, period, choices }: { id: number; period: string; c
           </p>
         )}
       </section>
+
+      {batches.length > 0 && <TopStudents ranking={ranking} semesterId={id} period={period} />}
 
       {batches.length === 0 && (
         <p className={cn(panel, "px-6 py-8 text-center text-sm text-muted-foreground")}>
@@ -208,6 +210,53 @@ async function Semester({ id, period, choices }: { id: number; period: string; c
         );
       })}
     </>
+  );
+}
+
+const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10] ?? "th"}`;
+const pill = ["bg-primary text-primary-foreground", "bg-primary/15 text-primary", "bg-card text-primary ring-1 ring-primary/30"];
+
+// Best average per subject in the semester; tied students share a place.
+function TopStudents({ ranking, semesterId, period }: { ranking: (RankedStudent & { place: number })[]; semesterId: number; period: string }) {
+  return (
+    <section aria-labelledby="top-students" className={cn(panel, "p-6 sm:p-8")}>
+      <div className="mb-4">
+        <h2 id="top-students" className="font-heading text-xl font-bold">Top students</h2>
+        <p className="text-sm text-muted-foreground">Best average per subject in {period}.</p>
+      </div>
+      {ranking.length ? (
+        <ol className="-mx-2 flex flex-col gap-1">
+          {ranking.map((s) => (
+            <li key={s.id}>
+              <Link
+                href={`/student-records/${s.id}/${semesterId}`}
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl px-2 py-3 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/40 sm:gap-4",
+                  s.place === 1 && "bg-primary/5",
+                )}
+              >
+                <span className={cn("w-10 shrink-0 rounded-full py-1 text-center text-xs font-bold tabular-nums sm:w-12 sm:text-sm", pill[s.place - 1] ?? "bg-muted text-muted-foreground")}>
+                  <span className="sr-only">Place </span>{ordinal(s.place)}
+                </span>
+                <Avatar src={s.hasPhoto ? `/students/${s.id}/photo` : null} className="size-10 sm:size-11" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{s.name}</span>
+                  <span className="block truncate text-sm text-muted-foreground">
+                    {s.batch ?? "No batch"}<span className="max-sm:hidden"> · {plural(s.subjects, "subject")} graded</span>
+                  </span>
+                </span>
+                <span className="shrink-0 text-right whitespace-nowrap">
+                  <span className="font-heading text-xl font-bold tabular-nums">{s.score}</span>
+                  <span className="hidden text-sm text-muted-foreground sm:inline"> / 100</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="rounded-2xl bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">No grades yet this semester.</p>
+      )}
+    </section>
   );
 }
 
