@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { requireRole } from "@/lib/auth/session";
 import { batchLabel } from "@/lib/batch";
 import { periodKey } from "@/lib/dashboard";
 import { gradeAverages, gradeTotal, overallScore, type Grades } from "@/lib/grading-shared";
@@ -131,4 +132,36 @@ export async function studentSemesterRecord(id: number, semesterId: number) {
       teachers: r.teachers as RecordTeacher[],
     })),
   };
+}
+
+// The record for "all" semesters or one of the student's semesters: the student, their semesters (for the picker) and
+// the subject rows tagged with their period. null when the student is unknown or the semester isn't theirs.
+export async function studentRecordView(id: number, which: "all" | number) {
+  const list = await studentSemesters(id);
+  if (!list) return null;
+  const all = which === "all";
+  const records = await Promise.all((all ? list.semesters.map((s) => s.id) : [which]).map((sid) => studentSemesterRecord(id, sid)));
+  if (records.some((x) => !x)) return null;
+  const rows = records.flatMap((rec) => rec!.rows.map((x) => ({ ...x, period: rec!.period })));
+  return { student: list, semesters: list.semesters, all, period: all ? null : records[0]!.period, rows };
+}
+export type StudentRecordView = NonNullable<Awaited<ReturnType<typeof studentRecordView>>>;
+
+// The signed-in student's id (students.id), from the session only; every "My records" page starts here.
+export async function requireStudent(): Promise<number> {
+  const s = await requireRole("student");
+  const [r] = await sql`SELECT profile_id FROM user_roles WHERE user_id = ${s.userId} AND role = 'student'`;
+  if (!r) throw new Error("Forbidden");
+  return r.profile_id as number;
+}
+
+// A student may see a teacher's photo when that teacher teaches a subject that grades them (in that semester).
+export async function studentCanSeeTeacher(studentId: number, teacherId: number): Promise<boolean> {
+  const [r] = await sql.query(
+    `SELECT 1 FROM (${STUDENT_ROWS}) r JOIN academic_semester_teacher_subjects x
+       ON x.academic_semester_id = r.sem AND x.subject_id = r.subj
+     WHERE x.teacher_id = $2 LIMIT 1`,
+    [studentId, teacherId],
+  );
+  return Boolean(r);
 }

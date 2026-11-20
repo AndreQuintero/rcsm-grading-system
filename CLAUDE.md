@@ -69,16 +69,22 @@ app/
                         (subjects, batches added, students, % fully graded), grading progress per subject, pending work
                         (subjects with no batch, students missing grades by type), class performance (ScoreBars) and up to 4 lowest
                         scores so far at ≤ 90% (ATTENTION_MAX_PCT) of points given (homeSummary) linking to records; no semester → empty state
-  student/              student home (placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
+  student/              student area (menu: Home, My records). Home is a placeholder; records/ = "My records": the signed-in
+                        student's own SemesterCards and records/[semesterId|all] SemesterRecord (student id from the session via
+                        requireStudent(), never from the URL; teachers' comments and emails shown); photo/route.ts = own student
+                        photo; teachers/[id]/photo = a teacher of a subject that grades the student. SessionNav (server) + NavLinks
+                        (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, StudentHero; shared by the teacher and admin
-              record pages), lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
+components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord;
+              shared by the teacher, admin and student record pages; SemesterRecord/SemesterCards take a base path,
+              photo routes and `self` wording), lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
               its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn; sheet = side panels, right for the mobile menu and bottom for the dashboard drawer, sliding their full size;
               select = the dashboard semester picker)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          student-records.ts (admin: listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord),
+lib/          student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
+              studentRecordView = one semester or "all", requireStudent, studentCanSeeTeacher),
               grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
               bind/unbindBatch, saveGrades, teacherStudents, teacherStudentFilters, studentRecord; ASSIGNED = a teacher's students:
               in a batch bound to one of their subjects, or graded in one), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades,
@@ -258,7 +264,7 @@ for that code's deploy, since the database is shared. Production uses the same d
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: the student area is a placeholder (teachers have Home, Gradings, Score records); production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
+- Open items: the student home is a placeholder (students have My records; teachers have Home, Gradings, Score records); production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
   get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.
