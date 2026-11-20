@@ -209,8 +209,8 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 `db/schema.sql` to match, apply with `scripts/migrate.ts`, then verify with a query. Migrations applied so far:
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
-`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 014 gradings (subject_batches, grades), 013 drop teacher_subjects (applied after
-the deploy that stopped reading it). A migration that removes something production code still reads must wait
+`scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
+the deploy that stopped reading it), 014 gradings (subject_batches, grades). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
