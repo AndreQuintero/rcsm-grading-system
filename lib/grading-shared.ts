@@ -36,3 +36,13 @@ export function parseGrades(formData: FormData):
   if (Object.keys(errors).length) return { errors };
   return { data };
 }
+
+// Class averages for a subject. Each type averages only the students who have that grade; the total averages
+// the totals of students with at least one grade. `n` = how many students counted; avg is null when n = 0.
+export function gradeAverages(list: Grades[]) {
+  const avg = (xs: number[]) => ({ avg: xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null, n: xs.length });
+  const byType = Object.fromEntries(
+    GRADE_TYPES.map((t) => [t.key, avg(list.map((g) => g[t.key]).filter((v): v is number => v !== null))]),
+  ) as Record<GradeKey, { avg: number | null; n: number }>;
+  return { ...byType, total: avg(list.map(gradeTotal).filter((t) => t.given > 0).map((t) => t.total)) };
+}
