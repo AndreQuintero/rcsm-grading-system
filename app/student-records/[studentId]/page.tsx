@@ -1,4 +1,4 @@
-import { CalendarRange, ChevronRight } from "lucide-react";
+import { CalendarRange, ChevronRight, Layers3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -51,6 +51,22 @@ async function Semesters({ params }: { params: Promise<{ studentId: string }> })
         <section aria-labelledby="semesters">
           <h2 id="semesters" className="mb-4 font-heading text-xl font-bold">Semesters</h2>
           <ul className="grid gap-4 sm:grid-cols-2">
+            <li>
+              <Link
+                href={`/student-records/${r.id}/all`}
+                className="group flex h-full flex-col gap-5 rounded-[1.75rem] bg-sidebar p-6 text-white outline-none transition-shadow hover:shadow-[0_12px_32px_-12px_rgba(43,46,51,0.6)] focus-visible:ring-3 focus-visible:ring-ring/40"
+              >
+                <div className="flex items-start gap-4">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/10"><Layers3 className="size-5" aria-hidden="true" /></span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-heading text-xl font-bold leading-tight">All semesters</h3>
+                    <p className="mt-1 text-sm text-white/70">Every grade of this student in one record, with the charts across semesters.</p>
+                  </div>
+                  <ChevronRight className="size-5 shrink-0 text-white/70 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                </div>
+                <p className="text-sm text-white/70">{r.semesters.length} semester{r.semesters.length === 1 ? "" : "s"}</p>
+              </Link>
+            </li>
             {r.semesters.map((s) => (
               <li key={s.id}>
                 <Link
