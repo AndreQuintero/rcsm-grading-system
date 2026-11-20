@@ -47,12 +47,17 @@ app/
                         teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
   users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
-  teacher/gradings/     teacher area (menu: Home, Gradings): semester picker (?semester=, same default rule as the dashboard,
+  teacher/gradings/     teacher area (menu: Home, Gradings, Score records): semester picker (?semester=, same default rule as the dashboard,
                         over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
                         batches (BatchBinder; removing asks for confirmation) and, once a batch is added, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment). Every page/action: requireTeacher() + teaches(semester, subject)
-  teacher/students/[id]/photo  student photo for a teacher teaching in a semester the student's batch is in
+  teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
+                        inactive included; empty state links to Gradings); [studentId] = record: hero (Data Analysis Lottie),
+                        GradeAverages, grades per semester+subject, ScoreBars (avg total per subject, CSS tooltip + sr-only
+                        table) and ScoreGauge (points earned / possible for the grades given) in _charts/
+  teacher/_shared/GradeAverages  the 5-indicator row (subject page and record page)
+  teacher/students/[id]/photo  student photo for a teacher the student is "assigned" to (same rule as score records)
   teacher/, student/    role homes (student: placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
 components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
@@ -62,7 +67,9 @@ components/   lottie-player (LottiePlayer by name; lottie-web light player, no e
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
 lib/          grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
-              bind/unbindBatch, saveGrades), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades, gradeTotal, gradeAverages), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+              bind/unbindBatch, saveGrades, teacherStudents, teacherStudentFilters, studentRecord; ASSIGNED = a teacher's students:
+              in a batch bound to one of their subjects, or graded in one), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades,
+              gradeTotal, gradeAverages, subjectAverages, overallScore), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -107,6 +114,9 @@ Conventions:
   Keyed by semester + subject, so every teacher of that subject in that semester shares batches and grades (last save
   wins, "Last saved by" shown). Only the semester's batches can be bound; a student is graded when their batch is bound
   and still in the semester and they are not inactive. Unbinding keeps grades. Total = sum of given grades / 100.
+- **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
+  (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
+  grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
 - `students`: first/middle(optional)/last name, date of birth, `status` in `audit | full_time | inactive`,
   `enrollment_date` (required for every status), optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB),
   `batch_id` (nullable, `ON DELETE SET NULL`).

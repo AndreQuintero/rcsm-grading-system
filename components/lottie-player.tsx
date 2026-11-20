@@ -11,6 +11,7 @@ const ANIMATIONS = {
   "employee-content": () => import("./lottie/employee-content.json"),
   "calendar-booking": () => import("./lottie/calendar-booking.json"),
   "get-things-done": () => import("./lottie/get-things-done.json"),
+  "data-analysis": () => import("./lottie/data-analysis.json"),
 };
 export type AnimationName = keyof typeof ANIMATIONS;
 
