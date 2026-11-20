@@ -138,14 +138,12 @@ const sentTo = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "ut
     const s2 = await newSession(taUser.id, "teacher");
     await sql`DELETE FROM teachers WHERE email = ${ta}`;
     await syncUserFromRoleTables(ta);
-    const gone = await user(ta);
-    assert.equal(gone.is_active, false);
-    assert.deepEqual(gone.roles, []);
+    assert.equal((await sql`SELECT count(*)::int AS n FROM users WHERE email = ${ta}`)[0].n, 0, "an email in no role table: account deleted");
     assert.equal(await lookupSession(s2), null);
     assert.equal((await sql`SELECT count(*)::int AS n FROM sessions WHERE user_id = ${taUser.id}`)[0].n, 0);
     const events = (await sql`SELECT event FROM auth_audit WHERE email = ${ta} ORDER BY id`).map((r) => r.event);
-    assert.ok(events.includes("role_added") && events.includes("role_removed") && events.includes("user_deactivated"), events.join());
-    console.log("ok  7. rename -> username; removed from one table -> role gone + sessions ended; from all -> inactive");
+    assert.ok(events.includes("role_added") && events.includes("role_removed") && events.includes("user_deleted"), events.join());
+    console.log("ok  7. rename -> username; removed from one table -> role gone + sessions ended; from all -> account deleted");
 
     // ---- 8. role switching only to held roles
     const a3 = await user(all3);
