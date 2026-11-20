@@ -49,7 +49,8 @@ app/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
   teacher/gradings/     teacher area (menu: Home, Gradings): semester picker (?semester=, same default rule as the dashboard,
                         over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
-                        batches (BatchBinder) and lists the students with grades; .../[studentId] = student card + GradeForm
+                        batches (BatchBinder; removing asks for confirmation) and, once a batch is added, shows 5 class averages
+                        (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment). Every page/action: requireTeacher() + teaches(semester, subject)
   teacher/students/[id]/photo  student photo for a teacher teaching in a semester the student's batch is in
   teacher/, student/    role homes (student: placeholder); SessionNav (server) + NavLinks (client, menu per role) = sidebar
@@ -61,7 +62,7 @@ components/   lottie-player (LottiePlayer by name; lottie-web light player, no e
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
 lib/          grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
-              bind/unbindBatch, saveGrades), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades, gradeTotal), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+              bind/unbindBatch, saveGrades), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades, gradeTotal, gradeAverages), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
