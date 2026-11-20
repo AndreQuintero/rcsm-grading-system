@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +76,7 @@ export function SubjectMultiSelect({
           setOpen(true);
         }}
       >
+        <Search className="ml-1 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         {selected.map((id) => {
           const o = byId.get(id);
           return (
@@ -109,7 +110,7 @@ export function SubjectMultiSelect({
           aria-autocomplete="list"
           aria-activedescendant={activeOption ? `${listId}-${activeOption.id}` : undefined}
           value={query}
-          placeholder={selected.length ? "" : placeholder}
+          placeholder={selected.length ? "Search to add more…" : placeholder}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);

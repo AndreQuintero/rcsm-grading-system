@@ -2,6 +2,7 @@ import { Eye } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Avatar } from "@/app/_dashboard/Avatar";
+import { SearchSelect } from "@/app/SearchSelect";
 import { EmptyAnimation } from "@/components/empty-animation";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
@@ -74,11 +75,12 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-batch">Batch</Label>
-                <select id="filter-batch" name="batch" defaultValue={batch} className={select}>
-                  <option value="">Any batch</option>
-                  <option value="none">No batch</option>
-                  {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-                </select>
+                <SearchSelect
+                  id="filter-batch"
+                  name="batch"
+                  defaultValue={batch}
+                  options={[{ value: "", label: "Any batch" }, { value: "none", label: "No batch" }, ...batches.map((b) => ({ value: String(b.id), label: b.label }))]}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-status">Status</Label>

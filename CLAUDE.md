@@ -35,7 +35,9 @@ app/
                         shared with the proxy) because the root layout stays mounted when an expired session redirects to /login
   ConfirmDeleteButton   trash icon + AlertDialog; takes a bound server action (+ optional note)
   EditLink              pencil icon link with tooltip
-  SubjectMultiSelect    searchable multi-select (chips, keyboard) posting hidden inputs (semester form: one per teacher)
+  SearchSelect          single-choice select you can type into: `name` → hidden input (Student records batch filter),
+                        `onPick` → an action that resets (semester form "Add a teacher…")
+  SubjectMultiSelect    searchable multi-select (search icon + hint kept after picks, chips, keyboard) posting hidden inputs (semester form: one per teacher)
   <feature>/page.tsx            list page: PageHeader, filter Card (GET form), Table, Pager
   <feature>/new/page.tsx        register page;   <feature>/new/<Feature>Form.tsx  client form (create + edit)
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
@@ -54,7 +56,7 @@ app/
                         semesters, picker option "All semesters") (dashboard-style semester row: Calendar booking Lottie, period,
                         graded count, and the SemesterSelect pill with pathTemplate over the student's semesters, always shown; StudentHero, GradeAverages, one card per subject with grades + its teachers +
                         comment, ScoreBars + ScoreGauge, no-grades state)
-  users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
+  users/                 admin view of sign-in accounts (users table): list (username/email/status filters; status = USER_STATUS_SQL, isUserStatus) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
   teacher/gradings/     teacher area (menu: Home, Gradings, Score records): semester picker (?semester=, same default rule as the dashboard,
                         over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's

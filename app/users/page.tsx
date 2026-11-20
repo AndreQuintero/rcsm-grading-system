@@ -13,18 +13,19 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/dates";
-import { listUsers, USER_PAGE_SIZE } from "@/lib/user";
+import { isUserStatus, listUsers, USER_PAGE_SIZE, USER_STATUS_LABEL } from "@/lib/user";
 import { RoleTags, UserAvatar, UserStatusBadge } from "./UserBits";
 
-type SearchParams = { username?: string; email?: string; page?: string };
+type SearchParams = { username?: string; email?: string; status?: string; page?: string };
 
 // Accounts are created by the sign-in flow from the role tables, so there is nothing to register here.
 const header = <PageHeader title="Users" description="Everyone with a sign-in account. Open a user to see their details or inactivate them." />;
+const select = "h-9 w-full cursor-pointer rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
 const COLUMNS = ["Username", "Email", "Roles", "Status", "Created (UTC)", "Actions"];
 
 export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <Suspense fallback={<main>{header}<ListSkeleton filters={["Username", "Email"]} columns={COLUMNS} /></main>}>
+    <Suspense fallback={<main>{header}<ListSkeleton filters={["Username", "Email", "Status"]} columns={COLUMNS} /></main>}>
       <Results searchParams={searchParams} />
     </Suspense>
   );
@@ -35,15 +36,18 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
   const sp = await searchParams;
   const username = (sp.username ?? "").trim();
   const email = (sp.email ?? "").trim();
+  const rawStatus = sp.status ?? "";
+  const status = isUserStatus(rawStatus) ? rawStatus : "";
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
-  const { users, total } = await listUsers({ username, email, page });
+  const { users, total } = await listUsers({ username, email, status, page });
   const pages = Math.max(1, Math.ceil(total / USER_PAGE_SIZE));
 
   const pageHref = (p: number) => {
     const q = new URLSearchParams();
     if (username) q.set("username", username);
     if (email) q.set("email", email);
+    if (status) q.set("status", status);
     if (p > 1) q.set("page", String(p));
     const qs = q.toString();
     return qs ? `/users?${qs}` : "/users";
@@ -57,7 +61,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
         <CardContent>
           {/* keyed on the active filters so Clear (a client-side navigation) rebuilds the inputs */}
           <form key={pageHref(1)} method="get" role="search" aria-label="Filter users" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-username">Username</Label>
                 <Input id="filter-username" name="username" defaultValue={username} />
@@ -66,8 +70,15 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
                 <Label htmlFor="filter-email">Email</Label>
                 <Input id="filter-email" name="email" defaultValue={email} />
               </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-status">Status</Label>
+                <select id="filter-status" name="status" defaultValue={status} className={select}>
+                  <option value="">Any status</option>
+                  {Object.entries(USER_STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
             </div>
-            <FilterActions clearHref="/users" filtered={Boolean(username || email)} />
+            <FilterActions clearHref="/users" filtered={Boolean(username || email || status)} />
           </form>
         </CardContent>
       </Card>

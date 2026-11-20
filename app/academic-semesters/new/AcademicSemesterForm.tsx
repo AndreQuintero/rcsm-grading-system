@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { AcademicSemesterFormState, TeacherSubjects } from "@/lib/academic-semester";
 import { cn } from "@/lib/utils";
+import { SearchSelect } from "../../SearchSelect";
 import { SubjectMultiSelect } from "../../SubjectMultiSelect";
 import { updateAcademicSemesterAction } from "../actions";
 import { createAcademicSemesterAction } from "./actions";
@@ -211,20 +212,13 @@ function TeacherRows({ options, initial, errors }: { options: Options; initial: 
               <div className="relative">
                 <UserPlus className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 {/* no name: picking only adds a row, it is not submitted itself */}
-                <select
+                <SearchSelect
                   id="add-teacher"
-                  value=""
-                  onChange={(ev) => {
-                    const id = Number(ev.target.value);
-                    if (id) setRows((rs) => [...rs, { teacherId: id, subjectIds: [] }]);
-                  }}
-                  className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-dashed border-input bg-transparent pr-3 pl-8 text-sm text-muted-foreground transition-colors outline-none hover:border-primary/50 hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-                >
-                  <option value="">Add a teacher…</option>
-                  {available.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                  placeholder="Add a teacher…"
+                  options={available.map((t) => ({ value: String(t.id), label: t.name }))}
+                  onPick={(id) => setRows((rs) => [...rs, { teacherId: Number(id), subjectIds: [] }])}
+                  className="border-dashed pl-8 hover:border-primary/50 hover:bg-muted/40"
+                />
               </div>
             </div>
           ) : (
