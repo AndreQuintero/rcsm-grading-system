@@ -75,7 +75,7 @@ async function Subject({ params }: { params: Promise<Params> }) {
                     </span>
                     {GRADE_TYPES.map((t) => (
                       <span key={t.key} className="hidden text-center lg:block">
-                        <span className="block text-[0.7rem] text-muted-foreground">{t.label.split(" ")[0]}</span>
+                        <span className="block text-[0.7rem] text-muted-foreground">{t.short}</span>
                         <span className="font-medium tabular-nums">{s.grades[t.key] ?? "–"}</span>
                       </span>
                     ))}

@@ -1,12 +1,12 @@
-import { CalendarCheck, FileText, GraduationCap, MessagesSquare } from "lucide-react";
+import { CalendarCheck, ClipboardList, GraduationCap, MessagesSquare } from "lucide-react";
 import { GRADE_TYPES, gradeAverages, type Grades } from "@/lib/grading-shared";
 import { cn } from "@/lib/utils";
 
 const TYPE_LOOK = {
-  midterm: { icon: FileText, tint: "bg-primary/10 text-primary" },
+  attendance: { icon: CalendarCheck, tint: "bg-success/12 text-success" },
+  assignments: { icon: ClipboardList, tint: "bg-primary/10 text-primary" },
   participation: { icon: MessagesSquare, tint: "bg-amber-500/12 text-amber-700" },
-  presence: { icon: CalendarCheck, tint: "bg-success/12 text-success" },
-  final_exam: { icon: GraduationCap, tint: "bg-sidebar/8 text-sidebar" },
+  exams: { icon: GraduationCap, tint: "bg-sidebar/8 text-sidebar" },
 };
 const one = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 1 });
 

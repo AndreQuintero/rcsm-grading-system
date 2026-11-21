@@ -16,27 +16,27 @@ const cleanup = async () => {
   await sql`DELETE FROM subjects WHERE name LIKE 'TchTest %'`;
 };
 const fd = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f; };
-const NONE = { midterm: null, participation: null, presence: null, final_exam: null, comment: null };
+const NONE = { attendance: null, participation: null, assignments: null, exams: null, comment: null };
 
 (async () => {
   await cleanup();
   try {
     // parsing and the total
-    assert.deepEqual(parseGrades(fd({ midterm: "20", participation: " ", presence: "25", final_exam: "0", comment: " Good " })).data,
-      { midterm: 20, participation: null, presence: 25, final_exam: 0, comment: "Good" });
-    for (const bad of ["26", "-1", "12.5", "abc"]) assert.ok(parseGrades(fd({ midterm: bad })).errors?.midterm, bad);
+    assert.deepEqual(parseGrades(fd({ attendance: "20", participation: " ", assignments: "25", exams: "0", comment: " Good " })).data,
+      { attendance: 20, participation: null, assignments: 25, exams: 0, comment: "Good" });
+    for (const bad of ["26", "-1", "12.5", "abc"]) assert.ok(parseGrades(fd({ attendance: bad })).errors?.attendance, bad);
     assert.ok(parseGrades(fd({ comment: "x".repeat(2001) })).errors?.comment);
-    assert.deepEqual(gradeTotal({ midterm: 20, participation: null, presence: 25, final_exam: 0 }), { total: 45, given: 3 });
+    assert.deepEqual(gradeTotal({ attendance: 20, participation: null, assignments: 25, exams: 0 }), { total: 45, given: 3 });
     const av = gradeAverages([
-      { midterm: 20, participation: null, presence: 25, final_exam: null },
-      { midterm: 15, participation: 10, presence: null, final_exam: null },
-      { midterm: null, participation: null, presence: null, final_exam: null },
+      { attendance: 20, participation: null, assignments: 25, exams: null },
+      { attendance: 15, participation: 10, assignments: null, exams: null },
+      { attendance: null, participation: null, assignments: null, exams: null },
     ]);
-    assert.deepEqual(av.midterm, { avg: 17.5, n: 2 });
+    assert.deepEqual(av.attendance, { avg: 17.5, n: 2 });
     assert.deepEqual(av.participation, { avg: 10, n: 1 });
-    assert.deepEqual(av.final_exam, { avg: null, n: 0 });
+    assert.deepEqual(av.exams, { avg: null, n: 0 });
     assert.deepEqual(av.total, { avg: 35, n: 2 }, "ungraded students don't pull the total down");
-    const g4 = (m: number | null, p: number | null) => ({ midterm: m, participation: p, presence: null, final_exam: null });
+    const g4 = (m: number | null, p: number | null) => ({ attendance: m, participation: p, assignments: null, exams: null });
     assert.deepEqual(subjectAverages([
       { subject: "Worship", grades: g4(20, 20) }, { subject: "Worship", grades: g4(10, 10) },
       { subject: "Music", grades: g4(25, null) }, { subject: "Art", grades: g4(null, null) },
@@ -44,7 +44,7 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     assert.deepEqual(overallScore([{ grades: g4(20, 20) }, { grades: g4(25, null) }]), { earned: 65, possible: 75, pct: 87 });
     assert.deepEqual(overallScore([{ grades: g4(null, null) }]), { earned: 0, possible: 0, pct: null });
     const st = (id: number, grades: Grades) => ({ id, name: `S${id}`, hasPhoto: false, grades });
-    const full = { midterm: 20, participation: 20, presence: 20, final_exam: 20 };
+    const full = { attendance: 20, participation: 20, assignments: 20, exams: 20 };
     const home = homeSummary([
       { subjectId: 1, subject: "Worship", students: [st(1, full), st(2, g4(5, null)), st(3, g4(null, null))] },
       { subjectId: 2, subject: "Music", students: [st(4, full)] },
@@ -56,7 +56,7 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     assert.deepEqual(capped.lowest.map((x) => x.id), [10, 11, 12, 13], "at most 4");
     const cut = homeSummary([{ subjectId: 3, subject: "Art", students: [st(15, g4(23, 22)), st(16, g4(24, 23))] }]);
     assert.deepEqual(cut.lowest.map((x) => [x.id, x.pct]), [[15, 90]], "90% kept, 94% dropped");
-    assert.deepEqual(home.missing, [{ subjectId: 1, subject: "Worship", students: 2, byType: { midterm: 1, participation: 2, presence: 2, final_exam: 2 } }]);
+    assert.deepEqual(home.missing, [{ subjectId: 1, subject: "Worship", students: 2, byType: { attendance: 1, participation: 2, assignments: 2, exams: 2 } }]);
     assert.deepEqual(home.averages, [{ subject: "Worship", avg: 42.5, semesters: 2 }, { subject: "Music", avg: 80, semesters: 1 }]);
     assert.deepEqual(home.lowest.map((x) => [x.id, x.pct, x.total, x.possible]), [[2, 20, 5, 25], [1, 80, 80, 100], [4, 80, 80, 100]], "% of points given, ungraded skipped");
 
@@ -93,17 +93,17 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     // saving: allowed for a listed student only, shared by both teachers of the subject
     const [anyUser] = await sql`SELECT id FROM users LIMIT 1`;
     const by = (anyUser?.id as number) ?? null;
-    assert.equal(await saveGrades(sem.id, worship.id, s1.id, by, { ...NONE, midterm: 20, presence: 25, comment: "Focused" }), true);
+    assert.equal(await saveGrades(sem.id, worship.id, s1.id, by, { ...NONE, attendance: 20, assignments: 25, comment: "Focused" }), true);
     assert.equal(await saveGrades(sem.id, worship.id, sInactive.id, by, NONE), false, "inactive student");
     assert.equal(await saveGrades(sem.id, worship.id, sOther.id, by, NONE), false, "batch not bound");
     assert.equal(await saveGrades(sem.id, worship.id, sOut.id, by, NONE), false, "batch outside the semester");
     const g = await studentGrading(sem.id, worship.id, s1.id);
-    assert.deepEqual(g!.grades, { midterm: 20, participation: null, presence: 25, final_exam: null });
+    assert.deepEqual(g!.grades, { attendance: 20, participation: null, assignments: 25, exams: null });
     assert.equal(g!.comment, "Focused");
     assert.equal(await studentGrading(sem.id, worship.id, sInactive.id), null);
     assert.equal(await studentGrading(sem.id, music.id, s1.id), null, "grades are per subject");
     // the other teacher edits the same row
-    await saveGrades(sem.id, worship.id, s1.id, by, { midterm: 22, participation: 25, presence: 25, final_exam: 25, comment: null });
+    await saveGrades(sem.id, worship.id, s1.id, by, { attendance: 22, participation: 25, assignments: 25, exams: 25, comment: null });
     assert.equal(gradeTotal((await studentGrading(sem.id, worship.id, s1.id))!.grades).total, 97);
     assert.deepEqual((await teacherSubjects(sem.id, t2.id)).map((s) => [s.batches, s.students, s.complete]), [[1, 2, 1]]);
 
@@ -111,7 +111,7 @@ const NONE = { midterm: null, participation: null, presence: null, final_exam: n
     await unbindBatch(sem.id, worship.id, b1.id);
     assert.equal((await subjectGrading(sem.id, worship.id))!.students.length, 0);
     await bindBatch(sem.id, worship.id, b1.id);
-    assert.equal((await studentGrading(sem.id, worship.id, s1.id))!.grades.midterm, 22);
+    assert.equal((await studentGrading(sem.id, worship.id, s1.id))!.grades.attendance, 22);
 
     // score records: the teacher's students across semesters (batch students incl. inactive, plus graded ones)
     const names = async (t: number, f = {}) => (await teacherStudents(t, f)).students.map((x) => x.name.replace("Gradetest ", "")).sort();

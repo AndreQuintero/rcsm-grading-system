@@ -4,11 +4,12 @@ export const GRADE_MAX = 25;
 // Teacher home: students at or below this share of their possible points are listed as needing attention.
 export const ATTENTION_MAX_PCT = 90;
 export const COMMENT_MAX = 2000;
+// `short` labels narrow column headers.
 export const GRADE_TYPES = [
-  { key: "midterm", label: "Midterm exam" },
-  { key: "participation", label: "Participation" },
-  { key: "presence", label: "Presence" },
-  { key: "final_exam", label: "Final exam" },
+  { key: "attendance", label: "Attendance", short: "Attendance" },
+  { key: "assignments", label: "Assignments and Activities", short: "Assignments" },
+  { key: "participation", label: "Participation", short: "Participation" },
+  { key: "exams", label: "Midterm & Final Exam", short: "Exams" },
 ] as const;
 export type GradeKey = (typeof GRADE_TYPES)[number]["key"];
 export type Grades = Record<GradeKey, number | null>;

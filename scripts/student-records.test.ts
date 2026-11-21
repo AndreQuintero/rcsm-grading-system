@@ -32,7 +32,7 @@ const ids = async (q: ReturnType<typeof sql>) => (await q).map((r) => r.id as nu
     await sql`INSERT INTO academic_semester_batches VALUES (${s1}, ${b1}), (${s2}, ${b1}), (${s3}, ${b2})`;
     await sql`INSERT INTO academic_semester_teacher_subjects VALUES (${s1}, ${ada}, ${worship}), (${s1}, ${bob}, ${worship}), (${s1}, ${ada}, ${music}), (${s3}, ${bob}, ${art})`;
     await sql`INSERT INTO subject_batches VALUES (${s1}, ${worship}, ${b1})`;
-    await sql`INSERT INTO grades (academic_semester_id, subject_id, student_id, midterm, participation, presence, final_exam, comment) VALUES
+    await sql`INSERT INTO grades (academic_semester_id, subject_id, student_id, attendance, participation, assignments, exams, comment) VALUES
       (${s1}, ${worship}, ${amy}, 20, 20, 25, 22, 'Good'), (${s3}, ${art}, ${amy}, 10, NULL, NULL, NULL, NULL)`;
 
     // list: filters and inactive students
@@ -55,7 +55,7 @@ const ids = async (q: ReturnType<typeof sql>) => (await q).map((r) => r.id as nu
 
     // record: subjects that grade the student (Music's batch not added → not listed), with every teacher of the subject
     const rec = await studentSemesterRecord(amy, s1);
-    assert.deepEqual(rec!.rows.map((r) => [r.subject, r.grades.final_exam, r.comment, r.teachers.map((t) => t.name)]),
+    assert.deepEqual(rec!.rows.map((r) => [r.subject, r.grades.exams, r.comment, r.teachers.map((t) => t.name)]),
       [["TchTest Worship", 22, "Good", ["TchTest Ada", "TchTest Bob"]]]);
     assert.equal((await studentSemesterRecord(ben, s1))!.rows.length, 1, "inactive students keep their record");
     assert.equal(await studentSemesterRecord(cid, s1), null, "not one of Cid's semesters");

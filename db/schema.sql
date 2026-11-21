@@ -169,10 +169,10 @@ CREATE TABLE IF NOT EXISTS grades (
   academic_semester_id int NOT NULL REFERENCES academic_semesters(id) ON DELETE CASCADE,
   subject_id int NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
   student_id int NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  midterm smallint CHECK (midterm BETWEEN 0 AND 25),
+  attendance smallint CHECK (attendance BETWEEN 0 AND 25),
+  assignments smallint CHECK (assignments BETWEEN 0 AND 25), -- assignments and activities
   participation smallint CHECK (participation BETWEEN 0 AND 25),
-  presence smallint CHECK (presence BETWEEN 0 AND 25),
-  final_exam smallint CHECK (final_exam BETWEEN 0 AND 25),
+  exams smallint CHECK (exams BETWEEN 0 AND 25), -- midterm & final exam
   comment text CHECK (char_length(comment) <= 2000),
   updated_at timestamptz NOT NULL DEFAULT now(),
   updated_by int REFERENCES users(id) ON DELETE SET NULL,

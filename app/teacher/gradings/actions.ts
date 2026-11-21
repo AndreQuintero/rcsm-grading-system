@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { bindBatch, requireTeacher, saveGrades, teaches, unbindBatch } from "@/lib/grading";
-import { parseGrades, type GradeFormState } from "@/lib/grading-shared";
+import { GRADE_TYPES, parseGrades, type GradeFormState } from "@/lib/grading-shared";
 
 const ids = (...n: number[]) => n.every((x) => Number.isInteger(x) && x > 0);
 
@@ -30,7 +30,7 @@ export async function unbindBatchAction(semesterId: number, subjectId: number, b
 export async function saveGradesAction(semesterId: number, subjectId: number, studentId: number, _prev: GradeFormState, formData: FormData): Promise<GradeFormState> {
   const t = await allowed(semesterId, subjectId);
   if (!ids(studentId)) throw new Error("Invalid student id");
-  const values = Object.fromEntries(["midterm", "participation", "presence", "final_exam", "comment"].map((k) => [k, String(formData.get(k) ?? "")]));
+  const values = Object.fromEntries([...GRADE_TYPES.map((t) => t.key), "comment"].map((k) => [k, String(formData.get(k) ?? "")]));
   const parsed = parseGrades(formData);
   if (!parsed.data) return { errors: parsed.errors, values };
   if (!(await saveGrades(semesterId, subjectId, studentId, t.userId, parsed.data)))

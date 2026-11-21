@@ -142,7 +142,8 @@ Conventions:
   optional (plan first, fill later). All FKs cascade: deleting a batch/teacher/subject removes it from semesters;
   deleting a semester keeps them. Create is one statement, update one transaction (replace the link rows).
 - **Gradings** (migration 014): `subject_batches` (semester, subject, batch) and `grades` (semester, subject, student:
-  `midterm`, `participation`, `presence`, `final_exam` each whole 0–25 or NULL = not given, `comment` ≤ 2000, `updated_by`).
+  `attendance`, `assignments` (assignments and activities), `participation`, `exams` (midterm & final exam) each whole
+  0–25 or NULL = not given (migration 016; labels + `short` headers in `GRADE_TYPES`), `comment` ≤ 2000, `updated_by`).
   Keyed by semester + subject, so every teacher of that subject in that semester shares batches and grades (last save
   wins, "Last saved by" shown). Only the semester's batches can be bound; a student is graded when their batch is bound
   and still in the semester and they are not inactive. Unbinding keeps grades. Total = sum of given grades / 100.
@@ -258,7 +259,9 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
-the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table. A migration that removes something production code still reads must wait
+the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams).
+**Pending:** 016b-clear-old-grades.sql (delete the grades saved under the old types; to be run by the owner) and
+017-drop-old-grade-columns.sql (only after production serves the new grade types). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
