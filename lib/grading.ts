@@ -54,7 +54,7 @@ export async function teacherSubjects(semesterId: number, teacherId: number) {
        (SELECT count(*) FROM (${gradedStudents("$1", "s.id")}) g)::int AS students,
        (SELECT count(*) FROM (${gradedStudents("$1", "s.id")}) g JOIN grades gr
           ON gr.academic_semester_id = $1 AND gr.subject_id = s.id AND gr.student_id = g.id
-        WHERE num_nonnulls(gr.midterm, gr.participation, gr.presence, gr.final_exam) = 4)::int AS complete
+        WHERE num_nonnulls(gr.attendance, gr.assignments, gr.participation, gr.exams) = 4)::int AS complete
      FROM academic_semester_teacher_subjects x JOIN subjects s ON s.id = x.subject_id
      WHERE x.academic_semester_id = $1 AND x.teacher_id = $2
      ORDER BY s.name`,
@@ -76,7 +76,7 @@ export async function subjectGrading(semesterId: number, subjectId: number) {
         ORDER BY b.year, b.semester, b.number`,
     sql.query(
       `SELECT g.id, concat_ws(' ', g.first_name, g.middle_name, g.last_name) AS name, g.status, g.photo IS NOT NULL AS has_photo,
-         b.number, b.year, b.semester, gr.midterm, gr.participation, gr.presence, gr.final_exam
+         b.number, b.year, b.semester, gr.attendance, gr.assignments, gr.participation, gr.exams
        FROM (${gradedStudents()}) g
        JOIN batches b ON b.id = g.bound_batch
        LEFT JOIN grades gr ON gr.academic_semester_id = $1 AND gr.subject_id = $2 AND gr.student_id = g.id
@@ -93,7 +93,7 @@ export async function subjectGrading(semesterId: number, subjectId: number) {
     students: students.map((s) => ({
       id: s.id as number, name: s.name as string, status: s.status as string, hasPhoto: s.has_photo as boolean,
       batch: label(s),
-      grades: { midterm: s.midterm, participation: s.participation, presence: s.presence, final_exam: s.final_exam } as Grades,
+      grades: { attendance: s.attendance, assignments: s.assignments, participation: s.participation, exams: s.exams } as Grades,
     })),
   };
 }
@@ -104,7 +104,7 @@ export async function studentGrading(semesterId: number, subjectId: number, stud
     `SELECT g.id, concat_ws(' ', g.first_name, g.middle_name, g.last_name) AS name, g.email, g.status,
        date_part('year', age(current_date, g.date_of_birth))::int AS age, g.photo IS NOT NULL AS has_photo,
        b.number, b.year, b.semester,
-       gr.midterm, gr.participation, gr.presence, gr.final_exam, gr.comment,
+       gr.attendance, gr.assignments, gr.participation, gr.exams, gr.comment,
        to_char(gr.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS updated, u.username AS updated_by
      FROM (${gradedStudents()}) g
      JOIN batches b ON b.id = g.bound_batch
@@ -118,7 +118,7 @@ export async function studentGrading(semesterId: number, subjectId: number, stud
     id: r.id as number, name: r.name as string, email: (r.email as string) ?? null, status: r.status as string,
     age: r.age as number, hasPhoto: r.has_photo as boolean,
     batch: batchLabel(r as { number: number; year: number; semester: number }),
-    grades: { midterm: r.midterm, participation: r.participation, presence: r.presence, final_exam: r.final_exam } as Grades,
+    grades: { attendance: r.attendance, assignments: r.assignments, participation: r.participation, exams: r.exams } as Grades,
     comment: (r.comment as string) ?? "",
     updated: (r.updated as string) ?? null,
     updatedBy: (r.updated_by as string) ?? null,
@@ -159,7 +159,7 @@ export async function teacherStudents(
        b.number, b.year, b.semester,
        (SELECT count(*) FROM (${ASSIGNED}) a2 JOIN grades g ON g.academic_semester_id = a2.sem AND g.subject_id = a2.subj
           AND g.student_id = a2.student_id
-        WHERE a2.student_id = st.id AND num_nonnulls(g.midterm, g.participation, g.presence, g.final_exam) > 0)::int AS graded,
+        WHERE a2.student_id = st.id AND num_nonnulls(g.attendance, g.assignments, g.participation, g.exams) > 0)::int AS graded,
        count(*) OVER() AS total
      FROM students st
      LEFT JOIN batches b ON b.id = st.batch_id
@@ -206,7 +206,7 @@ export async function studentRecord(teacherId: number, studentId: number) {
         FROM students st LEFT JOIN batches b ON b.id = st.batch_id WHERE st.id = ${studentId}`,
     sql.query(
       `SELECT a.sem, a.subj, sub.name AS subject, sem.year, sem.semester,
-         g.midterm, g.participation, g.presence, g.final_exam
+         g.attendance, g.assignments, g.participation, g.exams
        FROM (${ASSIGNED}) a
        JOIN subjects sub ON sub.id = a.subj
        JOIN academic_semesters sem ON sem.id = a.sem
@@ -224,7 +224,7 @@ export async function studentRecord(teacherId: number, studentId: number) {
       .map((r) => ({
         semesterId: r.sem as number, subjectId: r.subj as number, subject: r.subject as string,
         period: { year: r.year as number, semester: r.semester as number },
-        grades: { midterm: r.midterm, participation: r.participation, presence: r.presence, final_exam: r.final_exam } as Grades,
+        grades: { attendance: r.attendance, assignments: r.assignments, participation: r.participation, exams: r.exams } as Grades,
       }))
       .sort((a, b) => periodKey(b.period) - periodKey(a.period) || a.subject.localeCompare(b.subject)),
   };
@@ -250,14 +250,14 @@ export async function saveGrades(
   semesterId: number, subjectId: number, studentId: number, userId: number, g: Grades & { comment: string | null },
 ): Promise<boolean> {
   const rows = await sql.query(
-    `INSERT INTO grades (academic_semester_id, subject_id, student_id, midterm, participation, presence, final_exam, comment, updated_by)
+    `INSERT INTO grades (academic_semester_id, subject_id, student_id, attendance, assignments, participation, exams, comment, updated_by)
      SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9
      WHERE EXISTS (SELECT 1 FROM (${gradedStudents()}) g WHERE g.id = $3)
      ON CONFLICT (academic_semester_id, subject_id, student_id) DO UPDATE SET
-       midterm = EXCLUDED.midterm, participation = EXCLUDED.participation, presence = EXCLUDED.presence,
-       final_exam = EXCLUDED.final_exam, comment = EXCLUDED.comment, updated_by = EXCLUDED.updated_by, updated_at = now()
+       attendance = EXCLUDED.attendance, assignments = EXCLUDED.assignments, participation = EXCLUDED.participation,
+       exams = EXCLUDED.exams, comment = EXCLUDED.comment, updated_by = EXCLUDED.updated_by, updated_at = now()
      RETURNING student_id`,
-    [semesterId, subjectId, studentId, g.midterm, g.participation, g.presence, g.final_exam, g.comment, userId],
+    [semesterId, subjectId, studentId, g.attendance, g.assignments, g.participation, g.exams, g.comment, userId],
   );
   return rows.length > 0;
 }

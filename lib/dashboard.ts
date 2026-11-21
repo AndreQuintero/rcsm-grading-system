@@ -94,12 +94,12 @@ export async function semesterRanking(id: number, size = 5) {
   const rows = await sql`
     SELECT st.id, concat_ws(' ', st.first_name, st.middle_name, st.last_name) AS name, st.photo IS NOT NULL AS has_photo,
       b.number, b.year, b.semester, count(*)::int AS subjects,
-      round(avg(coalesce(g.midterm, 0) + coalesce(g.participation, 0) + coalesce(g.presence, 0) + coalesce(g.final_exam, 0)), 1)::float AS score
+      round(avg(coalesce(g.attendance, 0) + coalesce(g.assignments, 0) + coalesce(g.participation, 0) + coalesce(g.exams, 0)), 1)::float AS score
     FROM grades g
     JOIN students st ON st.id = g.student_id AND st.status <> 'inactive'
     LEFT JOIN batches b ON b.id = st.batch_id
     WHERE g.academic_semester_id = ${id}
-      AND num_nonnulls(g.midterm, g.participation, g.presence, g.final_exam) > 0
+      AND num_nonnulls(g.attendance, g.assignments, g.participation, g.exams) > 0
     GROUP BY st.id, b.id`;
   return rankStudents(
     rows.map((r): RankedStudent => ({

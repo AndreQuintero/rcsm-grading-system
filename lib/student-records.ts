@@ -77,8 +77,8 @@ export async function studentSemesters(id: number) {
   if (!head) return null;
   const rows = await sql.query(
     `SELECT a.id, a.year, a.semester,
-       coalesce((SELECT json_agg(json_build_object('midterm', g.midterm, 'participation', g.participation,
-          'presence', g.presence, 'final_exam', g.final_exam))
+       coalesce((SELECT json_agg(json_build_object('attendance', g.attendance, 'assignments', g.assignments,
+          'participation', g.participation, 'exams', g.exams))
         FROM (${STUDENT_ROWS}) r LEFT JOIN grades g ON g.academic_semester_id = r.sem AND g.subject_id = r.subj AND g.student_id = $1
         WHERE r.sem = a.id), '[]') AS grades
      FROM academic_semesters a WHERE a.id IN (${STUDENT_SEMESTERS})`,
@@ -86,7 +86,7 @@ export async function studentSemesters(id: number) {
   );
   const semesters = rows
     .map((r) => {
-      const grades = (r.grades as Grades[]).map((g) => ({ midterm: g.midterm, participation: g.participation, presence: g.presence, final_exam: g.final_exam }));
+      const grades = (r.grades as Grades[]).map((g) => ({ attendance: g.attendance, assignments: g.assignments, participation: g.participation, exams: g.exams }));
       const graded = grades.filter((g) => gradeTotal(g).given > 0);
       return {
         id: r.id as number, year: r.year as number, semester: r.semester as number,
@@ -107,7 +107,7 @@ export async function studentSemesterRecord(id: number, semesterId: number) {
     studentHead(id),
     sql.query(`SELECT a.id, a.year, a.semester FROM academic_semesters a WHERE a.id = $2 AND a.id IN (${STUDENT_SEMESTERS})`, [id, semesterId]),
     sql.query(
-      `SELECT r.subj, s.name AS subject, g.midterm, g.participation, g.presence, g.final_exam, g.comment,
+      `SELECT r.subj, s.name AS subject, g.attendance, g.assignments, g.participation, g.exams, g.comment,
          to_char(g.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS updated, u.username AS updated_by,
          coalesce((SELECT json_agg(json_build_object('id', t.id, 'name', t.full_name, 'email', t.email, 'hasPhoto', t.photo IS NOT NULL) ORDER BY t.full_name)
            FROM academic_semester_teacher_subjects x JOIN teachers t ON t.id = x.teacher_id
@@ -127,7 +127,7 @@ export async function studentSemesterRecord(id: number, semesterId: number) {
     period: { id: sem.id as number, year: sem.year as number, semester: sem.semester as number },
     rows: rows.map((r) => ({
       subjectId: r.subj as number, subject: r.subject as string,
-      grades: { midterm: r.midterm, participation: r.participation, presence: r.presence, final_exam: r.final_exam } as Grades,
+      grades: { attendance: r.attendance, assignments: r.assignments, participation: r.participation, exams: r.exams } as Grades,
       comment: (r.comment as string) ?? null, updated: (r.updated as string) ?? null, updatedBy: (r.updated_by as string) ?? null,
       teachers: r.teachers as RecordTeacher[],
     })),

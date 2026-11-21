@@ -60,7 +60,7 @@ const cleanup = async () => {
     assert.deepEqual(d.batches[0].students.map((s) => s.name).sort(), ["Dashtest Active", "Dashtest Audit"], "inactive students hidden");
     // ranking: average of subject totals; inactive and ungraded rows left out
     const st = Object.fromEntries((await sql`SELECT id, last_name FROM students WHERE first_name = 'Dashtest'`).map((x) => [x.last_name, x.id]));
-    await sql`INSERT INTO grades (academic_semester_id, subject_id, student_id, midterm, participation, presence, final_exam) VALUES
+    await sql`INSERT INTO grades (academic_semester_id, subject_id, student_id, attendance, participation, assignments, exams) VALUES
       (${a1.id}, ${s1.id}, ${st.Active}, 20, 20, 20, 20), (${a1.id}, ${s2.id}, ${st.Active}, 25, 25, NULL, NULL),
       (${a1.id}, ${s1.id}, ${st.Audit}, 10, NULL, NULL, NULL), (${a1.id}, ${s2.id}, ${st.Audit}, NULL, NULL, NULL, NULL),
       (${a1.id}, ${s1.id}, ${st.Gone}, 25, 25, 25, 25)`;
