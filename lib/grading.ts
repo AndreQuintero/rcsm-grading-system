@@ -38,7 +38,7 @@ export async function teaches(semesterId: number, subjectId: number, teacherId: 
 }
 
 // Students a subject grades: not inactive, in a batch bound to the subject that is still in the semester.
-const gradedStudents = (semester = "$1", subject = "$2") => `
+export const gradedStudents = (semester = "$1", subject = "$2") => `
   SELECT st.*, sb.batch_id AS bound_batch FROM students st
   JOIN subject_batches sb ON sb.batch_id = st.batch_id
   JOIN academic_semester_batches ab ON ab.academic_semester_id = sb.academic_semester_id AND ab.batch_id = sb.batch_id

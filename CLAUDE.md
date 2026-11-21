@@ -62,11 +62,19 @@ app/
                         comment, ScoreBars + ScoreGauge, no-grades state)
   users/                 admin view of sign-in accounts (users table): list (username/email/status filters; status = USER_STATUS_SQL, isUserStatus) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
-  teacher/gradings/     teacher area (menu: Home, Gradings, Score records): semester picker (?semester=, same default rule as the dashboard,
+  teacher/gradings/     teacher area (menu: Home, Gradings, Assignments, Score records): semester picker (?semester=, same default rule as the dashboard,
                         over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
                         batches (BatchBinder; removing asks for confirmation) and, once a batch is added, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
+  teacher/assignments/  "Assignments": same first screen as Gradings (semester picker + subject cards with assignment counts);
+                        [semesterId]/[subjectId] = list (name + date filters, 10 per page, newest date first; students scored
+                        "n of N", average "avg / max (pct%)", edit + delete with AlertDialog), then "Assignment ranking" below the pager (every
+                        graded student: points earned ÷ points possible over the assignments they were scored in, %, dense places,
+                        unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
+                        empty state linking to that subject's Gradings page) with AssignmentForm (name, date, maximum points
+                        1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
+                        0..max); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
                         inactive included; empty state links to Gradings); [studentId] = record: hero (Data Analysis Lottie),
                         GradeAverages, grades per semester+subject, ScoreBars (avg total per subject, CSS tooltip + sr-only
@@ -82,7 +90,8 @@ app/
                         photo; teachers/[id]/photo = a teacher of a subject that grades the student. SessionNav (server) + NavLinks
                         (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord,
+components/   records/ (GradeAverages = 5-indicator row, RankingList = ranked rows (pill, avatar, name, detail, value; dashboard
+              Top students + assignment ranking), ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord,
               ExportPdfButton = "Export PDF": window.print() of the record with the file name as document.title;
               shared by the teacher, admin and student record pages; SemesterRecord/SemesterCards take a base path,
               photo routes and `self` wording), lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
@@ -91,7 +100,9 @@ components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, 
               select = the dashboard semester picker)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
+lib/          assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
+              saveAssignment, scoresAbove, deleteAssignment, assignmentRanking), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
+              student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
               studentRecordView = one semester or "all", requireStudent, studentCanSeeTeacher),
               grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
               bind/unbindBatch, saveGrades, teacherStudents, teacherStudentFilters, studentRecord; ASSIGNED = a teacher's students:
@@ -147,6 +158,12 @@ Conventions:
   Keyed by semester + subject, so every teacher of that subject in that semester shares batches and grades (last save
   wins, "Last saved by" shown). Only the semester's batches can be bound; a student is graded when their batch is bound
   and still in the semester and they are not inactive. Unbinding keeps grades. Total = sum of given grades / 100.
+- **Assignments** (migration 018): `assignments` (semester, subject, name ≤ 150, `due_on` date, `max_score` 1–1000,
+  `updated_by`) and `assignment_scores` (assignment, student, whole `score` 0..max; no row = not scored). Keyed by semester +
+  subject like grades (every teacher of the subject shares them). The form lists the students the subject grades
+  (`gradedStudents`); saving writes only those (blank removes a score, others' scores are kept; a lower maximum is refused
+  while an unlisted student's score is above it). A new assignment needs ≥ 1 bound batch; deleting cascades the scores.
+  Separate from `grades.assignments` (that 0–25 grade is still typed by hand).
 - **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
   (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
   grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
@@ -222,7 +239,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `assignments`, `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash
@@ -259,9 +276,9 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
-the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams).
-**Pending:** 016b-clear-old-grades.sql (deletes old-type and empty grade rows; safe before or after the deploy; to be run
-by the owner) and 017-drop-old-grade-columns.sql (only after production serves the new grade types). A migration that removes something production code still reads must wait
+the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams), 017 drop the old grade columns (midterm, presence, final_exam;
+it also deleted the 9 old-type grade rows). 016b-clear-old-grades.sql was never run and is obsolete: it reads the dropped
+columns and would fail. 018 assignments (assignments, assignment_scores). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarRange, ChartColumn, ClipboardCheck, GraduationCap, Home, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BookOpen, CalendarRange, ChartColumn, ClipboardCheck, GraduationCap, Home, Layers, NotebookPen, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ const STUDENT_NAV = [
 const TEACHER_NAV = [
   { href: "/teacher", label: "Home", icon: Home, exact: true },
   { href: "/teacher/gradings", label: "Gradings", icon: ClipboardCheck },
+  { href: "/teacher/assignments", label: "Assignments", icon: NotebookPen },
   { href: "/teacher/records", label: "Score records", icon: ChartColumn },
 ];
 
