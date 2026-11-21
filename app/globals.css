@@ -88,11 +88,53 @@
   font-family: var(--font-zilla-slab), "Rockwell", Georgia, serif;
 }
 
+/* Light sweeping across the page-loading bar (app/NavigationProgress.tsx). */
+.nav-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: nav-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes nav-shimmer {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Printing a record ("Export PDF" → Save as PDF): white paper, colours kept for the cards and charts, no decorative
+   animations, and no card split across two pages. Navigation and buttons carry print:hidden. */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    background: white;
+  }
+  [data-lottie] {
+    display: none !important;
+  }
+  li,
+  figure,
+  dl {
+    break-inside: avoid;
+  }
+  h2,
+  h3 {
+    break-after: avoid;
   }
 }

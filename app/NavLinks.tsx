@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarRange, GraduationCap, Home, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BookOpen, CalendarRange, ChartColumn, ClipboardCheck, GraduationCap, Home, Layers, NotebookPen, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -9,20 +9,34 @@ const ADMIN_NAV = [
   { href: "/teachers", label: "Teachers", icon: Users },
   { href: "/subjects", label: "Subjects", icon: BookOpen },
   { href: "/students", label: "Students", icon: GraduationCap },
+  { href: "/student-records", label: "Student records", icon: ChartColumn },
   { href: "/batches", label: "Batches", icon: Layers },
   { href: "/academic-semesters", label: "Semesters", icon: CalendarRange },
   { href: "/admins", label: "Admins", icon: ShieldCheck },
   { href: "/users", label: "Users", icon: UserCog },
 ];
 
-// Admins get the management pages; other roles get their home. The server decides which (and enforces it).
-export function NavLinks({ admin, homeHref }: { admin: boolean; homeHref: string }) {
+const STUDENT_NAV = [
+  { href: "/student", label: "Home", icon: Home, exact: true },
+  { href: "/student/records", label: "My records", icon: ChartColumn },
+];
+
+const TEACHER_NAV = [
+  { href: "/teacher", label: "Home", icon: Home, exact: true },
+  { href: "/teacher/gradings", label: "Gradings", icon: ClipboardCheck },
+  { href: "/teacher/assignments", label: "Assignments", icon: NotebookPen },
+  { href: "/teacher/records", label: "Score records", icon: ChartColumn },
+];
+
+// Each role gets its own pages; the server decides which (and enforces it).
+export function NavLinks({ role, homeHref }: { role: string; homeHref: string }) {
   const pathname = usePathname();
-  const items = admin ? ADMIN_NAV : [{ href: homeHref, label: "Home", icon: Home }];
+  const items: { href: string; label: string; icon: typeof Home; exact?: boolean }[] =
+    role === "admin" ? ADMIN_NAV : role === "teacher" ? TEACHER_NAV : role === "student" ? STUDENT_NAV : [{ href: homeHref, label: "Home", icon: Home }];
   return (
     <nav aria-label="Main" className="flex flex-col gap-1">
-      {items.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(href + "/");
+      {items.map(({ href, label, icon: Icon, exact }) => {
+        const active = pathname === href || (!exact && pathname.startsWith(href + "/"));
         return (
           <Link
             key={href}

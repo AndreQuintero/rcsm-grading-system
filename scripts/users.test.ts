@@ -11,7 +11,7 @@ import { hashPassword } from "../lib/auth/password";
 import { consumeSetupToken, issueSetupToken } from "../lib/auth/tokens";
 import { lookupSession } from "../lib/auth/session";
 import { startPasswordReset } from "../lib/auth/first-sign-in";
-import { getUser, listUsers, setUserDisabled, USER_PAGE_SIZE } from "../lib/user";
+import { getUser, isUserStatus, listUsers, setUserDisabled, USER_PAGE_SIZE } from "../lib/user";
 
 const D = "@authtest.example.com";
 const outbox = join(mkdtempSync(join(tmpdir(), "userstest-")), "outbox.jsonl");
@@ -93,12 +93,17 @@ const sent = (email: string) => (existsSync(outbox) ? readFileSync(outbox, "utf8
     assert.ok(await lookupSession(await newSession(id)));
     assert.equal(await setUserDisabled(2147483000, true), null);
 
-    // removed from every role table -> "no roles"
+    // removed from every role table -> the account is deleted
     await sql`DELETE FROM teachers WHERE email = ${`u12${D}`}`;
     await syncUserFromRoleTables(`u12${D}`);
-    const [r] = (await listUsers({ email: `u12${D}` })).users;
-    assert.equal(r.status, "no_roles");
-    assert.deepEqual(r.roles, []);
+    assert.equal((await listUsers({ email: `u12${D}` })).total, 0);
+
+    // status filter: 11 accounts left = 1 active, 10 pending
+    const count = (status: "active" | "inactive" | "pending") => listUsers({ username: "usrtest person", status }).then((x) => x.total);
+    assert.deepEqual([await count("active"), await count("pending"), await count("inactive")], [1, 10, 0]);
+    await setUserDisabled(id, true);
+    assert.deepEqual([await count("active"), await count("inactive")], [0, 1]);
+    assert.ok(isUserStatus("pending") && !isUserStatus("no_roles") && !isUserStatus("toString") && !isUserStatus(""));
 
     console.log("all users checks passed");
   } finally {

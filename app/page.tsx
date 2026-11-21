@@ -9,9 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { periodLabel } from "@/lib/academic-semester";
 import { getSession } from "@/lib/auth/session";
 import { batchPeriod } from "@/lib/batch";
-import { dashboardCounts, periodKey, pickDefault, semesterChoices, semesterDetail } from "@/lib/dashboard";
+import { dashboardCounts, periodKey, pickDefault, semesterChoices, semesterDetail, semesterRanking, type RankedStudent } from "@/lib/dashboard";
 import { formatDate, todayIso } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { RankingList } from "@/components/records/RankingList";
 import { Avatar } from "./_dashboard/Avatar";
 import { SemesterSelect } from "./_dashboard/SemesterSelect";
 import { TeacherList } from "./_dashboard/TeacherList";
@@ -129,7 +130,7 @@ function Overview({ firstName, counts }: { firstName: string; counts: Awaited<Re
 }
 
 async function Semester({ id, period, choices }: { id: number; period: string; choices: { id: number; label: string; current: boolean }[] }) {
-  const { teachers, batches } = await semesterDetail(id);
+  const [{ teachers, batches }, ranking] = await Promise.all([semesterDetail(id), semesterRanking(id)]);
   const students = batches.reduce((n, b) => n + b.students.length, 0);
 
   return (
@@ -184,14 +185,20 @@ async function Semester({ id, period, choices }: { id: number; period: string; c
             {b.students.length ? (
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {b.students.map((s) => (
-                  <li key={s.id} className="flex items-center gap-3 rounded-2xl bg-muted/45 p-3">
-                    <Avatar src={s.hasPhoto ? `/students/${s.id}/photo` : null} className="size-12" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{s.name}</p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        {s.age} years old <StatusBadge status={s.status} />
-                      </p>
-                    </div>
+                  <li key={s.id}>
+                    {/* the batch is in this semester, so it is one of the student's semesters (never a not-found record) */}
+                    <Link
+                      href={`/student-records/${s.id}/${id}`}
+                      className="flex items-center gap-3 rounded-2xl bg-muted/45 p-3 outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/40"
+                    >
+                      <Avatar src={s.hasPhoto ? `/students/${s.id}/photo` : null} className="size-12" />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{s.name}</p>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                          {s.age} years old <StatusBadge status={s.status} />
+                        </p>
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -201,7 +208,38 @@ async function Semester({ id, period, choices }: { id: number; period: string; c
           </section>
         );
       })}
+
+      {batches.length > 0 && <TopStudents ranking={ranking} semesterId={id} period={period} />}
     </>
+  );
+}
+
+// Best average per subject in the semester; tied students share a place.
+function TopStudents({ ranking, semesterId, period }: { ranking: (RankedStudent & { place: number })[]; semesterId: number; period: string }) {
+  return (
+    <section aria-labelledby="top-students" className={cn(panel, "p-6 sm:p-8")}>
+      <div className="mb-4">
+        <h2 id="top-students" className="font-heading text-xl font-bold">Top students</h2>
+        <p className="text-sm text-muted-foreground">Best average per subject in {period}.</p>
+      </div>
+      {ranking.length ? (
+        <RankingList
+          rows={ranking.map((s) => ({
+            id: s.id, name: s.name, place: s.place, photo: s.hasPhoto ? `/students/${s.id}/photo` : null,
+            href: `/student-records/${s.id}/${semesterId}`,
+            detail: <>{s.batch ?? "No batch"}<span className="max-sm:hidden"> · {plural(s.subjects, "subject")} graded</span></>,
+            value: (
+              <>
+                <span className="font-heading text-xl font-bold tabular-nums">{s.score}</span>
+                <span className="hidden text-sm text-muted-foreground sm:inline"> / 100</span>
+              </>
+            ),
+          }))}
+        />
+      ) : (
+        <p className="rounded-2xl bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">No grades yet this semester.</p>
+      )}
+    </section>
   );
 }
 

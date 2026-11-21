@@ -1,0 +1,173 @@
+import { sql } from "@/lib/db";
+import { batchLabel } from "@/lib/batch";
+import { rankStudents } from "@/lib/dashboard";
+import { gradedStudents } from "@/lib/grading";
+import { ASSIGNMENT_PAGE_SIZE, type AssignmentInput } from "@/lib/assignment-shared";
+
+// Assignments are keyed by semester + subject, so every teacher of that subject in that semester shares them (as
+// with grades). Callers check teaches(semester, subject, teacher) first.
+
+// The subject's name and the semester's period for page headers; null when either doesn't exist.
+export async function assignmentSubject(semesterId: number, subjectId: number) {
+  const [r] = await sql`SELECT a.year, a.semester, s.name FROM academic_semesters a, subjects s WHERE a.id = ${semesterId} AND s.id = ${subjectId}`;
+  return r ? { subject: r.name as string, period: { year: r.year as number, semester: r.semester as number } } : null;
+}
+
+// How many assignments each subject has in a semester (subjects with none are missing from the map).
+export async function assignmentCounts(semesterId: number): Promise<Map<number, number>> {
+  const rows = await sql`SELECT subject_id, count(*)::int AS n FROM assignments WHERE academic_semester_id = ${semesterId} GROUP BY subject_id`;
+  return new Map(rows.map((r) => [r.subject_id as number, r.n as number]));
+}
+
+export type AssignmentRow = { id: number; name: string; dueOn: string; maxScore: number; graded: number; avg: number | null };
+
+// One page of a subject's assignments, newest date first, with how many students are scored and their average.
+export async function listAssignments({ semesterId, subjectId, name = "", date = "", page = 1 }: {
+  semesterId: number; subjectId: number; name?: string; date?: string; page?: number;
+}) {
+  const rows = await sql.query(
+    `SELECT a.id, a.name, a.due_on::text AS due_on, a.max_score,
+       count(sc.student_id)::int AS graded, round(avg(sc.score), 1)::float AS avg, count(*) OVER() AS total
+     FROM assignments a LEFT JOIN assignment_scores sc ON sc.assignment_id = a.id
+     WHERE a.academic_semester_id = $1 AND a.subject_id = $2
+       AND ($3 = '' OR a.name ILIKE '%' || $3 || '%') AND ($4 = '' OR a.due_on = $4::date)
+     GROUP BY a.id
+     ORDER BY a.due_on DESC, a.name, a.id
+     LIMIT ${ASSIGNMENT_PAGE_SIZE} OFFSET $5`,
+    [semesterId, subjectId, name, date, (page - 1) * ASSIGNMENT_PAGE_SIZE],
+  );
+  return {
+    assignments: rows.map((r): AssignmentRow => ({
+      id: r.id as number, name: r.name as string, dueOn: r.due_on as string, maxScore: r.max_score as number,
+      graded: r.graded as number, avg: (r.avg as number | null) ?? null,
+    })),
+    total: rows.length ? Number(rows[0].total) : 0,
+  };
+}
+
+export type AssignmentStudent = { id: number; name: string; hasPhoto: boolean; batch: string };
+
+// The students an assignment can score: those the subject grades (not inactive, in a batch bound to the subject that
+// is still in the semester), plus how many batches are bound.
+export async function assignmentStudents(semesterId: number, subjectId: number) {
+  const [students, [b]] = await Promise.all([
+    sql.query(
+      `SELECT g.id, concat_ws(' ', g.first_name, g.middle_name, g.last_name) AS name, g.photo IS NOT NULL AS has_photo,
+         bt.number, bt.year, bt.semester
+       FROM (${gradedStudents()}) g JOIN batches bt ON bt.id = g.bound_batch
+       ORDER BY g.last_name, g.first_name, g.id`,
+      [semesterId, subjectId],
+    ),
+    sql`SELECT count(*)::int AS n FROM subject_batches sb JOIN academic_semester_batches ab
+          ON ab.academic_semester_id = sb.academic_semester_id AND ab.batch_id = sb.batch_id
+        WHERE sb.academic_semester_id = ${semesterId} AND sb.subject_id = ${subjectId}`,
+  ]);
+  return {
+    batches: b.n as number,
+    students: students.map((s): AssignmentStudent => ({
+      id: s.id as number, name: s.name as string, hasPhoto: s.has_photo as boolean,
+      batch: batchLabel(s as { number: number; year: number; semester: number }),
+    })),
+  };
+}
+
+// One assignment of this semester + subject with its scores; null when it isn't one of theirs.
+export async function getAssignment(semesterId: number, subjectId: number, id: number) {
+  const [a] = await sql`
+    SELECT a.id, a.name, a.due_on::text AS due_on, a.max_score,
+      coalesce((SELECT json_object_agg(sc.student_id, sc.score) FROM assignment_scores sc WHERE sc.assignment_id = a.id), '{}') AS scores
+    FROM assignments a WHERE a.id = ${id} AND a.academic_semester_id = ${semesterId} AND a.subject_id = ${subjectId}`;
+  if (!a) return null;
+  return {
+    id: a.id as number, name: a.name as string, dueOn: a.due_on as string, maxScore: a.max_score as number,
+    scores: a.scores as Record<string, number>,
+  };
+}
+
+// Creates (id = null) or updates an assignment and its scores in one go. Only students in `allowed` (the ones the
+// subject grades now) are written: a blank score removes theirs; scores of anyone else are kept. Returns the id, or
+// null when the assignment to update isn't one of this semester + subject.
+export async function saveAssignment(
+  semesterId: number, subjectId: number, id: number | null, userId: number | null, input: AssignmentInput, allowed: number[],
+): Promise<number | null> {
+  const ids: number[] = [], scores: number[] = [], blanks: number[] = [];
+  for (const sid of allowed) {
+    const s = input.scores.get(sid);
+    if (s === undefined || s === null) blanks.push(sid);
+    else { ids.push(sid); scores.push(s); }
+  }
+  if (id === null) {
+    const [r] = await sql.query(
+      `WITH a AS (
+         INSERT INTO assignments (academic_semester_id, subject_id, name, due_on, max_score, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+       ), s AS (
+         INSERT INTO assignment_scores (assignment_id, student_id, score)
+         SELECT a.id, x.student_id, x.score FROM a, unnest($7::int[], $8::int[]) AS x(student_id, score)
+       )
+       SELECT id FROM a`,
+      [semesterId, subjectId, input.name, input.dueOn, input.maxScore, userId, ids, scores],
+    );
+    return r.id as number;
+  }
+  const [updated] = await sql.transaction([
+    sql`UPDATE assignments SET name = ${input.name}, due_on = ${input.dueOn}, max_score = ${input.maxScore},
+          updated_by = ${userId}, updated_at = now()
+        WHERE id = ${id} AND academic_semester_id = ${semesterId} AND subject_id = ${subjectId} RETURNING id`,
+    sql`DELETE FROM assignment_scores sc USING assignments a
+        WHERE sc.assignment_id = a.id AND a.id = ${id} AND a.academic_semester_id = ${semesterId} AND a.subject_id = ${subjectId}
+          AND sc.student_id = ANY(${blanks}::int[])`,
+    sql`INSERT INTO assignment_scores (assignment_id, student_id, score)
+        SELECT a.id, x.student_id, x.score FROM assignments a, unnest(${ids}::int[], ${scores}::int[]) AS x(student_id, score)
+        WHERE a.id = ${id} AND a.academic_semester_id = ${semesterId} AND a.subject_id = ${subjectId}
+        ON CONFLICT (assignment_id, student_id) DO UPDATE SET score = EXCLUDED.score`,
+  ]);
+  return updated.length ? id : null;
+}
+
+// Scores already saved above a new maximum (only for students still listed), so lowering the maximum can't leave a
+// score out of range.
+export async function scoresAbove(id: number, maxScore: number, keep: number[]): Promise<number> {
+  const [r] = await sql`SELECT count(*)::int AS n FROM assignment_scores
+    WHERE assignment_id = ${id} AND score > ${maxScore} AND NOT (student_id = ANY(${keep}::int[]))`;
+  return r.n as number;
+}
+
+export async function deleteAssignment(semesterId: number, subjectId: number, id: number): Promise<void> {
+  await sql`DELETE FROM assignments WHERE id = ${id} AND academic_semester_id = ${semesterId} AND subject_id = ${subjectId}`;
+}
+
+export type AssignmentRank = AssignmentStudent & { place: number | null; pct: number | null; earned: number; possible: number; scored: number };
+
+// Every student the subject grades, ranked by points earned ÷ points possible over the assignments they were scored
+// in (an unscored assignment doesn't count), as a % rounded to one decimal so equal shown values share a place.
+// Students with no score yet come last, unranked. Also returns how many assignments the subject has.
+export async function assignmentRanking(semesterId: number, subjectId: number) {
+  const [rows, [c]] = await Promise.all([
+    sql.query(
+      `SELECT g.id, concat_ws(' ', g.first_name, g.middle_name, g.last_name) AS name, g.photo IS NOT NULL AS has_photo,
+         bt.number, bt.year, bt.semester,
+         coalesce(sum(sc.score), 0)::int AS earned, coalesce(sum(a.max_score) FILTER (WHERE sc.score IS NOT NULL), 0)::int AS possible,
+         count(sc.score)::int AS scored
+       FROM (${gradedStudents()}) g
+       JOIN batches bt ON bt.id = g.bound_batch
+       LEFT JOIN assignments a ON a.academic_semester_id = $1 AND a.subject_id = $2
+       LEFT JOIN assignment_scores sc ON sc.assignment_id = a.id AND sc.student_id = g.id
+       GROUP BY g.id, g.first_name, g.middle_name, g.last_name, g.photo, bt.id`,
+      [semesterId, subjectId],
+    ),
+    sql`SELECT count(*)::int AS n FROM assignments WHERE academic_semester_id = ${semesterId} AND subject_id = ${subjectId}`,
+  ]);
+  const all = rows.map((r) => {
+    const possible = r.possible as number, earned = r.earned as number;
+    return {
+      id: r.id as number, name: r.name as string, hasPhoto: r.has_photo as boolean,
+      batch: batchLabel(r as { number: number; year: number; semester: number }),
+      earned, possible, scored: r.scored as number,
+      pct: possible ? Math.round((earned / possible) * 1000) / 10 : null,
+    };
+  });
+  const ranked = rankStudents(all.filter((s) => s.pct !== null).map((s) => ({ ...s, score: s.pct! })), Infinity);
+  const unscored = all.filter((s) => s.pct === null).sort((a, b) => a.name.localeCompare(b.name)).map((s) => ({ ...s, place: null }));
+  return { assignments: c.n as number, students: [...ranked, ...unscored] as AssignmentRank[] };
+}

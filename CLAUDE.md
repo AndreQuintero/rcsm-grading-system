@@ -23,17 +23,25 @@ app/
   page.tsx              admin dashboard (`/`): hero (student count + status bar, Lottie), stat row (teachers, subjects, admins,
                         active users), semester picker (?semester=id; default = running today, else latest started, else nearest
                         future — `pickDefault` in lib/dashboard.ts, 2nd semester Jan–May precedes 1st Jun–Dec), teachers (bottom
-                        Sheet drawer with that semester's subjects), one panel per batch (non-inactive students), empty state;
+                        Sheet drawer with that semester's subjects), one panel per batch (non-inactive students, each linking to
+                        /student-records/<id>/<semester>), then "Top students" last (top 5 + ties by average total per subject,
+                        dense places 1st/1st/2nd, inactive left out; semesterRanking + rankStudents in lib/dashboard.ts), empty state;
                         client bits in app/_dashboard/ (SemesterSelect = shadcn Select pill, TeacherList, Avatar)
-  layout.tsx            root shell: SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
-  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Batches, Semesters, Admins, Users); active link via usePathname in Suspense;
+  layout.tsx            root shell: NavigationProgress, SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
+  NavigationProgress    top loading bar (flame-blue gradient, glow, shimmer; shown after 120 ms, trickles to <90%). Starts on
+                        same-site link clicks (capture phase: <Link> preventDefaults), GET form submits, forms with
+                        `data-navigates` (switch role, sign out) and startNavigationProgress() (router.push/replace callers);
+                        ends when the address changed AND no `data-slot="skeleton"` is left (PPR shows the shell at once); 10 s cap
+  SiteHeader.tsx        charcoal sidebar nav (Teachers, Subjects, Students, Student records, Batches, Semesters, Admins, Users); active link via usePathname in Suspense;
                         below md a top bar with a burger: MobileMenu (components/ui/sheet, slides in from the right) shows the
                         same SessionNav pieces (account card, links, switch role, sign out) and closes on navigation;
                         the session menu is hidden on the public sign-in pages (HideOnPublicPages, PUBLIC_PATHS in lib/auth/roles.ts,
                         shared with the proxy) because the root layout stays mounted when an expired session redirects to /login
   ConfirmDeleteButton   trash icon + AlertDialog; takes a bound server action (+ optional note)
   EditLink              pencil icon link with tooltip
-  SubjectMultiSelect    searchable multi-select (chips, keyboard) posting hidden inputs (semester form: one per teacher)
+  SearchSelect          single-choice select you can type into: `name` → hidden input (Student records batch filter),
+                        `onPick` → an action that resets (semester form "Add a teacher…")
+  SubjectMultiSelect    searchable multi-select (search icon + hint kept after picks, chips, keyboard) posting hidden inputs (semester form: one per teacher)
   <feature>/page.tsx            list page: PageHeader, filter Card (GET form), Table, Pager
   <feature>/new/page.tsx        register page;   <feature>/new/<Feature>Form.tsx  client form (create + edit)
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
@@ -45,17 +53,61 @@ app/
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
   academic-semesters/    list (year filter) + register/edit (AcademicSemesterForm: year + semester radios, batch cards,
                         teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
-  users/                 admin view of sign-in accounts (users table): list (username/email filters) + [id] details; no register/
+  student-records/      admin "Student records": all students (name/email/batch incl. "No batch"/status filters, 10 per page);
+                        [studentId] = hero (Calendar booking Lottie) + semester cards (graded count, total average, % of points)
+                        plus a first "All semesters" card, or a no-semesters state; [studentId]/[semesterId] = record
+                        (semesterId "all" = every semester combined: cards tagged with their semester, bars averaged across
+                        semesters, picker option "All semesters") (dashboard-style semester row: Calendar booking Lottie, period,
+                        graded count, and the SemesterSelect pill with pathTemplate over the student's semesters, always shown; StudentHero, GradeAverages, one card per subject with grades + its teachers +
+                        comment, ScoreBars + ScoreGauge, no-grades state)
+  users/                 admin view of sign-in accounts (users table): list (username/email/status filters; status = USER_STATUS_SQL, isUserStatus) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
-  teacher/, student/    role homes (placeholders for now); SessionNav (server) + NavLinks (client) = sidebar per role
+  teacher/gradings/     teacher area (menu: Home, Gradings, Assignments, Score records): semester picker (?semester=, same default rule as the dashboard,
+                        over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
+                        batches (BatchBinder; removing asks for confirmation) and, once a batch is added, shows 5 class averages
+                        (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
+                        (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
+  teacher/assignments/  "Assignments": same first screen as Gradings (semester picker + subject cards with assignment counts);
+                        [semesterId]/[subjectId] = list (name + date filters, 10 per page, newest date first; students scored
+                        "n of N", average "avg / max (pct%)", edit + delete with AlertDialog), then "Assignment ranking" below the pager (every
+                        graded student: points earned ÷ points possible over the assignments they were scored in, %, dense places,
+                        unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
+                        empty state linking to that subject's Gradings page) with AssignmentForm (name, date, maximum points
+                        1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
+                        0..max); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
+  teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
+                        inactive included; empty state links to Gradings); [studentId] = record: hero (Data Analysis Lottie),
+                        GradeAverages, grades per semester+subject, ScoreBars (avg total per subject, CSS tooltip + sr-only
+                        table) and ScoreGauge (points earned / possible for the grades given) from components/records/
+  teacher/students/[id]/photo  student photo for a teacher the student is "assigned" to (same rule as score records)
+  teacher/page.tsx      teacher home: welcome + semester (picker over their semesters, always shown, default rule as the dashboard), stat row
+                        (subjects, batches added, students, % fully graded), grading progress per subject, pending work
+                        (subjects with no batch, students missing grades by type), class performance (ScoreBars) and up to 4 lowest
+                        scores so far at ≤ 90% (ATTENTION_MAX_PCT) of points given (homeSummary) linking to records; no semester → empty state
+  student/              student area (menu: Home, My records). Home is a placeholder; records/ = "My records": the signed-in
+                        student's own SemesterCards and records/[semesterId|all] SemesterRecord (student id from the session via
+                        requireStudent(), never from the URL; teachers' comments and emails shown); photo/route.ts = own student
+                        photo; teachers/[id]/photo = a teacher of a subject that grades the student. SessionNav (server) + NavLinks
+                        (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
+components/   records/ (GradeAverages = 5-indicator row, RankingList = ranked rows (pill, avatar, name, detail, value; dashboard
+              Top students + assignment ranking), ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord,
+              ExportPdfButton = "Export PDF": window.print() of the record with the file name as document.title;
+              shared by the teacher, admin and student record pages; SemesterRecord/SemesterCards take a base path,
+              photo routes and `self` wording), lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
               its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn; sheet = side panels, right for the mobile menu and bottom for the dashboard drawer, sliding their full size;
               select = the dashboard semester picker)
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
+lib/          assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
+              saveAssignment, scoresAbove, deleteAssignment, assignmentRanking), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
+              student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
+              studentRecordView = one semester or "all", requireStudent, studentCanSeeTeacher),
+              grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,
+              bind/unbindBatch, saveGrades, teacherStudents, teacherStudentFilters, studentRecord; ASSIGNED = a teacher's students:
+              in a batch bound to one of their subjects, or graded in one), grading-shared.ts (client-safe: GRADE_TYPES, parseGrades,
+              gradeTotal, gradeAverages, subjectAverages, overallScore, homeSummary), dashboard.ts (counts, semesterChoices, pickDefault, semesterDetail, semesterRanking, rankStudents), academic-semester.ts (parse, create/update, get, list, semesterOptions), user.ts (listUsers, getUser, setUserDisabled), db.ts (sql), dates.ts (isRealDate, todayIso), teacher.ts, admin.ts, subject.ts, student.ts (client-safe:
               STATUSES, parseStudent), student-queries.ts (server: listStudents, getStudent), batch.ts
 db/           schema.sql (fresh-database schema) and migrations/NNN-*.sql (applied with scripts/migrate.ts)
 scripts/      *.test.ts self-checks against the real database; migrate.ts
@@ -71,6 +123,8 @@ Conventions:
   `connection()` — `cacheComponents` refuses to prerender otherwise.
 - List filters are GET forms keyed on the active filters (`key={pageHref(1)}`) so "Clear filters" resets inputs.
 - Lists are 10 per page using `count(*) OVER()` for the total.
+- Navigating from code (`router.push/replace`) calls `startNavigationProgress()` first; a server-action form that
+  redirects gets `data-navigates`. Loading fallbacks must use `Skeleton` (the bar waits for them to go).
 - Update/delete actions call `revalidatePath`; create actions do not (so scripts can call them directly).
 - Every export from a `"use server"` file becomes an endpoint — keep plain helpers in `lib/`. **Any action can be posted
   to any path**, so every action starts with `await requireRole("admin")` (or its role); route handlers check
@@ -79,6 +133,9 @@ Conventions:
   action = `requireRole` + that function, so scripts can call the lib function directly.
 - Writes to `admins`/`teachers`/`students` call `syncUserFromRoleTables(email)` afterwards (old and new email on an
   email change, `RETURNING email` on delete).
+- Print / PDF: `@media print` in globals.css (white paper, exact colours, Lotties hidden, no break inside li/figure/dl,
+  headings kept with what follows); `print:hidden` on the sidebar, PageHeader actions and the record's picker/button;
+  `print:` variants give the record its desktop layout on paper. Admin and student records export the semester shown (or all).
 - Design: palette from the logo (charcoal `#2b2e33` sidebar, flame blue `#2e63cf` primary, paper `#f4f6f9`),
   Zilla Slab headings (`font-heading`), Geist body. Light mode only. Full time badge green, audit blue,
   inactive grey. Table headers sentence case, icon actions with tooltips.
@@ -95,6 +152,24 @@ Conventions:
   is in the semester when they have ≥ 1 subject there; a subject may go to several teachers. Batches and teachers are
   optional (plan first, fill later). All FKs cascade: deleting a batch/teacher/subject removes it from semesters;
   deleting a semester keeps them. Create is one statement, update one transaction (replace the link rows).
+- **Gradings** (migration 014): `subject_batches` (semester, subject, batch) and `grades` (semester, subject, student:
+  `attendance`, `assignments` (assignments and activities), `participation`, `exams` (midterm & final exam) each whole
+  0–25 or NULL = not given (migration 016; labels + `short` headers in `GRADE_TYPES`), `comment` ≤ 2000, `updated_by`).
+  Keyed by semester + subject, so every teacher of that subject in that semester shares batches and grades (last save
+  wins, "Last saved by" shown). Only the semester's batches can be bound; a student is graded when their batch is bound
+  and still in the semester and they are not inactive. Unbinding keeps grades. Total = sum of given grades / 100.
+- **Assignments** (migration 018): `assignments` (semester, subject, name ≤ 150, `due_on` date, `max_score` 1–1000,
+  `updated_by`) and `assignment_scores` (assignment, student, whole `score` 0..max; no row = not scored). Keyed by semester +
+  subject like grades (every teacher of the subject shares them). The form lists the students the subject grades
+  (`gradedStudents`); saving writes only those (blank removes a score, others' scores are kept; a lower maximum is refused
+  while an unlisted student's score is above it). A new assignment needs ≥ 1 bound batch; deleting cascades the scores.
+  Separate from `grades.assignments` (that 0–25 grade is still typed by hand).
+- **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
+  (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
+  grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
+- **Student records** (admin): a student's semesters = those including their batch, plus any with their grades; a
+  semester's subjects = their batch bound to the subject (batch still in the semester) or graded in it — the score-records
+  rule without a teacher filter. Each subject shows every teacher of it in that semester.
 - `students`: first/middle(optional)/last name, date of birth, `status` in `audit | full_time | inactive`,
   `enrollment_date` (required for every status), optional `photo` bytea + `photo_type` (JPEG/PNG/WebP ≤ 2 MB),
   `batch_id` (nullable, `ON DELETE SET NULL`).
@@ -120,9 +195,11 @@ Conventions:
 - People exist only in the role tables. `users` (one per email, `password_hash` NULL = first sign-in pending) and
   `user_roles` (role + `profile_id`, not a real FK) mirror them via `syncUserFromRoleTables` (idempotent, one
   transaction): username from the highest role (admin > teacher > student; students = first middle last); removed
-  role or email gone everywhere → role row deleted / user inactive and their sessions deleted.
-- **Inactive (admin block)**: `users.disabled_at`, set on the Users page. It is separate from `is_active`, which the sync
-  owns and would undo. Every `is_active` check also requires `disabled_at IS NULL` (session lookup, token use, setup/reset
+  role → role row deleted + that user's sessions ended; email in no role table (e.g. the old email after an email change)
+  → the user is **deleted** (sessions, roles, tokens cascade; `grades.updated_by` → NULL, shown as "a former user";
+  audit `user_deleted`). If the email comes back later it is a new account (first sign-in again). `users.is_active` is legacy.
+- **Inactive (admin block)**: `users.disabled_at`, set on the Users page. It is separate from the legacy `is_active`.
+  User statuses: active, inactive, pending first sign-in (no "no roles": such accounts no longer exist). Every `is_active` check also requires `disabled_at IS NULL` (session lookup, token use, setup/reset
   emails, account). Inactivating deletes the user's sessions. Login step 2 says "Your account is inactive…" only after the
   correct password; a wrong password still gets the generic error.
 - `/login` step 1 always answers the same; sync + setup email run in `after()`. Step 2 errors are always
@@ -162,7 +239,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `assignments`, `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash
@@ -199,7 +276,9 @@ Write `db/migrations/NNN-description.sql` (statements end with `;` at line end; 
 001 teacher_subjects, 002 inquiry→inactive, 003 enrollment date required, 004 batches, 005 unique (year,
 semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limits, audit, students.email; followed by
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
-the deploy that stopped reading it). A migration that removes something production code still reads must wait
+the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams), 017 drop the old grade columns (midterm, presence, final_exam;
+it also deleted the 9 old-type grade rows). 016b-clear-old-grades.sql was never run and is obsolete: it reads the dropped
+columns and would fail. 018 assignments (assignments, assignment_scores). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
@@ -220,7 +299,7 @@ for that code's deploy, since the database is shared. Production uses the same d
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: teacher/student areas are placeholders; production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
+- Open items: the student home is a placeholder (students have My records; teachers have Home, Gradings, Score records); production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
   get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.
