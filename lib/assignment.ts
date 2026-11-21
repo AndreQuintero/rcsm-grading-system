@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { batchLabel } from "@/lib/batch";
+import { rankStudents } from "@/lib/dashboard";
 import { gradedStudents } from "@/lib/grading";
 import { ASSIGNMENT_PAGE_SIZE, type AssignmentInput } from "@/lib/assignment-shared";
 
@@ -134,4 +135,39 @@ export async function scoresAbove(id: number, maxScore: number, keep: number[]):
 
 export async function deleteAssignment(semesterId: number, subjectId: number, id: number): Promise<void> {
   await sql`DELETE FROM assignments WHERE id = ${id} AND academic_semester_id = ${semesterId} AND subject_id = ${subjectId}`;
+}
+
+export type AssignmentRank = AssignmentStudent & { place: number | null; pct: number | null; earned: number; possible: number; scored: number };
+
+// Every student the subject grades, ranked by points earned ÷ points possible over the assignments they were scored
+// in (an unscored assignment doesn't count), as a % rounded to one decimal so equal shown values share a place.
+// Students with no score yet come last, unranked. Also returns how many assignments the subject has.
+export async function assignmentRanking(semesterId: number, subjectId: number) {
+  const [rows, [c]] = await Promise.all([
+    sql.query(
+      `SELECT g.id, concat_ws(' ', g.first_name, g.middle_name, g.last_name) AS name, g.photo IS NOT NULL AS has_photo,
+         bt.number, bt.year, bt.semester,
+         coalesce(sum(sc.score), 0)::int AS earned, coalesce(sum(a.max_score) FILTER (WHERE sc.score IS NOT NULL), 0)::int AS possible,
+         count(sc.score)::int AS scored
+       FROM (${gradedStudents()}) g
+       JOIN batches bt ON bt.id = g.bound_batch
+       LEFT JOIN assignments a ON a.academic_semester_id = $1 AND a.subject_id = $2
+       LEFT JOIN assignment_scores sc ON sc.assignment_id = a.id AND sc.student_id = g.id
+       GROUP BY g.id, g.first_name, g.middle_name, g.last_name, g.photo, bt.id`,
+      [semesterId, subjectId],
+    ),
+    sql`SELECT count(*)::int AS n FROM assignments WHERE academic_semester_id = ${semesterId} AND subject_id = ${subjectId}`,
+  ]);
+  const all = rows.map((r) => {
+    const possible = r.possible as number, earned = r.earned as number;
+    return {
+      id: r.id as number, name: r.name as string, hasPhoto: r.has_photo as boolean,
+      batch: batchLabel(r as { number: number; year: number; semester: number }),
+      earned, possible, scored: r.scored as number,
+      pct: possible ? Math.round((earned / possible) * 1000) / 10 : null,
+    };
+  });
+  const ranked = rankStudents(all.filter((s) => s.pct !== null).map((s) => ({ ...s, score: s.pct! })), Infinity);
+  const unscored = all.filter((s) => s.pct === null).sort((a, b) => a.name.localeCompare(b.name)).map((s) => ({ ...s, place: null }));
+  return { assignments: c.n as number, students: [...ranked, ...unscored] as AssignmentRank[] };
 }

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { parseAssignment, scoreAverage } from "../lib/assignment-shared";
 import {
-  assignmentCounts, assignmentStudents, deleteAssignment, getAssignment, listAssignments, saveAssignment, scoresAbove,
+  assignmentCounts, assignmentRanking, assignmentStudents, deleteAssignment, getAssignment, listAssignments, saveAssignment, scoresAbove,
 } from "../lib/assignment";
 
 const cleanup = async () => {
@@ -72,6 +72,19 @@ const input = (o: Record<string, string>) => {
     assert.deepEqual([list.assignments[0].graded, list.assignments[0].avg], [2, 13.5]);
     assert.equal(await scoresAbove(a1!, 14, listed), 1, "the unlisted student's 15 is above 14");
     assert.equal(await scoresAbove(a1!, 15, listed), 0);
+
+    // ranking: points earned ÷ possible over scored assignments only; unscored students last, unranked
+    let rank = await assignmentRanking(sem.id, worship.id);
+    assert.equal(rank.assignments, 2);
+    assert.deepEqual(rank.students.map((r) => [r.name, r.place, r.pct, r.earned, r.possible, r.scored]),
+      [["Asgtest Beta", 1, 60, 12, 20, 1], ["Asgtest Alpha", null, null, 0, 0, 0]], "the unscored quiz and the inactive student don't count");
+    await saveAssignment(sem.id, worship.id, a2, null, input({ name: "Quiz", dueOn: "2090-09-01", maxScore: "10", [`score-${s1.id}`]: "8", [`score-${s2.id}`]: "10" }), listed);
+    rank = await assignmentRanking(sem.id, worship.id);
+    assert.deepEqual(rank.students.map((r) => [r.name, r.place, r.pct]), [["Asgtest Alpha", 1, 80], ["Asgtest Beta", 2, 73.3]], "22/30 = 73.3%");
+    await saveAssignment(sem.id, worship.id, a1, null, input({ name: "Essay 1", dueOn: "2090-08-11", maxScore: "20", [`score-${s1.id}`]: "14", [`score-${s2.id}`]: "12" }), listed);
+    rank = await assignmentRanking(sem.id, worship.id);
+    assert.deepEqual(rank.students.map((r) => [r.name, r.place, r.pct]), [["Asgtest Alpha", 1, 73.3], ["Asgtest Beta", 1, 73.3]], "ties share a place");
+    assert.deepEqual(await assignmentRanking(sem.id, music.id), { assignments: 0, students: [] });
 
     // another subject's or semester's id can't be read, edited or deleted through this one
     assert.equal(await getAssignment(sem.id, music.id, a1!), null);

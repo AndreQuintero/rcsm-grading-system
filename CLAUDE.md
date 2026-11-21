@@ -69,7 +69,9 @@ app/
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
   teacher/assignments/  "Assignments": same first screen as Gradings (semester picker + subject cards with assignment counts);
                         [semesterId]/[subjectId] = list (name + date filters, 10 per page, newest date first; students scored
-                        "n of N", average "avg / max (pct%)", edit + delete with AlertDialog); new/ = register (no batch bound →
+                        "n of N", average "avg / max (pct%)", edit + delete with AlertDialog), then "Assignment ranking" below the pager (every
+                        graded student: points earned ÷ points possible over the assignments they were scored in, %, dense places,
+                        unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
                         empty state linking to that subject's Gradings page) with AssignmentForm (name, date, maximum points
                         1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
                         0..max); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
@@ -88,7 +90,8 @@ app/
                         photo; teachers/[id]/photo = a teacher of a subject that grades the student. SessionNav (server) + NavLinks
                         (client, menu per role) = sidebar
 proxy.ts                deny-by-default gate: valid DB session + role of the area on every request (Next 16 "middleware")
-components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord,
+components/   records/ (GradeAverages = 5-indicator row, RankingList = ranked rows (pill, avatar, name, detail, value; dashboard
+              Top students + assignment ranking), ScoreBars, ScoreGauge, StudentHero, SemesterCards, SemesterRecord,
               ExportPdfButton = "Export PDF": window.print() of the record with the file name as document.title;
               shared by the teacher, admin and student record pages; SemesterRecord/SemesterCards take a base path,
               photo routes and `self` wording), lottie-player (LottiePlayer by name; lottie-web light player, no eval for the CSP; each JSON in components/lottie/ is
@@ -98,7 +101,7 @@ components/   records/ (GradeAverages = 5-indicator row, ScoreBars, ScoreGauge, 
 lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
 lib/          assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
-              saveAssignment, scoresAbove, deleteAssignment), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
+              saveAssignment, scoresAbove, deleteAssignment, assignmentRanking), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
               student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
               studentRecordView = one semester or "all", requireStudent, studentCanSeeTeacher),
               grading.ts (server: requireTeacher, teacherSemesters, teacherSubjects, subjectGrading, studentGrading,

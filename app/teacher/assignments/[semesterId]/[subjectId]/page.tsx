@@ -9,6 +9,7 @@ import { EmptyAnimation } from "@/components/empty-animation";
 import { FilterActions } from "@/components/filter-actions";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
+import { RankingList } from "@/components/records/RankingList";
 import { ListSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { periodLabel } from "@/lib/academic-semester";
-import { assignmentStudents, assignmentSubject, listAssignments } from "@/lib/assignment";
+import { assignmentRanking, assignmentSubject, listAssignments } from "@/lib/assignment";
 import { ASSIGNMENT_PAGE_SIZE } from "@/lib/assignment-shared";
 import { formatDate, isRealDate } from "@/lib/dates";
 import { requireTeacher, teaches } from "@/lib/grading";
@@ -42,11 +43,12 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
   const name = (sp.name ?? "").trim();
   const date = isRealDate(sp.date ?? "") ? sp.date! : "";
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
-  const [head, { assignments, total }, { students }] = await Promise.all([
+  const [head, { assignments, total }, ranking] = await Promise.all([
     assignmentSubject(semesterId, subjectId),
     listAssignments({ semesterId, subjectId, name, date, page }),
-    assignmentStudents(semesterId, subjectId),
+    assignmentRanking(semesterId, subjectId),
   ]);
+  const students = ranking.students;
   if (!head) notFound();
   const base = `/teacher/assignments/${semesterId}/${subjectId}`;
   const pages = Math.max(1, Math.ceil(total / ASSIGNMENT_PAGE_SIZE));
@@ -155,6 +157,37 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
       </Card>
 
       <Pager page={page} pages={pages} href={pageHref} />
+
+      <section aria-labelledby="ranking" className="mt-8 rounded-[1.75rem] border border-border/70 bg-card p-6 sm:p-8">
+        <div className="mb-4">
+          <h2 id="ranking" className="font-heading text-xl font-bold">Assignment ranking</h2>
+          <p className="text-sm text-muted-foreground">
+            Points earned out of points possible in the assignments each student was scored in, across all{" "}
+            {ranking.assignments} assignment{ranking.assignments === 1 ? "" : "s"} of {head.subject} this semester.
+          </p>
+        </div>
+        {students.length ? (
+          <RankingList
+            rows={students.map((s) => ({
+              id: s.id, name: s.name, place: s.place, photo: s.hasPhoto ? `/teacher/students/${s.id}/photo` : null,
+              href: `/teacher/records/${s.id}`,
+              detail: <>{s.batch}<span className="max-sm:hidden"> · {s.scored} of {ranking.assignments} assignment{ranking.assignments === 1 ? "" : "s"} scored</span></>,
+              value: s.pct === null ? (
+                <span className="text-sm text-muted-foreground">Not scored yet</span>
+              ) : (
+                <>
+                  <span className="font-heading text-xl font-bold tabular-nums">{s.pct}%</span>
+                  <span className="block text-xs text-muted-foreground tabular-nums">{s.earned} / {s.possible} pts</span>
+                </>
+              ),
+            }))}
+          />
+        ) : (
+          <p className="rounded-2xl bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
+            No students yet. <Link href={`/teacher/gradings/${semesterId}/${subjectId}`} className="font-medium text-primary underline-offset-4 hover:underline">Add a batch in Gradings</Link> to rank them here.
+          </p>
+        )}
+      </section>
     </main>
   );
 }
