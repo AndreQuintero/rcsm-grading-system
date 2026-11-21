@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackLink } from "@/app/BackLink";
+import { LottiePlayer } from "@/components/lottie-player";
 import { PageHeader } from "@/components/page-header";
 import { FormSkeleton, HeaderSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
@@ -51,10 +52,8 @@ async function Register({ params }: { params: Promise<Params> }) {
 function NoBatch({ semesterId, subjectId, subject }: { semesterId: number; subjectId: number; subject: string }) {
   return (
     <section aria-labelledby="no-batch" className="flex flex-col items-center rounded-[1.75rem] border border-border/70 bg-card px-6 py-12 text-center">
-      <span className="grid size-16 place-items-center rounded-2xl bg-amber-500/12 text-amber-700">
-        <Layers className="size-8" aria-hidden="true" />
-      </span>
-      <h2 id="no-batch" className="mt-5 font-heading text-2xl font-bold">Add a batch to {subject} first</h2>
+      <LottiePlayer name="business-plan" className="-mt-8 -mb-4 size-56" />
+      <h2 id="no-batch" className="mt-2 font-heading text-2xl font-bold">Add a batch to {subject} first</h2>
       <p className="mt-2 max-w-md text-muted-foreground">
         Assignments score the students of the batches added to this subject in this semester. Add a batch in Gradings,
         then come back to register the assignment.
