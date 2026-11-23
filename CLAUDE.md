@@ -27,7 +27,9 @@ app/
                         /student-records/<id>/<semester>), then "Top students" last (top 5 + ties by average total per subject,
                         dense places 1st/1st/2nd, inactive left out; semesterRanking + rankStudents in lib/dashboard.ts), empty state;
                         client bits in app/_dashboard/ (SemesterSelect = shadcn Select pill, TeacherList, Avatar)
-  layout.tsx            root shell: NavigationProgress, SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right)
+  layout.tsx            root shell: NavigationProgress, SiteHeader sidebar + content, TooltipProvider, Toaster (light, top-right),
+                        EnableBiometricsPrompt (one-time "Sign in faster next time?" offer after a password sign-in)
+  biometrics.ts         browser side of biometric sign-in: biometricsAvailable (platform authenticator check), enrollThisDevice
   NavigationProgress    top loading bar (flame-blue gradient, glow, shimmer; shown after 120 ms, trickles to <90%). Starts on
                         same-site link clicks (capture phase: <Link> preventDefaults), GET form submits, forms with
                         `data-navigates` (switch role, sign out) and startNavigationProgress() (router.push/replace callers);
@@ -47,9 +49,11 @@ app/
   <feature>/new/actions.ts      create server action;  <feature>/actions.ts  update + delete actions
   <feature>/[id]/edit/page.tsx  edit page (reuses the form)
   <students|teachers|admins|users>/[id]/photo/route.ts  serve the optional photo bytes (stored in Postgres, admin only) via lib/photo-response.ts
-  login/, set-password/, forgot-password/  public pages (two-step login; password form for both link kinds; reset request);
+  login/, set-password/, forgot-password/  public pages (two-step login + BiometricButton when this browser is enrolled;
+                        password form for both link kinds; reset request);
   account/               any signed-in user's own page (menu avatar/name links here): username + avatar edit, email
-                        read-only, member since, role tags, change password (current + new, same rules/checklist); actions.ts also
+                        read-only, member since, role tags, change password (current + new, same rules/checklist), Biometric sign-in (Passkeys:
+                        devices with Remove, "Turn on for this device" from a password session); actions.ts also
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
   academic-semesters/    list (year filter) + register/edit (AcademicSemesterForm: year + semester radios, batch cards,
                         teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
@@ -98,7 +102,8 @@ components/   records/ (GradeAverages = 5-indicator row, RankingList = ranked ro
               its own chunk), empty-animation ("nothing found" above every empty table message), ridge (logo mountain shape), photo-picker (optional photo on student/teacher/admin forms), page-header, pager, filter-actions, form-card, form-message (FieldError), status-badge, skeletons (list/form/header loading placeholders),
               generic-avatar, use-saved-redirect (toast + router.push to the list after a save), ui/ (shadcn; sheet = side panels, right for the mobile menu and bottom for the dashboard drawer, sliding their full size;
               select = the dashboard semester picker)
-lib/auth/     roles (client-safe), sync, session, password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
+lib/auth/     roles (client-safe), sync, session, login (completeLogin: shared end of password + passkey sign-in), passkey
+              (WebAuthn via @simplewebauthn/server), password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
 lib/          assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
               saveAssignment, scoresAbove, deleteAssignment, assignmentRanking), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
@@ -226,6 +231,18 @@ Conventions:
 - Username and avatar belong to the user once the first password is set: the sync only overwrites `username`
   while `password_hash` is NULL. Changing the password (`lib/auth/account.ts`) needs the current one, is rate
   limited per user, must differ from the current one, and ends the user's other sessions (this one stays).
+- **Biometric sign-in** (WebAuthn passkeys, migration 019, `lib/auth/passkey.ts`): optional, beside the password. The
+  device keeps the private key behind its fingerprint/face/PIN check; `user_passkeys` stores only the public key + counter.
+  RP id/origin come from `APP_BASE_URL` (passkeys work only on that domain; `localhost` for tests). **Password first on
+  each device**: enrolling needs a session with `sessions.method = 'password'`, and sets the httpOnly `rcsm_device`
+  cookie (400 days, kept on sign-out) whose hash is on the passkey row; sign-in offers and accepts only passkeys whose
+  `device_hash` matches, so a passkey synced to another phone still needs a password sign-in there. The login page shows
+  "Sign in with biometrics" only if this browser has a passkey and `isUserVerifyingPlatformAuthenticatorAvailable()`.
+  Challenges are single-use (DELETE … RETURNING), 5 min, user-bound for enrollment; user verification required; counter
+  must go up. Passkey sign-in applies the same account rules (is_active, disabled_at → inactive message, lock) and
+  rate limit (`passkey:ip:` 20 / 15 min); audits `login_success`/`login_failure` with `method`, `passkey_added`/`removed`.
+  After a password sign-in on a non-enrolled device `completeLogin` sets `rcsm_offer_biometrics` (readable, 10 min) and
+  the layout prompt offers enrollment once; "Not now" is kept in localStorage. Deleting a user cascades its passkeys.
 - `auth_audit` logs events (never passwords, tokens or links). Security headers + CSP are in `next.config.ts`.
 - First admin / repair: `scripts/seed-admin.ts --name … --email … --dob …`; `scripts/backfill-users.ts` re-syncs all.
   **Editing `admins`/`teachers`/`students` directly in SQL skips the sync** (e.g. a changed email leaves the old
@@ -239,7 +256,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `assignments`, `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `passkeys`, `assignments`, `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash
@@ -278,7 +295,7 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
 the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams), 017 drop the old grade columns (midterm, presence, final_exam;
 it also deleted the 9 old-type grade rows). 016b-clear-old-grades.sql was never run and is obsolete: it reads the dropped
-columns and would fail. 018 assignments (assignments, assignment_scores). A migration that removes something production code still reads must wait
+columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment
