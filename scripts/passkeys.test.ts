@@ -5,7 +5,7 @@ import { createHash, createSign, generateKeyPairSync, randomBytes } from "node:c
 import { sql } from "../lib/db";
 import { syncUserFromRoleTables } from "../lib/auth/sync";
 import {
-  authenticationOptions, deletePasskey, deviceHasPasskeys, deviceHash, deviceLabel, listPasskeys, registrationOptions,
+  authenticationOptions, deleteAllPasskeys, deletePasskey, deviceHasPasskeys, deviceHash, deviceLabel, listPasskeys, registrationOptions,
   userHasPasskeyOnDevice, verifyAuthentication,
 } from "../lib/auth/passkey";
 
@@ -119,9 +119,20 @@ async function main() {
     assert.equal(list[0].thisDevice, true);
     assert.equal((await listPasskeys(userId, other))[0].thisDevice, false);
 
+    // the admin clean-up removes every device of that user only
+    await sql`INSERT INTO user_passkeys (id, user_id, public_key, device_hash, label)
+      VALUES ('pk-second-device', ${userId}, '\\x00', ${deviceHash(other)}, 'Safari on iPhone')`;
+    assert.equal(await deleteAllPasskeys(userId + 1_000_000), 0);
+    assert.equal((await listPasskeys(userId, device)).length, 2);
+    await sql`DELETE FROM user_passkeys WHERE id = 'pk-second-device'`;
+
     assert.equal(await deletePasskey(userId + 1_000_000, credId), false, "only the owner removes a passkey");
     assert.equal(await deletePasskey(userId, credId), true);
     assert.equal(await deviceHasPasskeys(device), false);
+    await sql`INSERT INTO user_passkeys (id, user_id, public_key, device_hash, label) VALUES
+      ('pk-a', ${userId}, '\\x00', ${deviceHash(device)}, 'a'), ('pk-b', ${userId}, '\\x00', ${deviceHash(other)}, 'b')`;
+    assert.equal(await deleteAllPasskeys(userId), 2);
+    assert.equal((await listPasskeys(userId, device)).length, 0);
 
     assert.equal(deviceLabel("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"), "Chrome on macOS");
     assert.equal(deviceLabel("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"), "Safari on iPhone");

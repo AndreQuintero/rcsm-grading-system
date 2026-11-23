@@ -78,6 +78,11 @@ export async function listPasskeys(userId: number, deviceToken: string | undefin
   }));
 }
 
+// Admin clean-up (Users page): every device of this user. Returns how many were removed.
+export async function deleteAllPasskeys(userId: number): Promise<number> {
+  return (await sql`DELETE FROM user_passkeys WHERE user_id = ${userId} RETURNING 1`).length;
+}
+
 export async function deletePasskey(userId: number, id: string): Promise<boolean> {
   return (await sql`DELETE FROM user_passkeys WHERE id = ${id} AND user_id = ${userId} RETURNING 1`).length > 0;
 }

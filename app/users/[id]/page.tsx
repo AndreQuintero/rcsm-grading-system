@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/dates";
 import { getUser } from "@/lib/user";
 import { RoleTags, UserAvatar, UserStatusBadge } from "../UserBits";
 import { ActiveToggle } from "./ActiveToggle";
+import { ClearPasskeysButton } from "./ClearPasskeysButton";
 
 const header = <PageHeader title="User details" description="Sign-in account, roles and status." action={<BackLink href="/users" label="Back to users" />} />;
 
@@ -35,6 +36,7 @@ async function Details({ params }: { params: Promise<{ id: string }> }) {
     ["Member since", when(u.created, "—")],
     ["Password set", when(u.password_set, "Not yet (first sign-in pending)")],
     ["Last sign-in", when(u.last_login, "Never")],
+    ["Biometric sign-in", u.passkeys ? `On for ${u.passkeys} device${u.passkeys === 1 ? "" : "s"}` : "Not turned on"],
     ...(u.locked_until ? [["Locked until", when(u.locked_until, "")] as [string, React.ReactNode]] : []),
     ...(u.disabled ? [["Inactive since", when(u.disabled, "")] as [string, React.ReactNode]] : []),
   ];
@@ -59,7 +61,8 @@ async function Details({ params }: { params: Promise<{ id: string }> }) {
           ))}
         </dl>
       </CardContent>
-      <CardFooter className="justify-end border-t">
+      <CardFooter className="flex-wrap justify-end gap-3 border-t">
+        {u.passkeys > 0 && <ClearPasskeysButton id={u.id} username={u.username} count={u.passkeys} />}
         {self ? (
           <p className="text-sm text-muted-foreground">This is your account, so you can&apos;t inactivate it.</p>
         ) : (

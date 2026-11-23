@@ -65,7 +65,8 @@ app/
                         graded count, and the SemesterSelect pill with pathTemplate over the student's semesters, always shown; StudentHero, GradeAverages, one card per subject with grades + its teachers +
                         comment, ScoreBars + ScoreGauge, no-grades state)
   users/                 admin view of sign-in accounts (users table): list (username/email/status filters; status = USER_STATUS_SQL, isUserStatus) + [id] details; no register/
-                        edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account)
+                        edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account) and, when the user
+                        has passkeys, "Remove biometric devices" (ClearPasskeysButton → clearUserPasskeys; details row "Biometric sign-in")
   teacher/gradings/     teacher area (menu: Home, Gradings, Assignments, Score records): semester picker (?semester=, same default rule as the dashboard,
                         over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
                         batches (BatchBinder; removing asks for confirmation) and, once a batch is added, shows 5 class averages
@@ -243,6 +244,8 @@ Conventions:
   rate limit (`passkey:ip:` 20 / 15 min); audits `login_success`/`login_failure` with `method`, `passkey_added`/`removed`.
   After a password sign-in on a non-enrolled device `completeLogin` sets `rcsm_offer_biometrics` (readable, 10 min) and
   the layout prompt offers enrollment once; "Not now" is kept in localStorage. Deleting a user cascades its passkeys.
+  Admins can remove all of a user's devices on Users → details (`deleteAllPasskeys`, audit `passkeys_cleared` {by, count});
+  password and sessions are untouched.
 - `auth_audit` logs events (never passwords, tokens or links). Security headers + CSP are in `next.config.ts`.
 - First admin / repair: `scripts/seed-admin.ts --name … --email … --dob …`; `scripts/backfill-users.ts` re-syncs all.
   **Editing `admins`/`teachers`/`students` directly in SQL skips the sync** (e.g. a changed email leaves the old
