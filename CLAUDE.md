@@ -316,7 +316,7 @@ for that code's deploy, since the database is shared. Production uses the same d
   take them with Playwright at deviceScaleFactor 2, review them, send with SendUserFile, and say clearly when
   they contain temporary test data. For smaller features, report what was verified instead.
 - State assumptions and decisions you made; the user corrects rules mid-task (e.g. inactive students in batches).
-- Open items: the student home is a placeholder (students have My records; teachers have Home, Gradings, Score records); production needs `APP_BASE_URL` and the EmailJS vars, or nobody can
+- Open items: the student home is a placeholder (students have My records; teachers have Home, Gradings, Assignments, Score records); production needs `APP_BASE_URL` (also the biometric sign-in domain) and the EmailJS vars, or nobody can
   get a setup link.
 - Graphify MCP tools index this repo (`AndreQuintero/rcsm-grading-system`); check the index commit against
   `git rev-parse HEAD` before trusting it.
