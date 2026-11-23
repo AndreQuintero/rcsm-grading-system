@@ -1,6 +1,8 @@
+import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
 import { FormSkeleton } from "@/components/skeletons";
+import { DEVICE_COOKIE, deviceHasPasskeys } from "@/lib/auth/passkey";
 import { LoginForm } from "./LoginForm";
 
 type SearchParams = { next?: string | string[]; set?: string };
@@ -16,8 +18,9 @@ export default function Page({ searchParams }: { searchParams: Promise<SearchPar
   );
 }
 
-// searchParams is request-time data, so it sits under Suspense for cacheComponents prerendering.
+// searchParams and cookies are request-time data, so it sits under Suspense for cacheComponents prerendering.
 async function Login({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const sp = await searchParams;
-  return <LoginForm next={typeof sp.next === "string" ? sp.next : ""} passwordSet={sp.set === "1"} />;
+  const [sp, jar] = await Promise.all([searchParams, cookies()]);
+  const biometric = await deviceHasPasskeys(jar.get(DEVICE_COOKIE)?.value);
+  return <LoginForm next={typeof sp.next === "string" ? sp.next : ""} passwordSet={sp.set === "1"} biometric={biometric} />;
 }

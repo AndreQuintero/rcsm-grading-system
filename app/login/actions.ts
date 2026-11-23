@@ -1,15 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { sql } from "@/lib/db";
 import { audit } from "@/lib/auth/audit";
 import { startFirstSignIn } from "@/lib/auth/first-sign-in";
 import { LOGIN_PASSWORD_MAX, verifyDummy, verifyPassword } from "@/lib/auth/password";
 import { allowAttempt, clientIp } from "@/lib/auth/rate-limit";
-import { highestRole, isEmail, isRole, normalizeEmail, requiredRole, ROLE_HOME, safeNext } from "@/lib/auth/roles";
-import { createSession } from "@/lib/auth/session";
+import { completeLogin } from "@/lib/auth/login";
+import { isEmail, normalizeEmail } from "@/lib/auth/roles";
 
 export type LoginState = { step: "email" | "password"; email?: string; message?: string; error?: string };
 
@@ -80,19 +78,6 @@ export async function submitPassword(_prev: LoginState, formData: FormData): Pro
     return { step: "password", email, error: INACTIVE };
   }
 
-  const roles = (await sql`SELECT role::text AS role FROM user_roles WHERE user_id = ${userId}`).map((r) => r.role).filter(isRole);
-  const active = highestRole(roles);
-  if (!active) {
-    await audit("login_failure", { userId, email, ip, detail: { reason: "no_roles" } });
-    return fail;
-  }
-  await sql`UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE id = ${userId}`;
-  await createSession(userId, active, roles.includes("admin"));
-  await audit("login_success", { userId, email, ip, detail: { role: active } });
-
-  // Go back to the requested page only if it is internal and the user's roles allow it.
-  revalidatePath("/", "layout"); // the root layout's sidebar now shows the signed-in navigation
-  const next = safeNext(formData.get("next"), ROLE_HOME[active]);
-  const need = requiredRole(next.split("?")[0]);
-  redirect(!need || roles.includes(need) ? next : ROLE_HOME[active]);
+  await completeLogin({ userId, email, ip, method: "password", next: formData.get("next") });
+  return fail; // reached only when the user holds no role: completeLogin redirects otherwise
 }
