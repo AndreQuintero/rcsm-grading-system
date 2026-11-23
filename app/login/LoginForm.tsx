@@ -9,10 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { submitEmail, submitPassword, type LoginState } from "./actions";
+import { BiometricButton } from "./BiometricButton";
 
 // Two steps in one form state: the email first, then the password with the email carried in a hidden field
 // (the server re-validates it). "Use another email" goes back without a server call.
-export function LoginForm({ next, passwordSet }: { next: string; passwordSet: boolean }) {
+export function LoginForm({ next, passwordSet, biometric }: { next: string; passwordSet: boolean; biometric: boolean }) {
   const [state, action, pending] = useActionState(async (prev: LoginState, formData: FormData) => {
     if (formData.get("intent") === "restart") return { step: "email" } as LoginState;
     return prev.step === "password" ? submitPassword(prev, formData) : submitEmail(prev, formData);
@@ -69,6 +70,7 @@ export function LoginForm({ next, passwordSet }: { next: string; passwordSet: bo
           <Button type="submit" size="lg" disabled={pending}>
             {state.step === "email" ? (pending ? "Checking…" : "Continue") : pending ? "Signing in…" : "Sign in"}
           </Button>
+          {biometric && state.step === "email" && <BiometricButton next={next} />}
           <Link href="/forgot-password" className="text-center text-sm font-medium text-primary underline-offset-4 hover:underline">
             I forgot my password
           </Link>
