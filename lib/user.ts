@@ -37,7 +37,8 @@ export async function getUser(id: number) {
     `SELECT u.id, u.username, u.email, ${ROLES} AS roles, ${USER_STATUS_SQL} AS status, u.photo IS NOT NULL AS has_photo,
        ${fmt("u.created_at")} AS created, ${fmt("u.password_set_at")} AS password_set, ${fmt("u.disabled_at")} AS disabled,
        CASE WHEN u.locked_until > now() THEN ${fmt("u.locked_until")} END AS locked_until,
-       (SELECT ${fmt("max(a.created_at)")} FROM auth_audit a WHERE a.user_id = u.id AND a.event = 'login_success') AS last_login
+       (SELECT ${fmt("max(a.created_at)")} FROM auth_audit a WHERE a.user_id = u.id AND a.event = 'login_success') AS last_login,
+       (SELECT count(*)::int FROM user_passkeys p WHERE p.user_id = u.id) AS passkeys
      FROM users u WHERE u.id = $1`,
     [id],
   );
