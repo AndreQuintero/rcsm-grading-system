@@ -189,6 +189,7 @@ Conventions:
   semester has at most one batch, whatever its number. A duplicate is refused with an error toast naming the
   batch that holds the period (`duplicatePeriodMessage`).
 - A student is in **at most one batch**. **Inactive students can be in a batch** (history).
+- Batches list filters: student name (any member's "first middle last", inactive included; `listBatches` `student`), number, year.
 - Batch form offers students with no batch (any status) plus, when editing, the batch's own members.
   Create/update batch is all-or-nothing (division-by-zero guard → code 22012 if a chosen student was taken).
   Deleting a batch keeps its students and frees them.
