@@ -36,7 +36,7 @@ async function Subject({ params }: { params: Promise<Params> }) {
 
   return (
     <main className="flex flex-col gap-6">
-      <PageHeader title={g.subject} description={periodLabel(g.period)} action={<BackLink href={`/teacher/gradings?semester=${semesterId}`} label="Back to gradings" />} />
+      <PageHeader title={g.subject} description={periodLabel(g.period)} action={<BackLink href={`/teacher/gradings/final?semester=${semesterId}`} label="Back to gradings" />} />
 
       <section aria-labelledby="batches" className={panel}>
         <h2 id="batches" className="font-heading text-xl font-bold">Batches</h2>

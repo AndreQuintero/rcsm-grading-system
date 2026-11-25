@@ -89,7 +89,7 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
         <dl className="grid grid-cols-2 border-t border-border/70 lg:grid-cols-4">
           {stats.map((s, i) => (
             <div key={s.label} className={cn("border-border/70", i % 2 === 0 && "border-r", i === 1 && "lg:border-r", i < 2 && "border-b lg:border-b-0")}>
-              <Link href={`/teacher/gradings?semester=${selected.id}`} className="flex h-full flex-col gap-3 px-6 py-6 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:ring-inset sm:px-8">
+              <Link href={`/teacher/gradings/final?semester=${selected.id}`} className="flex h-full flex-col gap-3 px-6 py-6 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:ring-inset sm:px-8">
                 <dt className="flex items-center gap-2.5 text-sm text-muted-foreground">
                   <span className={cn("grid size-8 place-items-center rounded-lg", s.tint)}><s.icon className="size-4" aria-hidden="true" /></span>
                   {s.label}
