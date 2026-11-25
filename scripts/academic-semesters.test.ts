@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import {
   academicSemesterDbError, academicSemesterValues, createAcademicSemester, getAcademicSemester, listAcademicSemesters,
-  parseAcademicSemester, updateAcademicSemester,
+  parseAcademicSemester, semesterSubjectBatches, subjectInSemester, updateAcademicSemester,
 } from "../lib/academic-semester";
+import { bindBatch } from "../lib/grading";
 
 const cleanup = async () => {
   await sql`DELETE FROM academic_semesters WHERE year >= 2085`;
@@ -71,6 +72,28 @@ const ids = async (q: ReturnType<typeof sql>) => (await q).map((r) => r.id as nu
 
     // the same batch can be in several semesters
     const other = await createAcademicSemester({ year: 2090, semester: 2, batchIds: [b1], teachers: [] });
+
+    // assigning batches to subjects: a subject counts as unassigned until it has a batch still in the semester
+    const unassigned = async () => (await listAcademicSemesters({ year: 2090 })).semesters.find((r) => r.id === id)!.unassigned;
+    assert.equal(await unassigned(), 2);
+    assert.equal(await subjectInSemester(id, art), true);
+    assert.equal(await subjectInSemester(id, drama), false, "drama isn't taught in this semester");
+    assert.equal(await bindBatch(id, art, b1), true);
+    assert.equal(await bindBatch(id, music, b3), false, "a batch outside the semester can't be assigned");
+    assert.equal(await unassigned(), 1);
+    assert.equal(await bindBatch(id, music, b2), true);
+    assert.equal(await unassigned(), 0);
+    let sb = await semesterSubjectBatches(id);
+    assert.deepEqual(sb!.period, { year: 2090, semester: 1 });
+    assert.deepEqual(sb!.batches.map((x) => [x.id, x.students]), [[b1, 2], [b2, 1]]);
+    assert.deepEqual(sb!.subjects.map((x) => [x.name, x.bound, x.teachers.map((t) => t.name)]),
+      [["TchTest Art", [b1], ["TchTest Ada", "TchTest Bob"]], ["TchTest Music", [b2], ["TchTest Ada"]]]);
+    await updateAcademicSemester(id, { year: 2090, semester: 1, batchIds: [b1], teachers: p.data!.teachers });
+    assert.equal(await unassigned(), 1, "a bound batch that left the semester doesn't count");
+    sb = await semesterSubjectBatches(id);
+    assert.deepEqual(sb!.subjects.find((x) => x.name === "TchTest Music")!.bound, []);
+    assert.deepEqual((await semesterSubjectBatches(other))!.subjects, [], "a semester with no subjects");
+    assert.equal(await semesterSubjectBatches(2147483000), null);
 
     // update replaces batches and teacher subjects; moving onto a taken period is refused
     assert.equal(await updateAcademicSemester(id, { year: 2090, semester: 1, batchIds: [b3], teachers: [{ teacherId: bob, subjectIds: [drama] }] }), true);

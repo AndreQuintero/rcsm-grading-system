@@ -77,7 +77,7 @@ async function Subjects({ searchParams }: { searchParams: Promise<SearchParams> 
                   <div className="min-w-0 flex-1">
                     <h3 className="font-heading text-xl font-bold leading-tight">{s.name}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {s.batches ? `${s.batches} batch${s.batches === 1 ? "" : "es"}, ${plural(s.students, "student")}` : "No batches added yet"}
+                      {s.batches ? `${s.batches} batch${s.batches === 1 ? "" : "es"}, ${plural(s.students, "student")}` : "No batch assigned yet"}
                     </p>
                   </div>
                   <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { EmptyAnimation } from "@/components/empty-animation";
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ACADEMIC_SEMESTER_PAGE_SIZE, listAcademicSemesters, periodLabel } from "@/lib/academic-semester";
 import { batchLabel } from "@/lib/batch";
 import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
@@ -101,7 +102,27 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
               const label = periodLabel(s as { year: number; semester: number });
               return (
                 <TableRow key={s.id}>
-                  <TableCell className="pl-4 font-medium">{label}</TableCell>
+                  <TableCell className="pl-4 font-medium">
+                    <span className="flex items-center gap-1.5">
+                      {label}
+                      {s.unassigned > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`/academic-semesters/${s.id}/batches`}
+                              aria-label={`${plural(s.unassigned, "subject")} of ${label} without a batch. Assign batches`}
+                              className="grid size-7 place-items-center rounded-full text-amber-600 outline-none hover:bg-amber-500/12 focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <TriangleAlert className="size-4" aria-hidden="true" />
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-64">
+                            Not every subject of this semester has a batch ({s.unassigned} without). Select to assign them.
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     {(s.batches as BatchRef[]).length ? (
                       <div className="flex flex-wrap gap-1">

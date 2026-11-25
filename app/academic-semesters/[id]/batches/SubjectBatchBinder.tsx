@@ -13,27 +13,29 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { bindBatchAction, unbindBatchAction } from "../../actions";
+import { assignBatchAction, unassignBatchAction } from "./actions";
 
-type Batch = { id: number; label: string; bound: boolean; students: number };
+type Batch = { id: number; label: string; students: number };
 
-// The batches graded in this subject: remove one (its grades are kept) or add another of the semester's batches.
-export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: number; subjectId: number; batches: Batch[] }) {
+// The batches graded in one subject of the semester: remove one (its grades are kept) or add another of the semester's batches.
+export function SubjectBatchBinder({ semesterId, subjectId, subject, batches, boundIds }: {
+  semesterId: number; subjectId: number; subject: string; batches: Batch[]; boundIds: number[];
+}) {
   const [pending, start] = useTransition();
   const [pick, setPick] = useState("");
   const [confirm, setConfirm] = useState<Batch | null>(null);
-  const bound = batches.filter((b) => b.bound);
-  const free = batches.filter((b) => !b.bound);
+  const bound = batches.filter((b) => boundIds.includes(b.id));
+  const free = batches.filter((b) => !boundIds.includes(b.id));
 
   const add = () =>
     start(async () => {
-      const r = await bindBatchAction(semesterId, subjectId, Number(pick));
+      const r = await assignBatchAction(semesterId, subjectId, Number(pick));
       if (r.error) toast.error(r.error);
       else { toast.success("Batch added."); setPick(""); }
     });
   const remove = (b: Batch) =>
     start(async () => {
-      await unbindBatchAction(semesterId, subjectId, b.id);
+      await unassignBatchAction(semesterId, subjectId, b.id);
       setConfirm(null);
       toast.success(`Removed the ${b.label}. Its students' grades are kept.`);
     });
@@ -51,7 +53,7 @@ export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: nu
                 type="button"
                 disabled={pending}
                 onClick={() => setConfirm(b)}
-                aria-label={`Remove the ${b.label} from this subject`}
+                aria-label={`Remove the ${b.label} from ${subject}`}
                 className="grid size-6 place-items-center rounded-full outline-none hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
                 <X className="size-3.5" aria-hidden="true" />
@@ -62,9 +64,9 @@ export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: nu
       )}
       {free.length > 0 ? (
         <div className="flex flex-col gap-2 sm:flex-row">
-          <label htmlFor="add-batch" className="sr-only">Batch to add</label>
+          <label htmlFor={`add-batch-${subjectId}`} className="sr-only">Batch to add to {subject}</label>
           <select
-            id="add-batch"
+            id={`add-batch-${subjectId}`}
             value={pick}
             onChange={(e) => setPick(e.target.value)}
             className="h-9 flex-1 cursor-pointer rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
@@ -80,9 +82,7 @@ export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: nu
           </Button>
         </div>
       ) : (
-        batches.length === 0
-          ? <p className="text-sm text-muted-foreground">This semester has no batches yet. An admin adds them on the semester&apos;s page.</p>
-          : <p className="text-sm text-muted-foreground">Every batch of this semester is added.</p>
+        <p className="text-sm text-muted-foreground">Every batch of this semester is added.</p>
       )}
 
       <AlertDialog open={Boolean(confirm)} onOpenChange={(o) => !o && !pending && setConfirm(null)}>
@@ -91,8 +91,8 @@ export function BatchBinder({ semesterId, subjectId, batches }: { semesterId: nu
             <AlertDialogTitle>Remove batch?</AlertDialogTitle>
             <AlertDialogDescription>
               The students of the <strong className="text-foreground">{confirm?.label}</strong> will no longer be listed in
-              this subject, for you and the other teachers of this subject. Their grades are kept and come back if you add
-              the batch again.
+              <strong className="text-foreground">{subject}</strong> for its teachers. Their grades are kept and come back if
+              you add the batch again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

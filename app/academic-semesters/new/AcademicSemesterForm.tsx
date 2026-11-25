@@ -49,9 +49,19 @@ export function AcademicSemesterForm({ semesterId, initial = {}, options }: Prop
     <form action={action}>
       <FormCard
         footer={
-          <Button type="submit" size="lg" disabled={pending}>
-            {semesterId ? (pending ? "Saving…" : "Save changes") : pending ? "Registering…" : "Register academic semester"}
-          </Button>
+          <>
+            <Button type="submit" size="lg" disabled={pending}>
+              {semesterId ? (pending ? "Saving…" : "Save changes") : pending ? "Registering…" : "Register academic semester"}
+            </Button>
+            {semesterId && (
+              <>
+                <Button variant="outline" size="lg" asChild>
+                  <Link href={`/academic-semesters/${semesterId}/batches`}><Layers aria-hidden="true" />Assign batches to subjects</Link>
+                </Button>
+                <p className="text-sm text-muted-foreground">Save your changes first: assigning batches opens another page.</p>
+              </>
+            )}
+          </>
         }
       >
         <FieldError message={e.form} />

@@ -1,4 +1,4 @@
-import { Layers } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -40,7 +40,7 @@ async function Register({ params }: { params: Promise<Params> }) {
         action={<BackLink href={list} label={`Back to ${head.subject} assignments`} />}
       />
       {batches === 0 ? (
-        <NoBatch semesterId={semesterId} subjectId={subjectId} subject={head.subject} />
+        <NoBatch list={list} subject={head.subject} />
       ) : (
         <AssignmentForm semesterId={semesterId} subjectId={subjectId} students={students} initial={{ dueOn: todayIso() }} />
       )}
@@ -49,19 +49,19 @@ async function Register({ params }: { params: Promise<Params> }) {
 }
 
 // Assignments score the students of the subject's batches, so a subject with no batch can't have one yet.
-function NoBatch({ semesterId, subjectId, subject }: { semesterId: number; subjectId: number; subject: string }) {
+function NoBatch({ list, subject }: { list: string; subject: string }) {
   return (
     <section aria-labelledby="no-batch" className="flex flex-col items-center rounded-[1.75rem] border border-border/70 bg-card px-6 py-12 text-center">
       <LottiePlayer name="business-plan" className="-mt-8 -mb-4 size-56" />
-      <h2 id="no-batch" className="mt-2 font-heading text-2xl font-bold">Add a batch to {subject} first</h2>
+      <h2 id="no-batch" className="mt-2 font-heading text-2xl font-bold">{subject} has no batch yet</h2>
       <p className="mt-2 max-w-md text-muted-foreground">
-        Assignments score the students of the batches added to this subject in this semester. Add a batch in Gradings,
-        then come back to register the assignment.
+        Assignments score the students of the batches assigned to this subject in this semester. Once an admin assigns
+        a batch to it, come back to register the assignment.
       </p>
       <Button asChild size="lg" className="mt-6">
-        <Link href={`/teacher/gradings/${semesterId}/${subjectId}`}>
-          <Layers aria-hidden="true" />
-          Add a batch in Gradings
+        <Link href={list}>
+          <ArrowLeft aria-hidden="true" />
+          Back to assignments
         </Link>
       </Button>
     </section>
