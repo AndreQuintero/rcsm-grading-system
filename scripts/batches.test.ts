@@ -136,6 +136,8 @@ const expectDbError = async (p: Promise<unknown>, field: string) => {
     assert.equal((await listBatches({ number: 955, year: 2097 })).total, 1);
     const listed = (await listBatches({ number: 903 })).batches[0];
     assert.equal(listed.students, 1);
+    assert.deepEqual((await listBatches({ student: "amy batchtest" })).batches.map((b) => b.number), [903], "by a member's name, any case");
+    assert.equal((await listBatches({ student: "Nobody BatchTest Zzz" })).total, 0);
 
     // deleting a batch keeps its students and frees them
     await sql`DELETE FROM batches WHERE id = ${other}`;

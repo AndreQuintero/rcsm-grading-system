@@ -145,13 +145,16 @@ export async function getBatch(id: number) {
 }
 
 // number and year are exact matches; null means "any".
-export async function listBatches({ number = null, year = null, page = 1 }: { number?: number | null; year?: number | null; page?: number }) {
+// student matches any part of a member's "first middle last" (case-insensitive), inactive members included.
+export async function listBatches({ number = null, year = null, student = "", page = 1 }: { number?: number | null; year?: number | null; student?: string; page?: number }) {
   const rows = await sql`
     SELECT b.id, b.number, b.year, b.semester,
       (SELECT count(*) FROM students s WHERE s.batch_id = b.id)::int AS students,
       count(*) OVER() AS total
     FROM batches b
     WHERE (${number}::int IS NULL OR b.number = ${number}) AND (${year}::int IS NULL OR b.year = ${year})
+      AND (${student} = '' OR EXISTS (SELECT 1 FROM students s WHERE s.batch_id = b.id
+        AND concat_ws(' ', s.first_name, s.middle_name, s.last_name) ILIKE ${"%" + student + "%"}))
     ORDER BY b.year DESC, b.semester DESC, b.number DESC, b.id DESC
     LIMIT ${BATCH_PAGE_SIZE} OFFSET ${(page - 1) * BATCH_PAGE_SIZE}`;
   return { batches: rows, total: rows.length ? Number(rows[0].total) : 0 };

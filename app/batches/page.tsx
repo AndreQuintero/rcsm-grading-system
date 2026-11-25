@@ -17,7 +17,7 @@ import { ConfirmDeleteButton } from "../ConfirmDeleteButton";
 import { EditLink } from "../EditLink";
 import { deleteBatch } from "./actions";
 
-type SearchParams = { number?: string; year?: string; page?: string };
+type SearchParams = { student?: string; number?: string; year?: string; page?: string };
 
 const asInt = (v?: string) => (v && /^\d+$/.test(v.trim()) ? Number(v.trim()) : null);
 
@@ -49,12 +49,14 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
   const sp = await searchParams;
   const number = asInt(sp.number);
   const year = asInt(sp.year);
+  const student = (sp.student ?? "").trim().slice(0, 100);
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
-  const { batches, total } = await listBatches({ number, year, page });
+  const { batches, total } = await listBatches({ number, year, student, page });
   const pages = Math.max(1, Math.ceil(total / BATCH_PAGE_SIZE));
 
   const pageHref = (p: number) => {
     const q = new URLSearchParams();
+    if (student) q.set("student", student);
     if (number !== null) q.set("number", String(number));
     if (year !== null) q.set("year", String(year));
     if (p > 1) q.set("page", String(p));
@@ -70,7 +72,11 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
         <CardContent>
           {/* keyed on the active filters so Clear (a client-side navigation) rebuilds the inputs */}
           <form key={pageHref(1)} method="get" role="search" aria-label="Filter batches" className="flex flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="grid flex-1 gap-4 sm:grid-cols-2">
+            <div className="grid flex-1 gap-4 sm:grid-cols-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-student">Student name</Label>
+                <Input id="filter-student" name="student" maxLength={100} defaultValue={student} placeholder="e.g. Maria" />
+              </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-number">Batch number</Label>
                 <Input id="filter-number" name="number" type="number" min={1} defaultValue={number ?? ""} placeholder="e.g. 1" />
@@ -80,7 +86,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
                 <Input id="filter-year" name="year" type="number" min={2000} max={2100} defaultValue={year ?? ""} placeholder="e.g. 2026" />
               </div>
             </div>
-            <FilterActions clearHref="/batches" filtered={number !== null || year !== null} />
+            <FilterActions clearHref="/batches" filtered={student !== "" || number !== null || year !== null} />
           </form>
         </CardContent>
       </Card>
