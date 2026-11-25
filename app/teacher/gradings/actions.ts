@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { bindBatch, requireTeacher, saveGrades, teaches, unbindBatch } from "@/lib/grading";
+import { requireTeacher, saveGrades, teaches } from "@/lib/grading";
 import { GRADE_TYPES, parseGrades, type GradeFormState } from "@/lib/grading-shared";
 
 const ids = (...n: number[]) => n.every((x) => Number.isInteger(x) && x > 0);
@@ -11,20 +11,6 @@ async function allowed(semesterId: number, subjectId: number) {
   const t = await requireTeacher();
   if (!ids(semesterId, subjectId) || !(await teaches(semesterId, subjectId, t.teacherId))) throw new Error("Forbidden");
   return t;
-}
-
-export async function bindBatchAction(semesterId: number, subjectId: number, batchId: number): Promise<{ error?: string }> {
-  await allowed(semesterId, subjectId);
-  if (!ids(batchId) || !(await bindBatch(semesterId, subjectId, batchId))) return { error: "This batch is not in this semester any more. Reload and try again." };
-  revalidatePath(`/teacher/gradings`, "layout");
-  return {};
-}
-
-export async function unbindBatchAction(semesterId: number, subjectId: number, batchId: number): Promise<void> {
-  await allowed(semesterId, subjectId);
-  if (!ids(batchId)) throw new Error("Invalid batch id");
-  await unbindBatch(semesterId, subjectId, batchId);
-  revalidatePath(`/teacher/gradings`, "layout");
 }
 
 export async function saveGradesAction(semesterId: number, subjectId: number, studentId: number, _prev: GradeFormState, formData: FormData): Promise<GradeFormState> {

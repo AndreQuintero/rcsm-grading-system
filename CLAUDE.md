@@ -55,8 +55,12 @@ app/
                         read-only, member since, role tags, change password (current + new, same rules/checklist), Biometric sign-in (Passkeys:
                         devices with Remove, "Turn on for this device" from a password session); actions.ts also
                         switchRole + logout; photo/route.ts the user's avatar (?v= cache-buster from users.updated_at)
-  academic-semesters/    list (year filter) + register/edit (AcademicSemesterForm: year + semester radios, batch cards,
-                        teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>) + delete
+  academic-semesters/    list (year filter; amber warning icon + tooltip linking to the batches screen when a subject has no batch,
+                        `unassigned` in listAcademicSemesters) + register/edit (AcademicSemesterForm: year + semester radios, batch cards,
+                        teacher rows each with a SubjectMultiSelect posted as subjects-<teacherId>; edit footer has "Assign batches to
+                        subjects") + delete; [id]/batches = "Assign batches" (student-records style: hero with counts + Calendar booking
+                        Lottie, one card per subject with its teachers and SubjectBatchBinder; no subjects → get-things-done empty state
+                        linking back to the edit form; semesterSubjectBatches, actions require admin + subjectInSemester)
   student-records/      admin "Student records": all students (name/email/batch incl. "No batch"/status filters, 10 per page);
                         [studentId] = hero (Calendar booking Lottie) + semester cards (graded count, total average, % of points)
                         plus a first "All semesters" card, or a no-semesters state; [studentId]/[semesterId] = record
@@ -68,8 +72,8 @@ app/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account) and, when the user
                         has passkeys, "Remove biometric devices" (ClearPasskeysButton → clearUserPasskeys; details row "Biometric sign-in")
   teacher/gradings/     teacher area (menu: Home, Gradings, Assignments, Score records): semester picker (?semester=, same default rule as the dashboard,
-                        over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] binds the semester's
-                        batches (BatchBinder; removing asks for confirmation) and, once a batch is added, shows 5 class averages
+                        over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] shows the batches an admin
+                        assigned (read-only chips; teachers can't bind batches) and, once a batch is assigned, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
   teacher/assignments/  "Assignments": same first screen as Gradings (semester picker + subject cards with assignment counts);
@@ -77,7 +81,7 @@ app/
                         "n of N", average "avg / max (pct%)", edit + delete with AlertDialog), then "Assignment ranking" below the pager (every
                         graded student: points earned ÷ points possible over the assignments they were scored in, %, dense places,
                         unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
-                        empty state linking to that subject's Gradings page) with AssignmentForm (name, date, maximum points
+                        empty state saying an admin assigns batches, back to the list) with AssignmentForm (name, date, maximum points
                         1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
                         0..max); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
@@ -161,6 +165,7 @@ Conventions:
 - **Gradings** (migration 014): `subject_batches` (semester, subject, batch) and `grades` (semester, subject, student:
   `attendance`, `assignments` (assignments and activities), `participation`, `exams` (midterm & final exam) each whole
   0–25 or NULL = not given (migration 016; labels + `short` headers in `GRADE_TYPES`), `comment` ≤ 2000, `updated_by`).
+  Batches are bound to a subject by an **admin** (Semesters → Assign batches); teachers only see them.
   Keyed by semester + subject, so every teacher of that subject in that semester shares batches and grades (last save
   wins, "Last saved by" shown). Only the semester's batches can be bound; a student is graded when their batch is bound
   and still in the semester and they are not inactive. Unbinding keeps grades. Total = sum of given grades / 100.

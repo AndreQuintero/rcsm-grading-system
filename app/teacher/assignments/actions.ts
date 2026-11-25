@@ -25,7 +25,7 @@ async function save(semesterId: number, subjectId: number, id: number | null, fd
   if (!parsed.data) return { errors: parsed.errors, values };
   const { students, batches } = await assignmentStudents(semesterId, subjectId);
   // a new assignment needs students to score; an existing one can still be renamed after its batches were removed
-  if (!batches && id === null) return { errors: { form: "Add a batch to this subject in Gradings before registering assignments." }, values };
+  if (!batches && id === null) return { errors: { form: "This subject has no batch yet. An admin assigns batches on the academic semester." }, values };
   const listed = students.map((s) => s.id);
   if (id !== null && (await scoresAbove(id, parsed.data.maxScore, listed)))
     return { errors: { maxScore: "Some students no longer in the list have a score above this maximum. Use a higher maximum." }, values };

@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Layers } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -12,7 +12,6 @@ import { periodLabel } from "@/lib/academic-semester";
 import { requireTeacher, subjectGrading, teaches } from "@/lib/grading";
 import { GRADE_TYPES, gradeTotal } from "@/lib/grading-shared";
 import { GradeAverages } from "@/components/records/GradeAverages";
-import { BatchBinder } from "./BatchBinder";
 
 type Params = { semesterId: string; subjectId: string };
 const panel = "rounded-[1.75rem] border border-border/70 bg-card p-6 sm:p-8";
@@ -33,6 +32,7 @@ async function Subject({ params }: { params: Promise<Params> }) {
   const g = await subjectGrading(semesterId, subjectId);
   if (!g) notFound();
   const base = `/teacher/gradings/${semesterId}/${subjectId}`;
+  const bound = g.batches.filter((b) => b.bound);
 
   return (
     <main className="flex flex-col gap-6">
@@ -41,12 +41,24 @@ async function Subject({ params }: { params: Promise<Params> }) {
       <section aria-labelledby="batches" className={panel}>
         <h2 id="batches" className="font-heading text-xl font-bold">Batches</h2>
         <p className="mt-1 mb-4 text-sm text-muted-foreground">
-          The batches whose students you grade in this subject. Other teachers of this subject see the same batches and grades.
+          The batches an admin assigned to this subject. Other teachers of this subject see the same batches and grades.
         </p>
-        <BatchBinder semesterId={semesterId} subjectId={subjectId} batches={g.batches} />
+        {bound.length > 0 ? (
+          <ul className="flex flex-wrap gap-2">
+            {bound.map((b) => (
+              <li key={b.id} className="flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground">
+                <Layers className="size-4" aria-hidden="true" />
+                {b.label}
+                <span className="text-accent-foreground/70">({b.students})</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">No batch assigned yet. An admin assigns batches on the academic semester.</p>
+        )}
       </section>
 
-      {g.batches.some((b) => b.bound) && <GradeAverages grades={g.students.map((s) => s.grades)} title="Class averages" unit="student" />}
+      {bound.length > 0 && <GradeAverages grades={g.students.map((s) => s.grades)} title="Class averages" unit="student" />}
 
       <section aria-labelledby="students" className={panel}>
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -56,7 +68,7 @@ async function Subject({ params }: { params: Promise<Params> }) {
         {g.students.length === 0 ? (
           <div className="py-6 text-center text-muted-foreground">
             <EmptyAnimation />
-            {g.batches.some((b) => b.bound) ? "The added batches have no active students." : "Add a batch to see its students here."}
+            {bound.length > 0 ? "The assigned batches have no active students." : "Its students show up here once an admin assigns a batch."}
           </div>
         ) : (
           <ul className="-mx-2 flex flex-col">

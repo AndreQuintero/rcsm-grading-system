@@ -1,4 +1,4 @@
-import { BookOpen, CheckCircle2, ChevronRight, ClipboardCheck, Layers, Plus, Users } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronRight, ClipboardCheck, Layers, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -65,7 +65,7 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const base = `/teacher/gradings/${selected.id}`;
   const stats: { label: string; value: string; note?: string; icon: LucideIcon; tint: string }[] = [
     { label: "Subjects", value: String(subjects.length), icon: BookOpen, tint: "bg-primary/10 text-primary" },
-    { label: "Batches added", value: String(batches), icon: Layers, tint: "bg-amber-500/12 text-amber-700" },
+    { label: "Batches assigned", value: String(batches), icon: Layers, tint: "bg-amber-500/12 text-amber-700" },
     { label: "Students", value: String(students), icon: Users, tint: "bg-sidebar/8 text-sidebar" },
     { label: "Fully graded", value: `${pct}%`, note: `${complete} of ${slots}`, icon: ClipboardCheck, tint: "bg-success/12 text-success" },
   ];
@@ -114,7 +114,7 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="truncate font-medium">{s.name}</span>
                       <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-                        {s.batches ? `${s.complete} of ${s.students} fully graded` : "No batch added yet"}
+                        {s.batches ? `${s.complete} of ${s.students} fully graded` : "No batch assigned yet"}
                       </span>
                     </span>
                     {s.batches > 0 && (
@@ -141,10 +141,10 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
             <ul className="mt-4 flex flex-col gap-3">
               {unbound.map((s) => (
                 <li key={`b-${s.id}`} className="flex items-start gap-3 rounded-2xl bg-muted/50 p-4">
-                  <Plus className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+                  <Layers className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
                   <span className="text-sm">
-                    <Link href={`${base}/${s.id}`} className={link}>Add a batch to {s.name}</Link>
-                    <span className="block text-muted-foreground">Its students show up once a batch is added.</span>
+                    <Link href={`${base}/${s.id}`} className={link}>{s.name} has no batch yet</Link>
+                    <span className="block text-muted-foreground">Its students show up once an admin assigns a batch to it.</span>
                   </span>
                 </li>
               ))}

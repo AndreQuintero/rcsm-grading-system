@@ -121,7 +121,7 @@ export async function getAcademicSemester(id: number) {
   };
 }
 
-// year is an exact match; null means any. Newest first.
+// year is an exact match; null means any. Newest first. unassigned = subjects with no batch still in the semester.
 export async function listAcademicSemesters({ year = null, page = 1 }: { year?: number | null; page?: number }) {
   const rows = await sql`
     SELECT a.id, a.year, a.semester,
@@ -132,6 +132,10 @@ export async function listAcademicSemesters({ year = null, page = 1 }: { year?: 
         WHERE ab.academic_semester_id = a.id)::int AS students,
       (SELECT count(DISTINCT teacher_id) FROM academic_semester_teacher_subjects WHERE academic_semester_id = a.id)::int AS teachers,
       (SELECT count(DISTINCT subject_id) FROM academic_semester_teacher_subjects WHERE academic_semester_id = a.id)::int AS subjects,
+      (SELECT count(DISTINCT x.subject_id) FROM academic_semester_teacher_subjects x
+        WHERE x.academic_semester_id = a.id AND NOT EXISTS (SELECT 1 FROM subject_batches sb
+          JOIN academic_semester_batches ab ON ab.academic_semester_id = sb.academic_semester_id AND ab.batch_id = sb.batch_id
+          WHERE sb.academic_semester_id = a.id AND sb.subject_id = x.subject_id))::int AS unassigned,
       count(*) OVER() AS total
     FROM academic_semesters a
     WHERE ${year}::int IS NULL OR a.year = ${year}
@@ -153,4 +157,42 @@ export async function semesterOptions() {
     teachers: teachers.map((t) => ({ id: t.id as number, name: t.full_name as string, hasPhoto: t.has_photo as boolean })),
     subjects: subjects.map((s) => ({ id: s.id as number, name: s.name as string })),
   };
+}
+
+// The "Assign batches" screen: the semester's batches and its subjects, each with its teachers and bound batches
+// (only batches still in the semester count). Null when the semester doesn't exist.
+export async function semesterSubjectBatches(id: number) {
+  const [[head], batches, subjects] = await Promise.all([
+    sql`SELECT year, semester FROM academic_semesters WHERE id = ${id}`,
+    sql`SELECT b.id, b.number, b.year, b.semester,
+          (SELECT count(*) FROM students st WHERE st.batch_id = b.id AND st.status <> 'inactive')::int AS students
+        FROM academic_semester_batches ab JOIN batches b ON b.id = ab.batch_id
+        WHERE ab.academic_semester_id = ${id}
+        ORDER BY b.year, b.semester, b.number`,
+    sql`SELECT s.id, s.name,
+          json_agg(json_build_object('id', t.id, 'name', t.full_name, 'hasPhoto', t.photo IS NOT NULL, 'email', t.email)
+            ORDER BY t.full_name, t.id) AS teachers,
+          coalesce((SELECT array_agg(sb.batch_id ORDER BY sb.batch_id) FROM subject_batches sb
+            JOIN academic_semester_batches ab ON ab.academic_semester_id = sb.academic_semester_id AND ab.batch_id = sb.batch_id
+            WHERE sb.academic_semester_id = ${id} AND sb.subject_id = s.id), '{}') AS bound
+        FROM academic_semester_teacher_subjects x JOIN subjects s ON s.id = x.subject_id JOIN teachers t ON t.id = x.teacher_id
+        WHERE x.academic_semester_id = ${id}
+        GROUP BY s.id ORDER BY s.name`,
+  ]);
+  if (!head) return null;
+  return {
+    period: { year: head.year as number, semester: head.semester as number },
+    batches: batches.map((b) => ({ id: b.id as number, label: batchLabel(b as { number: number; year: number; semester: number }), students: b.students as number })),
+    subjects: subjects.map((s) => ({
+      id: s.id as number, name: s.name as string, bound: s.bound as number[],
+      teachers: s.teachers as { id: number; name: string; hasPhoto: boolean; email: string }[],
+    })),
+  };
+}
+
+// The admin may bind batches only to a subject that is taught in the semester.
+export async function subjectInSemester(semesterId: number, subjectId: number): Promise<boolean> {
+  const [r] = await sql`SELECT EXISTS (SELECT 1 FROM academic_semester_teacher_subjects
+    WHERE academic_semester_id = ${semesterId} AND subject_id = ${subjectId}) AS e`;
+  return r.e as boolean;
 }

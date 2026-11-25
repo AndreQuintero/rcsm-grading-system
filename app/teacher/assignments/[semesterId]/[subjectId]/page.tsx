@@ -184,7 +184,7 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
           />
         ) : (
           <p className="rounded-2xl bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
-            No students yet. <Link href={`/teacher/gradings/${semesterId}/${subjectId}`} className="font-medium text-primary underline-offset-4 hover:underline">Add a batch in Gradings</Link> to rank them here.
+            No students yet. They show up here once an admin assigns a batch to this subject.
           </p>
         )}
       </section>
