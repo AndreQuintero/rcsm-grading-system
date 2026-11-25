@@ -58,7 +58,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
             Your students appear here once you add a batch to one of your subjects in Gradings.
           </p>
           <Button asChild size="lg" className="mt-6">
-            <Link href="/teacher/gradings">
+            <Link href="/teacher/gradings/final">
               <ClipboardCheck aria-hidden="true" />
               Go to Gradings
             </Link>

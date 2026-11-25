@@ -71,8 +71,9 @@ app/
   users/                 admin view of sign-in accounts (users table): list (username/email/status filters; status = USER_STATUS_SQL, isUserStatus) + [id] details; no register/
                         edit/delete — only Inactivate/Reactivate (ActiveToggle, AlertDialog + toast; not for your own account) and, when the user
                         has passkeys, "Remove biometric devices" (ClearPasskeysButton → clearUserPasskeys; details row "Biometric sign-in")
-  teacher/gradings/     teacher area (menu: Home, Gradings, Assignments, Score records): semester picker (?semester=, same default rule as the dashboard,
-                        over the teacher's own semesters) + subject cards; [semesterId]/[subjectId] shows the batches an admin
+  teacher/gradings/     teacher area (menu: Home, Gradings, Assignments, Score records): page.tsx = chooser with two cards, "Final gradings"
+                        (final/: semester picker (?semester=, same default rule as the dashboard, over the teacher's own semesters) + subject
+                        cards) and "Class work" (class-work/: placeholder, feature to come); [semesterId]/[subjectId] shows the batches an admin
                         assigned (read-only chips; teachers can't bind batches) and, once a batch is assigned, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
