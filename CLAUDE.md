@@ -73,7 +73,12 @@ app/
                         has passkeys, "Remove biometric devices" (ClearPasskeysButton → clearUserPasskeys; details row "Biometric sign-in")
   teacher/gradings/     teacher area (menu: Home, Gradings, Assignments, Score records): page.tsx = chooser with two cards, "Final gradings"
                         (final/: semester picker (?semester=, same default rule as the dashboard, over the teacher's own semesters) + subject
-                        cards) and "Class work" (class-work/: placeholder, feature to come); [semesterId]/[subjectId] shows the batches an admin
+                        cards) and "Class work" (class-work/: the teacher's weekly meetings — list with semester picker (same default rule), 10 per
+                        page newest first, View/Edit/Delete; new/ + [meetingId]/edit = MeetingForm (name, date; semester fixed from the
+                        list); [meetingId]?subject= = summary: subject pill (SemesterSelect kind="subject") over the teacher's subjects that
+                        semester, ClassWorkAverages (attendance % present + counts, assignments/participation averages / 100), student list
+                        (graded students of the subject) linking to [meetingId]/students/[studentId]?subject= (read-only summary; mark
+                        entry and the blocks' target pages come later)); [semesterId]/[subjectId] shows the batches an admin
                         assigned (read-only chips; teachers can't bind batches) and, once a batch is assigned, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
@@ -111,7 +116,8 @@ components/   records/ (GradeAverages = 5-indicator row, RankingList = ranked ro
 lib/auth/     roles (client-safe), sync, session, login (completeLogin: shared end of password + passkey sign-in), passkey
               (WebAuthn via @simplewebauthn/server), password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
+lib/          class-work.ts (server: listMeetings, getMeeting, insert/update/deleteMeeting, meetingStudents), class-work-shared.ts
+              (client-safe: ATTENDANCE, parseMeeting, meetingSummary), assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
               saveAssignment, scoresAbove, deleteAssignment, assignmentRanking), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
               student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
               studentRecordView = one semester or "all", requireStudent, studentCanSeeTeacher),
@@ -176,6 +182,12 @@ Conventions:
   (`gradedStudents`); saving writes only those (blank removes a score, others' scores are kept; a lower maximum is refused
   while an unlisted student's score is above it). A new assignment needs ≥ 1 bound batch; deleting cascades the scores.
   Separate from `grades.assignments` (that 0–25 grade is still typed by hand).
+- **Class work** (migration 020): `class_meetings` (teacher, semester, name ≤ 150, `held_on`) belong to **one teacher**
+  (every query filters `teacher_id`; created only in a semester they teach in). `class_meeting_marks` (meeting, subject,
+  student: `attendance` present|late|absent|excused, `assignments`/`participation` 0–100, NULL = not given). Students of
+  a meeting + subject = the grading rule (`gradedStudents`). Attendance % = (present + late) / (present + late + absent),
+  excused left out (`meetingSummary` in lib/class-work-shared.ts). Deleting a meeting or semester cascades. Nothing
+  writes marks yet (entry UI is the next step).
 - **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
   (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
   grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
@@ -266,7 +278,7 @@ Node's `fetch` (used by the Neon driver) needs the proxy flags here; Vercel does
 NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npx --yes tsx scripts/batches.test.ts
 ```
 
-Same prefix for `passkeys`, `assignments`, `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
+Same prefix for `class-work`, `passkeys`, `assignments`, `student-records`, `gradings`, `dashboard`, `students`, `teachers`, `subjects`, `batches`, `academic-semesters`, `admins`, `users`, `auth` tests and for `scripts/migrate.ts db/migrations/<file>.sql`.
 The sign-in browser test starts its own `next start` (run `npm run build` first; emails go to a local outbox file):
 
 ```bash
@@ -305,7 +317,7 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
 the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams), 017 drop the old grade columns (midterm, presence, final_exam;
 it also deleted the 9 old-type grade rows). 016b-clear-old-grades.sql was never run and is obsolete: it reads the dropped
-columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method). A migration that removes something production code still reads must wait
+columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method), 020 class work (class_meetings, class_meeting_marks). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment

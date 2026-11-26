@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarRange, LoaderCircle } from "lucide-react";
+import { BookOpen, CalendarRange, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { startNavigationProgress } from "@/app/NavigationProgress";
@@ -10,17 +10,21 @@ type Choice = { id: number | string; label: string; current: boolean };
 
 // Picking a semester changes ?semester= so the server renders that semester's teachers and batches.
 // basePath gets ?semester=<id>; pathTemplate (e.g. "/student-records/5/{id}") puts the id in the path instead.
-export function SemesterSelect({ choices, value, basePath = "/", pathTemplate }: { choices: Choice[]; value: number | string; basePath?: string; pathTemplate?: string }) {
+// kind "subject" is the same pill for a subject (book icon, "Subject" label); pass a pathTemplate with it.
+export function SemesterSelect({ choices, value, basePath = "/", pathTemplate, kind = "semester" }: {
+  choices: Choice[]; value: number | string; basePath?: string; pathTemplate?: string; kind?: "semester" | "subject";
+}) {
+  const Icon = kind === "subject" ? BookOpen : CalendarRange;
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
     <Select value={String(value)} onValueChange={(v) => { startNavigationProgress(); start(() => router.replace(pathTemplate ? pathTemplate.replace("{id}", v) : `${basePath}?semester=${v}`, { scroll: false })); }}>
       <SelectTrigger
-        aria-label="Academic semester"
+        aria-label={kind === "subject" ? "Subject" : "Academic semester"}
         className="h-11! gap-2.5 rounded-full border-0 bg-sidebar py-0 pr-4 pl-1.5 text-sm font-medium text-white shadow-[0_8px_24px_-8px_rgba(43,46,51,0.55)] transition-[background-color,box-shadow] hover:bg-sidebar/90 focus-visible:ring-sidebar-ring/60 [&>svg:last-child]:text-white/70"
       >
         <span className="grid size-8 place-items-center rounded-full bg-white/10">
-          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <CalendarRange className="size-4" aria-hidden="true" />}
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Icon className="size-4" aria-hidden="true" />}
         </span>
         <SelectValue />
       </SelectTrigger>
