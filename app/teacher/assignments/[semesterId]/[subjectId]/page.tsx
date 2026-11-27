@@ -91,7 +91,7 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
         }
       />
 
-      <Card className="mb-6">
+      <Card className="mb-6 overflow-visible">
         <CardContent>
           {/* keyed on the active filters so Clear (a client-side navigation) resets the inputs */}
           <form key={pageHref(1)} method="get" role="search" aria-label="Filter assignments" className="space-y-4">
