@@ -83,6 +83,24 @@ const input = (o: Record<string, string>) => {
     assert.equal(await meetingAllowed(ada.id, sem.id, mBob, mBob), true, "keeping another teacher's meeting on edit");
     assert.equal(await meetingAllowed(ada.id, sem.id + 1_000_000, mAda), false, "wrong semester");
     assert.equal((await getAssignment(sem.id, worship.id, a2!))?.meetingTeacherId, bob.id);
+
+    // comments: optional per student, ≤ 2000; a comment alone is kept but doesn't count as scored
+    assert.ok(parseAssignment(fd({ meetingId: meeting, name: "X", dueOn: "2090-01-01", maxScore: "10", "comment-1": "x".repeat(2001) })).errors?.["comment-1"]);
+    const a3 = (await saveAssignment(sem.id, worship.id, null, null, input({ name: "Reflection", dueOn: "2090-07-01", maxScore: "10",
+      [`score-${s1.id}`]: "6", [`comment-${s1.id}`]: " Good start ", [`score-${s2.id}`]: "", [`comment-${s2.id}`]: "Didn't hand it in" }), listed))!;
+    let r3 = await getAssignment(sem.id, worship.id, a3);
+    assert.deepEqual([r3!.scores, r3!.comments], [{ [s1.id]: 6 }, { [s1.id]: "Good start", [s2.id]: "Didn't hand it in" }]);
+    assert.equal((await listAssignments({ semesterId: sem.id, subjectId: worship.id, name: "Reflection" })).assignments[0].graded, 1, "a comment alone isn't scored");
+    const rk = (await assignmentRanking(sem.id, worship.id)).students.find((x) => x.id === s2.id)!;
+    assert.equal(rk.scored, (await sql`SELECT count(*)::int AS n FROM assignment_scores sc JOIN assignments a ON a.id = sc.assignment_id
+      WHERE a.subject_id = ${worship.id} AND sc.student_id = ${s2.id} AND sc.score IS NOT NULL`)[0].n, "ranking counts real scores only");
+    // clearing both removes the row; the other student's score + comment change together
+    await saveAssignment(sem.id, worship.id, a3, null, input({ name: "Reflection", dueOn: "2090-07-01", maxScore: "10",
+      [`score-${s1.id}`]: "7", [`comment-${s1.id}`]: "", [`score-${s2.id}`]: "", [`comment-${s2.id}`]: "" }), listed);
+    r3 = await getAssignment(sem.id, worship.id, a3);
+    assert.deepEqual([r3!.scores, r3!.comments], [{ [s1.id]: 7 }, {}]);
+    assert.equal((await sql`SELECT count(*)::int AS n FROM assignment_scores WHERE assignment_id = ${a3}`)[0].n, 1);
+    await deleteAssignment(sem.id, worship.id, a3);
     let list = await listAssignments({ semesterId: sem.id, subjectId: worship.id });
     assert.deepEqual(list.assignments.map((a) => [a.name, a.dueOn, a.graded, a.avg]), [["Quiz", "2090-09-01", 0, null], ["Essay", "2090-08-10", 1, 18]], "newest date first");
     assert.equal(list.total, 2);

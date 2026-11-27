@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { AssignmentStudent } from "@/lib/assignment";
-import { ASSIGNMENT_MAX_SCORE, ASSIGNMENT_NAME_MAX, scoreAverage, type AssignmentFormState } from "@/lib/assignment-shared";
+import { ASSIGNMENT_COMMENT_MAX, ASSIGNMENT_MAX_SCORE, ASSIGNMENT_NAME_MAX, scoreAverage, type AssignmentFormState } from "@/lib/assignment-shared";
 import { cn } from "@/lib/utils";
 import { SearchSelect } from "@/app/SearchSelect";
 import { createAssignmentAction, updateAssignmentAction } from "../../../actions";
@@ -40,7 +40,7 @@ export function AssignmentForm({ semesterId, subjectId, assignmentId, students, 
     return r;
   }, {});
   const e = state.errors ?? {};
-  const set = (k: string) => (ev: React.ChangeEvent<HTMLInputElement>) => setV((x) => ({ ...x, [k]: ev.target.value }));
+  const set = (k: string) => (ev: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV((x) => ({ ...x, [k]: ev.target.value }));
 
   // live class average over the valid scores typed so far
   const max = /^\d+$/.test(v.maxScore ?? "") && Number(v.maxScore) >= 1 ? Number(v.maxScore) : null;
@@ -108,13 +108,13 @@ export function AssignmentForm({ semesterId, subjectId, assignmentId, students, 
         <section aria-labelledby="students" className="flex flex-col gap-3">
           <div>
             <h2 id="students" className="font-heading text-xl font-bold">Students</h2>
-            <p className="text-sm text-muted-foreground">Scores are optional: leave them empty and add them later by editing the assignment.</p>
+            <p className="text-sm text-muted-foreground">Scores and comments are optional: leave them empty and add them later by editing the assignment.</p>
           </div>
           <ul className="flex flex-col divide-y divide-border/70 rounded-2xl border border-border/70">
             {students.map((s) => {
-              const key = `score-${s.id}`;
+              const key = `score-${s.id}`, note = `comment-${s.id}`;
               return (
-                <li key={s.id} className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3", e[key] && "bg-destructive/5")}>
+                <li key={s.id} className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3", (e[key] || e[note]) && "bg-destructive/5")}>
                   <Avatar src={s.hasPhoto ? `/teacher/students/${s.id}/photo` : null} className="size-11" />
                   <span className="min-w-0 flex-1">
                     <label htmlFor={key} className="block truncate font-medium">{s.name}</label>
@@ -139,6 +139,19 @@ export function AssignmentForm({ semesterId, subjectId, assignmentId, students, 
                     <span id={`${key}-max`} className="w-12 text-sm text-muted-foreground">/ {max ?? "–"}</span>
                   </span>
                   {e[key] && <span className="basis-full"><FieldError message={e[key]} /></span>}
+                  <label htmlFor={note} className="sr-only">Comment for {s.name} (optional)</label>
+                  <textarea
+                    id={note}
+                    name={note}
+                    rows={1}
+                    maxLength={ASSIGNMENT_COMMENT_MAX}
+                    placeholder="Comment (optional)"
+                    value={v[note] ?? ""}
+                    onChange={set(note)}
+                    aria-invalid={Boolean(e[note]) || undefined}
+                    className="basis-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+                  />
+                  {e[note] && <span className="basis-full"><FieldError message={e[note]} /></span>}
                 </li>
               );
             })}

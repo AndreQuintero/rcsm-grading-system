@@ -35,6 +35,7 @@ async function Edit({ params }: { params: Promise<Params> }) {
   const initial: Record<string, string> = {
     meetingId: a.meeting ? String(a.meeting.id) : "", name: a.name, dueOn: a.dueOn, maxScore: String(a.maxScore),
     ...Object.fromEntries(Object.entries(a.scores).map(([sid, score]) => [`score-${sid}`, String(score)])),
+    ...Object.fromEntries(Object.entries(a.comments).map(([sid, comment]) => [`comment-${sid}`, comment])),
   };
 
   return (

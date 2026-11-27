@@ -261,3 +261,10 @@ CREATE INDEX IF NOT EXISTS assignments_meeting_idx ON assignments (meeting_id);
 
 -- The teacher's comment on a student's weekly participation (migration 022).
 ALTER TABLE class_meeting_marks ADD COLUMN IF NOT EXISTS participation_comment text CHECK (char_length(participation_comment) <= 2000);
+
+-- A comment per student on an assignment; a row may hold only a comment (migration 023).
+ALTER TABLE assignment_scores ADD COLUMN IF NOT EXISTS comment text CHECK (char_length(comment) <= 2000);
+ALTER TABLE assignment_scores ALTER COLUMN score DROP NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE assignment_scores ADD CONSTRAINT assignment_scores_score_or_comment CHECK (score IS NOT NULL OR comment IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

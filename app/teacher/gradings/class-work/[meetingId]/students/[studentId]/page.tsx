@@ -7,7 +7,7 @@ import { AttendanceBadge } from "@/components/records/ClassWorkAverages";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { periodLabel } from "@/lib/academic-semester";
-import { getMeeting, meetingStudents } from "@/lib/class-work";
+import { getMeeting, meetingStudentAssignments, meetingStudents } from "@/lib/class-work";
 import { formatDate } from "@/lib/dates";
 import { requireTeacher, teaches } from "@/lib/grading";
 import { getSubject } from "@/lib/subject";
@@ -31,7 +31,9 @@ async function Student({ params, searchParams }: { params: Promise<Params>; sear
   if (![meetingId, studentId, subjectId].every((n) => Number.isInteger(n) && n > 0)) notFound();
   const m = await getMeeting(teacherId, meetingId);
   if (!m || !(await teaches(m.semesterId, subjectId, teacherId))) notFound();
-  const [[s], sub] = await Promise.all([meetingStudents(m.id, m.semesterId, subjectId, studentId), getSubject(subjectId)]);
+  const [[s], sub, assignments] = await Promise.all([
+    meetingStudents(m.id, m.semesterId, subjectId, studentId), getSubject(subjectId), meetingStudentAssignments(m.id, subjectId, studentId),
+  ]);
   if (!s || !sub) notFound();
   const subject = sub.name as string;
 
@@ -62,6 +64,24 @@ async function Student({ params, searchParams }: { params: Promise<Params>; sear
           </blockquote>
         )}
       </section>
+      {assignments.length > 0 && (
+        <section aria-labelledby="assignments" className="rounded-[1.75rem] border border-border/70 bg-card p-6 sm:p-8">
+          <h2 id="assignments" className="font-heading text-xl font-bold">Assignments and Activities</h2>
+          <ul className="mt-4 flex flex-col divide-y divide-border/70">
+            {assignments.map((a) => (
+              <li key={a.id} className="flex flex-col gap-2 py-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-medium">{a.name}</span>
+                  <span className="tabular-nums">
+                    {a.score === null ? <span className="text-sm text-muted-foreground">Not scored</span> : <><span className="font-medium">{a.score}</span><span className="text-sm text-muted-foreground"> / {a.maxScore}</span></>}
+                  </span>
+                </div>
+                {a.comment && <p className="rounded-xl bg-muted/60 px-3 py-2 text-sm whitespace-pre-line">{a.comment}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </>
   );
 }

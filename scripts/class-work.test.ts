@@ -78,7 +78,9 @@ const fd = (o: Record<string, string>) => { const f = new FormData(); for (const
     // assignments = % earned in this meeting's assignments of the subject: 18 + 9 of 20 + 10 → 90%
     const [x1, x2] = (await sql`INSERT INTO assignments (academic_semester_id, subject_id, name, due_on, max_score, meeting_id) VALUES
       (${sem}, ${art}, 'Essay', '2090-08-04', 20, ${w1}), (${sem}, ${art}, 'Quiz', '2090-08-04', 10, ${w1}) RETURNING id`).map((r) => r.id as number);
-    await sql`INSERT INTO assignment_scores VALUES (${x1}, ${st1}, 18), (${x2}, ${st1}, 9)`;
+    await sql`INSERT INTO assignment_scores (assignment_id, student_id, score) VALUES (${x1}, ${st1}, 18), (${x2}, ${st1}, 9)`;
+    // a comment without a score doesn't count: Beta stays without a %
+    await sql`INSERT INTO assignment_scores (assignment_id, student_id, comment) VALUES (${x1}, ${st2}, 'No work handed in')`;
     assert.equal(await meetingAssignmentCount(w1, art), 2);
     assert.equal(await meetingAssignmentCount(w2, art), 0);
     const list = await meetingStudents(w1, sem, art);

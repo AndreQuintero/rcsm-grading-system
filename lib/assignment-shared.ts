@@ -4,14 +4,17 @@ import { isRealDate } from "@/lib/dates";
 export const ASSIGNMENT_PAGE_SIZE = 10;
 export const ASSIGNMENT_NAME_MAX = 150;
 export const ASSIGNMENT_MAX_SCORE = 1000;
+export const ASSIGNMENT_COMMENT_MAX = 2000;
 
 export type AssignmentFormState = { errors?: Record<string, string>; message?: string; values?: Record<string, string> };
-export type AssignmentInput = { meetingId: number; name: string; dueOn: string; maxScore: number; scores: Map<number, number | null> };
+export type AssignmentInput = {
+  meetingId: number; name: string; dueOn: string; maxScore: number; scores: Map<number, number | null>; comments: Map<number, string | null>;
+};
 
 const whole = (raw: string, max: number) => (/^\d+$/.test(raw) && Number(raw) <= max ? Number(raw) : null);
 
 // Validates untrusted form input: weekly meeting, name, date and maximum points are required; each `score-<studentId>` is blank
-// (not scored yet) or a whole number from 0 to the maximum.
+// (not scored yet) or a whole number from 0 to the maximum; each `comment-<studentId>` is optional, up to 2000 characters.
 export function parseAssignment(formData: FormData):
   | { data: AssignmentInput; errors?: undefined }
   | { errors: Record<string, string>; data?: undefined } {
@@ -33,7 +36,15 @@ export function parseAssignment(formData: FormData):
   else if (!maxScore) errors.maxScore = `Enter a whole number from 1 to ${ASSIGNMENT_MAX_SCORE}.`;
 
   const scores = new Map<number, number | null>();
+  const comments = new Map<number, string | null>();
   for (const [key, value] of formData.entries()) {
+    const c = /^comment-(\d+)$/.exec(key);
+    if (c) {
+      const text = String(value).trim();
+      if (text.length > ASSIGNMENT_COMMENT_MAX) errors[key] = `Use at most ${ASSIGNMENT_COMMENT_MAX} characters.`;
+      else comments.set(Number(c[1]), text || null);
+      continue;
+    }
     const m = /^score-(\d+)$/.exec(key);
     if (!m) continue;
     const raw = String(value).trim();
@@ -44,7 +55,7 @@ export function parseAssignment(formData: FormData):
   }
 
   if (Object.keys(errors).length) return { errors };
-  return { data: { meetingId: meetingId!, name, dueOn, maxScore: maxScore!, scores } };
+  return { data: { meetingId: meetingId!, name, dueOn, maxScore: maxScore!, scores, comments } };
 }
 
 // Class average of the scores given (null when none), rounded to one decimal.

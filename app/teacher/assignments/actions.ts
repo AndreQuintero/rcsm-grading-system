@@ -16,7 +16,7 @@ async function allowed(semesterId: number, subjectId: number) {
 
 // The typed values, so the form keeps them after an error.
 const echo = (fd: FormData) =>
-  Object.fromEntries([...fd.entries()].filter(([k]) => k === "meetingId" || k === "name" || k === "dueOn" || k === "maxScore" || k.startsWith("score-")).map(([k, v]) => [k, String(v)]));
+  Object.fromEntries([...fd.entries()].filter(([k]) => k === "meetingId" || k === "name" || k === "dueOn" || k === "maxScore" || k.startsWith("score-") || k.startsWith("comment-")).map(([k, v]) => [k, String(v)]));
 
 async function save(semesterId: number, subjectId: number, id: number | null, fd: FormData): Promise<AssignmentFormState> {
   const { userId, teacherId } = await allowed(semesterId, subjectId);

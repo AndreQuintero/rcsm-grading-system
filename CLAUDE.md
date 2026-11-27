@@ -79,7 +79,7 @@ app/
                         semester, ClassWorkAverages = 3 cards (Attendance % present + counts, links to [meetingId]/attendance?subject=; Assignments and Activities = class average % earned
                         in the meeting's assignments of the subject, links to /teacher/assignments/<sem>/<subject>?meeting=<id>; Participation
                         avg / 100, links to [meetingId]/participation?subject=), student list (graded students of the subject) linking to [meetingId]/students/[studentId]?subject=
-                        (read-only summary); [meetingId]/attendance?subject= = AttendanceForm: one row per graded student with 4 native
+                        (read-only summary + that meeting's assignments with score and comment); [meetingId]/attendance?subject= = AttendanceForm: one row per graded student with 4 native
                         radios (Present/Late/Absent/Excused, controlled, posted as att-<id>), live counts, "Mark everyone present" (fills the
                         form only), one "Save attendance" → toast + back to the meeting (saveAttendanceAction: own meeting + teaches);
                         [meetingId]/participation?subject= = ParticipationForm: per student a 0–100 score (part-<id>) + optional comment ≤ 2000
@@ -98,7 +98,7 @@ app/
                         weekly meeting first" (Calendar booking Lottie) linking to Class work) with AssignmentForm (weekly meeting = SearchSelect
                         over the teacher's own meetings, or another teacher's meeting shown fixed on edit; name, date, maximum points
                         1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
-                        0..max); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
+                        0..max + optional comment ≤ 2000 (comment-<id>)); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
                         inactive included; empty state links to Gradings); [studentId] = record: hero (Data Analysis Lottie),
                         GradeAverages, grades per semester+subject, ScoreBars (avg total per subject, CSS tooltip + sr-only
@@ -195,7 +195,10 @@ Conventions:
   meeting** (`meeting_id`, migration 021, ON DELETE CASCADE; nullable in the DB for the pre-deploy code, required by
   `parseAssignment`): create/move only into the teacher's own meeting of that semester; an edit by another teacher of the
   subject keeps the meeting (`meetingAllowed`). Assignments stay shared by the subject's teachers and show the meeting
-  (+ its teacher when not yours). The 4 assignments made before 021 were deleted (user's choice).
+  (+ its teacher when not yours). The 4 assignments made before 021 were deleted (user's choice). Each student may
+  also have a **comment** (`assignment_scores.comment`, migration 023, ≤ 2000): a row holds a score, a comment or both
+  (score NULL allowed, CHECK one of them); "scored" everywhere means `score IS NOT NULL` (list count, ranking, the
+  meeting's %). Saving: score or comment → upsert both; neither → row removed.
 - **Class work** (migration 020): `class_meetings` (teacher, semester, name ≤ 150, `held_on`) belong to **one teacher**
   (every query filters `teacher_id`; created only in a semester they teach in). `class_meeting_marks` (meeting, subject,
   student: `attendance` present|late|absent|excused, `assignments`/`participation` 0–100, NULL = not given). Students of
@@ -334,7 +337,7 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
 the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams), 017 drop the old grade columns (midterm, presence, final_exam;
 it also deleted the 9 old-type grade rows). 016b-clear-old-grades.sql was never run and is obsolete: it reads the dropped
-columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method), 020 class work (class_meetings, class_meeting_marks), 021 assignments.meeting_id (deleted the 4 existing assignments), 022 class_meeting_marks.participation_comment. A migration that removes something production code still reads must wait
+columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method), 020 class work (class_meetings, class_meeting_marks), 021 assignments.meeting_id (deleted the 4 existing assignments), 022 class_meeting_marks.participation_comment, 023 assignment_scores.comment (score nullable, score-or-comment check). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment

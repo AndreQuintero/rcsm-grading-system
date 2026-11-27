@@ -79,7 +79,7 @@ export async function meetingStudents(meetingId: number, semesterId: number, sub
        -- assignments = % of the points possible in this meeting's assignments of the subject the student was scored in
        (SELECT round(100.0 * sum(sc.score) / sum(a.max_score))::int FROM assignments a
           JOIN assignment_scores sc ON sc.assignment_id = a.id AND sc.student_id = g.id
-          WHERE a.meeting_id = $3 AND a.subject_id = $2) AS assignments
+          WHERE a.meeting_id = $3 AND a.subject_id = $2 AND sc.score IS NOT NULL) AS assignments
      FROM (${gradedStudents()}) g
      JOIN batches b ON b.id = g.bound_batch
      LEFT JOIN class_meeting_marks mk ON mk.meeting_id = $3 AND mk.subject_id = $2 AND mk.student_id = g.id
@@ -118,4 +118,17 @@ export async function saveParticipation(meetingId: number, subjectId: number, al
     SELECT ${meetingId}, ${subjectId}, x.id, x.score, x.note FROM unnest(${ids}::int[], ${scores}::int[], ${comments}::text[]) AS x(id, score, note)
     ON CONFLICT (meeting_id, subject_id, student_id)
     DO UPDATE SET participation = EXCLUDED.participation, participation_comment = EXCLUDED.participation_comment, updated_at = now()`;
+}
+
+// One student's assignments of this meeting + subject with their score (null = not scored) and comment.
+export async function meetingStudentAssignments(meetingId: number, subjectId: number, studentId: number) {
+  const rows = await sql`
+    SELECT a.id, a.name, a.max_score, sc.score, sc.comment FROM assignments a
+    LEFT JOIN assignment_scores sc ON sc.assignment_id = a.id AND sc.student_id = ${studentId}
+    WHERE a.meeting_id = ${meetingId} AND a.subject_id = ${subjectId}
+    ORDER BY a.due_on, a.name, a.id`;
+  return rows.map((r) => ({
+    id: r.id as number, name: r.name as string, maxScore: r.max_score as number,
+    score: (r.score ?? null) as number | null, comment: (r.comment ?? null) as string | null,
+  }));
 }

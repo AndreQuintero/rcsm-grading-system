@@ -34,7 +34,7 @@ export async function listAssignments({ semesterId, subjectId, name = "", date =
   const rows = await sql.query(
     `SELECT a.id, a.name, a.due_on::text AS due_on, a.max_score, a.meeting_id, m.name AS meeting_name,
        m.held_on::text AS meeting_on, t.full_name AS meeting_teacher,
-       count(sc.student_id)::int AS graded, round(avg(sc.score), 1)::float AS avg, count(*) OVER() AS total
+       count(sc.score)::int AS graded, round(avg(sc.score), 1)::float AS avg, count(*) OVER() AS total
      FROM assignments a LEFT JOIN assignment_scores sc ON sc.assignment_id = a.id
      LEFT JOIN class_meetings m ON m.id = a.meeting_id LEFT JOIN teachers t ON t.id = m.teacher_id
      WHERE a.academic_semester_id = $1 AND a.subject_id = $2
@@ -85,39 +85,41 @@ export async function getAssignment(semesterId: number, subjectId: number, id: n
   const [a] = await sql`
     SELECT a.id, a.name, a.due_on::text AS due_on, a.max_score, a.meeting_id, m.name AS meeting_name,
       m.held_on::text AS meeting_on, t.full_name AS meeting_teacher, m.teacher_id AS meeting_teacher_id,
-      coalesce((SELECT json_object_agg(sc.student_id, sc.score) FROM assignment_scores sc WHERE sc.assignment_id = a.id), '{}') AS scores
+      coalesce((SELECT json_object_agg(sc.student_id, sc.score) FROM assignment_scores sc WHERE sc.assignment_id = a.id AND sc.score IS NOT NULL), '{}') AS scores,
+      coalesce((SELECT json_object_agg(sc.student_id, sc.comment) FROM assignment_scores sc WHERE sc.assignment_id = a.id AND sc.comment IS NOT NULL), '{}') AS comments
     FROM assignments a LEFT JOIN class_meetings m ON m.id = a.meeting_id LEFT JOIN teachers t ON t.id = m.teacher_id
     WHERE a.id = ${id} AND a.academic_semester_id = ${semesterId} AND a.subject_id = ${subjectId}`;
   if (!a) return null;
   return {
     id: a.id as number, name: a.name as string, dueOn: a.due_on as string, maxScore: a.max_score as number,
-    scores: a.scores as Record<string, number>, meeting: meetingRef(a), meetingTeacherId: (a.meeting_teacher_id as number | null) ?? null,
+    scores: a.scores as Record<string, number>, comments: a.comments as Record<string, string>, meeting: meetingRef(a), meetingTeacherId: (a.meeting_teacher_id as number | null) ?? null,
   };
 }
 
-// Creates (id = null) or updates an assignment and its scores in one go. Only students in `allowed` (the ones the
-// subject grades now) are written: a blank score removes theirs; scores of anyone else are kept. Returns the id, or
-// null when the assignment to update isn't one of this semester + subject.
+// Creates (id = null) or updates an assignment and its scores + comments in one go. Only students in `allowed` (the
+// ones the subject grades now) are written: a student with a score or a comment gets both stored, one with neither has
+// their row removed; rows of anyone else are kept. Returns the id, or null when the assignment to update isn't one of
+// this semester + subject.
 export async function saveAssignment(
   semesterId: number, subjectId: number, id: number | null, userId: number | null, input: AssignmentInput, allowed: number[],
 ): Promise<number | null> {
-  const ids: number[] = [], scores: number[] = [], blanks: number[] = [];
+  const ids: number[] = [], scores: (number | null)[] = [], comments: (string | null)[] = [], blanks: number[] = [];
   for (const sid of allowed) {
-    const s = input.scores.get(sid);
-    if (s === undefined || s === null) blanks.push(sid);
-    else { ids.push(sid); scores.push(s); }
+    const score = input.scores.get(sid) ?? null, comment = input.comments.get(sid) ?? null;
+    if (score === null && comment === null) blanks.push(sid);
+    else { ids.push(sid); scores.push(score); comments.push(comment); }
   }
   if (id === null) {
     const [r] = await sql.query(
       `WITH a AS (
          INSERT INTO assignments (academic_semester_id, subject_id, name, due_on, max_score, updated_by, meeting_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $9) RETURNING id
+         VALUES ($1, $2, $3, $4, $5, $6, $10) RETURNING id
        ), s AS (
-         INSERT INTO assignment_scores (assignment_id, student_id, score)
-         SELECT a.id, x.student_id, x.score FROM a, unnest($7::int[], $8::int[]) AS x(student_id, score)
+         INSERT INTO assignment_scores (assignment_id, student_id, score, comment)
+         SELECT a.id, x.student_id, x.score, x.comment FROM a, unnest($7::int[], $8::int[], $9::text[]) AS x(student_id, score, comment)
        )
        SELECT id FROM a`,
-      [semesterId, subjectId, input.name, input.dueOn, input.maxScore, userId, ids, scores, input.meetingId],
+      [semesterId, subjectId, input.name, input.dueOn, input.maxScore, userId, ids, scores, comments, input.meetingId],
     );
     return r.id as number;
   }
@@ -128,10 +130,10 @@ export async function saveAssignment(
     sql`DELETE FROM assignment_scores sc USING assignments a
         WHERE sc.assignment_id = a.id AND a.id = ${id} AND a.academic_semester_id = ${semesterId} AND a.subject_id = ${subjectId}
           AND sc.student_id = ANY(${blanks}::int[])`,
-    sql`INSERT INTO assignment_scores (assignment_id, student_id, score)
-        SELECT a.id, x.student_id, x.score FROM assignments a, unnest(${ids}::int[], ${scores}::int[]) AS x(student_id, score)
+    sql`INSERT INTO assignment_scores (assignment_id, student_id, score, comment)
+        SELECT a.id, x.student_id, x.score, x.comment FROM assignments a, unnest(${ids}::int[], ${scores}::int[], ${comments}::text[]) AS x(student_id, score, comment)
         WHERE a.id = ${id} AND a.academic_semester_id = ${semesterId} AND a.subject_id = ${subjectId}
-        ON CONFLICT (assignment_id, student_id) DO UPDATE SET score = EXCLUDED.score`,
+        ON CONFLICT (assignment_id, student_id) DO UPDATE SET score = EXCLUDED.score, comment = EXCLUDED.comment`,
   ]);
   return updated.length ? id : null;
 }
