@@ -97,7 +97,8 @@ app/
                         unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
                         empty state saying an admin assigns batches, back to the list; no own weekly meeting in the semester → "Register a
                         weekly meeting first" (Calendar booking Lottie) linking to Class work) with AssignmentForm (weekly meeting = SearchSelect
-                        over the teacher's own meetings, or another teacher's meeting shown fixed on edit; name, date, maximum points
+                        over the teacher's own meetings when opened from the Assignments menu; shown fixed (fixedMeeting + note) when opened
+                        with ?meeting= (from a weekly meeting) or, on edit, when it is another teacher's meeting; name, date, maximum points
                         1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
                         0..max + optional comment ≤ 2000 (comment-<id>)); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,

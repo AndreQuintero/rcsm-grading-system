@@ -35,7 +35,8 @@ async function Register({ params, searchParams }: { params: Promise<Params>; sea
   ]);
   if (!head) notFound();
   const own = meetings.filter((m) => m.own);
-  // opened from a weekly meeting (or a list filtered to one): that meeting is picked and a save goes back there
+  // opened from a weekly meeting (or a list filtered to one): that meeting is fixed and a save goes back there; from the
+  // Assignments menu the teacher picks the meeting
   const picked = own.find((m) => String(m.id) === sp.meeting);
   const list = `/teacher/assignments/${semesterId}/${subjectId}${picked ? `?meeting=${picked.id}` : ""}`;
 
@@ -56,6 +57,7 @@ async function Register({ params, searchParams }: { params: Promise<Params>; sea
           subjectId={subjectId}
           students={students}
           meetings={own.map((m) => ({ value: String(m.id), label: meetingLabel(m, true) }))}
+          fixedMeeting={picked && { id: picked.id, label: meetingLabel(picked, true), note: "This assignment belongs to the weekly meeting you came from." }}
           initial={{ dueOn: picked?.heldOn ?? todayIso(), meetingId: picked ? String(picked.id) : "" }}
           returnTo={list}
         />
