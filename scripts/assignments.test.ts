@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { parseAssignment, scoreAverage } from "../lib/assignment-shared";
 import {
-  assignmentCounts, assignmentMeetings, assignmentRanking, assignmentStudents, deleteAssignment, getAssignment, listAssignments, meetingAllowed,
+  assignmentCounts, assignmentDates, assignmentMeetings, assignmentRanking, assignmentStudents, deleteAssignment, getAssignment, listAssignments, meetingAllowed,
   meetingLabel, saveAssignment, scoresAbove,
 } from "../lib/assignment";
 import { insertMeeting } from "../lib/class-work";
@@ -73,6 +73,8 @@ const input = (o: Record<string, string>) => {
     assert.deepEqual((await listAssignments({ semesterId: sem.id, subjectId: worship.id })).assignments.map((a) => [a.name, a.meeting?.name, a.meeting?.teacher]),
       [["Quiz", "Week #1 B", "Bob Asg"], ["Essay", "Week #1", "Ada Asg"]]);
     assert.deepEqual((await listAssignments({ semesterId: sem.id, subjectId: worship.id, meetingId: mAda })).assignments.map((a) => a.name), ["Essay"]);
+    assert.deepEqual(await assignmentDates(sem.id, worship.id), ["2090-09-01", "2090-08-10"], "dates with assignments, newest first");
+    assert.deepEqual(await assignmentDates(sem.id, music.id), []);
     // Ada's options: her own meeting, plus Bob's because it holds a Worship assignment (for the filter)
     assert.deepEqual((await assignmentMeetings(ada.id, sem.id, worship.id)).map((m) => [m.name, m.own]), [["Week #1 B", false], ["Week #1", true]]);
     assert.deepEqual((await assignmentMeetings(ada.id, sem.id, music.id)).map((m) => m.name), ["Week #1"], "Bob's meeting holds no Music assignment");

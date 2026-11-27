@@ -17,13 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { periodLabel } from "@/lib/academic-semester";
-import { assignmentMeetings, assignmentRanking, assignmentSubject, listAssignments, meetingLabel } from "@/lib/assignment";
+import { assignmentDates, assignmentMeetings, assignmentRanking, assignmentSubject, listAssignments, meetingLabel } from "@/lib/assignment";
 import { SearchSelect } from "@/app/SearchSelect";
 import { ASSIGNMENT_PAGE_SIZE } from "@/lib/assignment-shared";
 import { formatDate, isRealDate } from "@/lib/dates";
 import { requireTeacher, teaches } from "@/lib/grading";
 import { deleteAssignmentAction } from "../../actions";
-import { DateFilter } from "./DateFilter";
 
 type Params = { semesterId: string; subjectId: string };
 type SearchParams = { name?: string; date?: string; meeting?: string; page?: string };
@@ -46,11 +45,12 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
   const date = isRealDate(sp.date ?? "") ? sp.date! : "";
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const meetingId = /^\d+$/.test(sp.meeting ?? "") ? Number(sp.meeting) : null;
-  const [head, { assignments, total }, ranking, meetings] = await Promise.all([
+  const [head, { assignments, total }, ranking, meetings, dates] = await Promise.all([
     assignmentSubject(semesterId, subjectId),
     listAssignments({ semesterId, subjectId, name, date, meetingId, page }),
     assignmentRanking(semesterId, subjectId),
     assignmentMeetings(teacherId, semesterId, subjectId),
+    assignmentDates(semesterId, subjectId),
   ]);
   const meeting = meetings.find((m) => m.id === meetingId);
   const students = ranking.students;
@@ -101,7 +101,7 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
                 <SearchSelect
                   id="filter-meeting"
                   name="meeting"
-                  options={meetings.map((m) => ({ value: String(m.id), label: meetingLabel(m, m.own) }))}
+                  options={[{ value: "", label: "All weekly meetings" }, ...meetings.map((m) => ({ value: String(m.id), label: meetingLabel(m, m.own) }))]}
                   defaultValue={meetingId === null ? "" : String(meetingId)}
                   placeholder="All weekly meetings"
                 />
@@ -112,7 +112,14 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-date">Date</Label>
-                <DateFilter id="filter-date" defaultValue={date} />
+                {/* the dates that have assignments, not a native date field: browsers (Safari) pre-fill those */}
+                <SearchSelect
+                  id="filter-date"
+                  name="date"
+                  options={[{ value: "", label: "Any date" }, ...dates.map((d) => ({ value: d, label: formatDate(d) }))]}
+                  defaultValue={date}
+                  placeholder="Any date"
+                />
               </div>
             </div>
             <FilterActions clearHref={base} filtered={filtered} />
