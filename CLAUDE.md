@@ -91,7 +91,7 @@ app/
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
   teacher/assignments/  "Assignments": same first screen as Gradings (semester picker + subject cards with assignment counts);
                         [semesterId]/[subjectId] = list (weekly meeting (SearchSelect, ?meeting=; from a meeting the back link returns to it
-                        and Register pre-picks it) + name + optional date (DateFilter: × clears it, empty = any date, not posted) filters, 10 per page, newest date first; Weekly meeting column; students scored
+                        and Register pre-picks it) + name + optional date (DateFilter: "Any date" text field that becomes the date picker on focus, × clears it, empty = not posted) filters, 10 per page, newest date first; Weekly meeting column; students scored
                         "n of N", average "avg / max (pct%)", edit + delete with AlertDialog), then "Assignment ranking" below the pager (every
                         graded student: points earned ÷ points possible over the assignments they were scored in, %, dense places,
                         unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
