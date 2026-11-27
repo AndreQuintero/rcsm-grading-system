@@ -15,7 +15,8 @@ export const ATTENDANCE = [
 export type Attendance = (typeof ATTENDANCE)[number]["key"];
 export const attendanceLabel = (a: string | null) => ATTENDANCE.find((x) => x.key === a)?.label ?? null;
 
-export type Marks = { attendance: Attendance | null; assignments: number | null; participation: number | null };
+export type Marks = { attendance: Attendance | null; assignments: number | null; participation: number | null; participationComment?: string | null };
+export const COMMENT_MAX = 2000;
 export type MeetingInput = { name: string; heldOn: string };
 export type MeetingFormState = { errors?: Record<string, string>; message?: string; values?: Record<string, string> };
 
@@ -59,4 +60,27 @@ export function parseAttendance(fd: FormData): { data?: Map<number, Attendance |
     data.set(Number(m[1]), (v || null) as Attendance | null);
   }
   return { data };
+}
+
+export type Participation = { score: number | null; comment: string | null };
+export type ParticipationState = { errors?: Record<string, string>; message?: string };
+
+// Untrusted participation form: `part-<studentId>` = blank or a whole number 0–100, `note-<studentId>` = optional
+// comment up to 2000 characters. Errors are keyed by the field name.
+export function parseParticipation(fd: FormData): { data?: Map<number, Participation>; errors?: Record<string, string> } {
+  const data = new Map<number, Participation>();
+  const errors: Record<string, string> = {};
+  const row = (id: number) => data.get(id) ?? (data.set(id, { score: null, comment: null }), data.get(id)!);
+  for (const [key, value] of fd.entries()) {
+    const m = /^(part|note)-(\d+)$/.exec(key);
+    if (!m) continue;
+    const v = String(value).trim();
+    if (m[1] === "part") {
+      if (v === "") row(Number(m[2])).score = null;
+      else if (/^\d+$/.test(v) && Number(v) <= MARK_MAX) row(Number(m[2])).score = Number(v);
+      else errors[key] = `Enter a whole number from 0 to ${MARK_MAX}, or leave it empty.`;
+    } else if (v.length > COMMENT_MAX) errors[key] = `Use at most ${COMMENT_MAX} characters.`;
+    else row(Number(m[2])).comment = v || null;
+  }
+  return Object.keys(errors).length ? { errors } : { data };
 }

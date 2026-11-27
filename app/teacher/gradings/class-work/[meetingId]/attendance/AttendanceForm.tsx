@@ -37,7 +37,13 @@ export function AttendanceForm({ meetingId, subjectId, students, back }: { meeti
     <form action={action}>
       <FormCard
         footer={
-          <Button type="submit" size="lg" disabled={pending}>{pending ? "Saving…" : "Save attendance"}</Button>
+          <>
+            <Button type="submit" size="lg" disabled={pending}>{pending ? "Saving…" : "Save attendance"}</Button>
+            {/* fills the form only; nothing is saved until "Save attendance" */}
+            <Button type="button" variant="outline" size="lg" disabled={pending} onClick={() => setPicked(Object.fromEntries(students.map((s) => [s.id, "present"])))}>
+              Mark everyone present
+            </Button>
+          </>
         }
       >
         <FieldError message={state.error} />

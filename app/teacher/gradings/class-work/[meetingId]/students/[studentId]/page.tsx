@@ -55,7 +55,12 @@ async function Student({ params, searchParams }: { params: Promise<Params>; sear
           <div><dt className="text-sm text-muted-foreground">Assignments and Activities</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.assignments === null ? "–" : `${s.marks.assignments}%`}<span className="text-sm font-medium text-muted-foreground"> earned</span></dd></div>
           <div><dt className="text-sm text-muted-foreground">Participation</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.participation ?? "–"}<span className="text-sm font-medium text-muted-foreground"> / 100</span></dd></div>
         </dl>
-        <p className="mt-6 text-sm text-muted-foreground">Entering this student&apos;s weekly grades comes in the next step.</p>
+        {s.marks.participationComment && (
+          <blockquote className="mt-6 rounded-2xl bg-muted/60 p-4 text-sm whitespace-pre-line">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Participation comment</span>
+            {s.marks.participationComment}
+          </blockquote>
+        )}
       </section>
     </>
   );

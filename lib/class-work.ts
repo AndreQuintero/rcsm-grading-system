@@ -1,7 +1,7 @@
 import { sql } from "@/lib/db";
 import { batchLabel } from "@/lib/batch";
 import { gradedStudents } from "@/lib/grading";
-import { CLASS_WORK_PAGE_SIZE, type Attendance, type Marks, type MeetingInput } from "@/lib/class-work-shared";
+import { CLASS_WORK_PAGE_SIZE, type Attendance, type Marks, type MeetingInput, type Participation } from "@/lib/class-work-shared";
 
 // Class work: weekly meetings belong to one teacher (every query is filtered by teacher_id), in one academic semester.
 
@@ -58,7 +58,10 @@ export type MeetingStudent = { id: number; name: string; status: string; hasPhot
 const toStudent = (s: Record<string, unknown>): MeetingStudent => ({
   id: s.id as number, name: s.name as string, status: s.status as string, hasPhoto: s.has_photo as boolean,
   batch: batchLabel(s as { number: number; year: number; semester: number }),
-  marks: { attendance: (s.attendance ?? null) as Marks["attendance"], assignments: (s.assignments ?? null) as number | null, participation: (s.participation ?? null) as number | null },
+  marks: {
+    attendance: (s.attendance ?? null) as Marks["attendance"], assignments: (s.assignments ?? null) as number | null,
+    participation: (s.participation ?? null) as number | null, participationComment: (s.participation_comment ?? null) as string | null,
+  },
 });
 
 // How many assignments this meeting has for the subject.
@@ -72,7 +75,7 @@ export async function meetingAssignmentCount(meetingId: number, subjectId: numbe
 export async function meetingStudents(meetingId: number, semesterId: number, subjectId: number, studentId: number | null = null) {
   const rows = await sql.query(
     `SELECT g.id, concat_ws(' ', g.first_name, g.middle_name, g.last_name) AS name, g.status, g.photo IS NOT NULL AS has_photo,
-       b.number, b.year, b.semester, mk.attendance, mk.participation,
+       b.number, b.year, b.semester, mk.attendance, mk.participation, mk.participation_comment,
        -- assignments = % of the points possible in this meeting's assignments of the subject the student was scored in
        (SELECT round(100.0 * sum(sc.score) / sum(a.max_score))::int FROM assignments a
           JOIN assignment_scores sc ON sc.assignment_id = a.id AND sc.student_id = g.id
@@ -102,4 +105,17 @@ export async function saveAttendance(meetingId: number, subjectId: number, allow
     sql`UPDATE class_meeting_marks SET attendance = NULL, updated_at = now()
         WHERE meeting_id = ${meetingId} AND subject_id = ${subjectId} AND student_id = ANY(${blanks}::int[]) AND attendance IS NOT NULL`,
   ]);
+}
+
+// Saves participation scores and comments of one meeting + subject for the students in `allowed`; a student sent
+// without a row gets both cleared. Attendance on the same row is kept; anyone else is left untouched.
+export async function saveParticipation(meetingId: number, subjectId: number, allowed: number[], marks: Map<number, Participation>) {
+  const ids = allowed;
+  const scores = allowed.map((id) => marks.get(id)?.score ?? null);
+  const comments = allowed.map((id) => marks.get(id)?.comment ?? null);
+  await sql`
+    INSERT INTO class_meeting_marks (meeting_id, subject_id, student_id, participation, participation_comment)
+    SELECT ${meetingId}, ${subjectId}, x.id, x.score, x.note FROM unnest(${ids}::int[], ${scores}::int[], ${comments}::text[]) AS x(id, score, note)
+    ON CONFLICT (meeting_id, subject_id, student_id)
+    DO UPDATE SET participation = EXCLUDED.participation, participation_comment = EXCLUDED.participation_comment, updated_at = now()`;
 }

@@ -17,9 +17,11 @@ export function AttendanceBadge({ value }: { value: Marks["attendance"] }) {
   return <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", ATTENDANCE_TONE[value])}>{attendanceLabel(value)}</span>;
 }
 
-// The weekly meeting's three class work cards for one subject: attendance rate with the counts, the class average %
-// earned in the meeting's assignments (the card opens them), and the participation average out of 100.
-export function ClassWorkAverages({ marks, assignments, assignmentsHref, attendanceHref }: { marks: Marks[]; assignments: number; assignmentsHref: string; attendanceHref: string }) {
+// The weekly meeting's three class work cards for one subject, each opening its page: attendance rate with the counts,
+// the class average % earned in the meeting's assignments, and the participation average out of 100.
+export function ClassWorkAverages({ marks, assignments, assignmentsHref, attendanceHref, participationHref }: {
+  marks: Marks[]; assignments: number; assignmentsHref: string; attendanceHref: string; participationHref: string;
+}) {
   const s = meetingSummary(marks);
   const c = s.attendance.counts;
   const card = "flex h-full flex-col gap-3 rounded-[1.75rem] border border-border/70 bg-card p-6";
@@ -56,10 +58,12 @@ export function ClassWorkAverages({ marks, assignments, assignmentsHref, attenda
             </span>
           </Link>
         </li>
-        <li className={card}>
-          {head(MessagesSquare, "bg-amber-500/12 text-amber-700", "Participation")}
-          <span className={big}>{s.participation.avg === null ? "–" : one(s.participation.avg)}<span className={small}> / 100</span></span>
-          <span className="text-sm text-muted-foreground">{s.participation.n ? `${scored(s.participation.n)} marked` : "No marks yet"}</span>
+        <li>
+          <Link href={participationHref} className={linkCard}>
+            <span className="flex items-start justify-between gap-2">{head(MessagesSquare, "bg-amber-500/12 text-amber-700", "Participation")}{chevron}</span>
+            <span className={big}>{s.participation.avg === null ? "–" : one(s.participation.avg)}<span className={small}> / 100</span></span>
+            <span className="text-sm text-muted-foreground">{s.participation.n ? `${scored(s.participation.n)} scored` : "No scores yet. Open to give them."}</span>
+          </Link>
         </li>
       </ul>
     </section>

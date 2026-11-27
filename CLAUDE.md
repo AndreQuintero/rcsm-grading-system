@@ -78,10 +78,13 @@ app/
                         list); [meetingId]?subject= = summary: subject pill (SemesterSelect kind="subject") over the teacher's subjects that
                         semester, ClassWorkAverages = 3 cards (Attendance % present + counts, links to [meetingId]/attendance?subject=; Assignments and Activities = class average % earned
                         in the meeting's assignments of the subject, links to /teacher/assignments/<sem>/<subject>?meeting=<id>; Participation
-                        avg / 100), student list (graded students of the subject) linking to [meetingId]/students/[studentId]?subject=
+                        avg / 100, links to [meetingId]/participation?subject=), student list (graded students of the subject) linking to [meetingId]/students/[studentId]?subject=
                         (read-only summary); [meetingId]/attendance?subject= = AttendanceForm: one row per graded student with 4 native
-                        radios (Present/Late/Absent/Excused, controlled, posted as att-<id>), live counts, one "Save attendance" → toast +
-                        back to the meeting (saveAttendanceAction: own meeting + teaches; participation entry comes later)); [semesterId]/[subjectId] shows the batches an admin
+                        radios (Present/Late/Absent/Excused, controlled, posted as att-<id>), live counts, "Mark everyone present" (fills the
+                        form only), one "Save attendance" → toast + back to the meeting (saveAttendanceAction: own meeting + teaches);
+                        [meetingId]/participation?subject= = ParticipationForm: per student a 0–100 score (part-<id>) + optional comment ≤ 2000
+                        (note-<id>), live class average, "Save participation" (saveParticipationAction, same checks); the student summary
+                        shows the comment); [semesterId]/[subjectId] shows the batches an admin
                         assigned (read-only chips; teachers can't bind batches) and, once a batch is assigned, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
@@ -123,7 +126,8 @@ lib/auth/     roles (client-safe), sync, session, login (completeLogin: shared e
               (WebAuthn via @simplewebauthn/server), password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
 lib/          class-work.ts (server: listMeetings, getMeeting, insert/update/deleteMeeting, meetingStudents, meetingAssignmentCount,
-              saveAttendance), class-work-shared.ts (client-safe: ATTENDANCE, parseMeeting, parseAttendance, meetingSummary), assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
+              saveAttendance, saveParticipation), class-work-shared.ts (client-safe: ATTENDANCE, parseMeeting, parseAttendance,
+              parseParticipation, meetingSummary), assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
               saveAssignment, scoresAbove, deleteAssignment, assignmentRanking), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
               student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
               studentRecordView = one semester or "all", requireStudent, studentCanSeeTeacher),
@@ -199,7 +203,8 @@ Conventions:
   meeting's assignments of the subject (`class_meeting_marks.assignments` is unused). Attendance % = (present + late) / (present + late + absent),
   excused left out (`meetingSummary` in lib/class-work-shared.ts). Deleting a meeting (its marks and
   assignments) or semester cascades. Attendance is saved per meeting + subject (`saveAttendance`: upsert for the students the subject grades, blank clears,
-  other marks of the row kept); nothing writes participation yet.
+  other marks of the row kept); participation score + `participation_comment` (migration 022, ≤ 2000) likewise
+  (`saveParticipation`: the listed students' row values are replaced, attendance kept).
 - **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
   (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
   grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
@@ -329,7 +334,7 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
 the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams), 017 drop the old grade columns (midterm, presence, final_exam;
 it also deleted the 9 old-type grade rows). 016b-clear-old-grades.sql was never run and is obsolete: it reads the dropped
-columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method), 020 class work (class_meetings, class_meeting_marks), 021 assignments.meeting_id (deleted the 4 existing assignments). A migration that removes something production code still reads must wait
+columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method), 020 class work (class_meetings, class_meeting_marks), 021 assignments.meeting_id (deleted the 4 existing assignments), 022 class_meeting_marks.participation_comment. A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment

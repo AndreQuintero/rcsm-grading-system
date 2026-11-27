@@ -258,3 +258,6 @@ CREATE INDEX IF NOT EXISTS class_meeting_marks_student_idx ON class_meeting_mark
 -- Assignments belong to a weekly meeting (migration 021; required by the app).
 ALTER TABLE assignments ADD COLUMN IF NOT EXISTS meeting_id int REFERENCES class_meetings(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS assignments_meeting_idx ON assignments (meeting_id);
+
+-- The teacher's comment on a student's weekly participation (migration 022).
+ALTER TABLE class_meeting_marks ADD COLUMN IF NOT EXISTS participation_comment text CHECK (char_length(participation_comment) <= 2000);
