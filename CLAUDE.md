@@ -79,7 +79,8 @@ app/
                         semester, ClassWorkAverages = 3 cards (Attendance % present + counts, links to [meetingId]/attendance?subject=; Assignments and Activities = class average % earned
                         in the meeting's assignments of the subject, links to /teacher/assignments/<sem>/<subject>?meeting=<id>; Participation
                         avg / 100, links to [meetingId]/participation?subject=), student list (graded students of the subject) linking to [meetingId]/students/[studentId]?subject=
-                        (read-only summary + that meeting's assignments with score and comment); [meetingId]/attendance?subject= = AttendanceForm: one row per graded student with 4 native
+                        (read-only: student card with the 3 marks, then "Assignments and Activities" = the meeting's assignments of the subject
+                        with score and comment + link to them, and "Participation" = score + comment + link to edit; empty → "No comment."); [meetingId]/attendance?subject= = AttendanceForm: one row per graded student with 4 native
                         radios (Present/Late/Absent/Excused, controlled, posted as att-<id>), live counts, "Mark everyone present" (fills the
                         form only), one "Save attendance" → toast + back to the meeting (saveAttendanceAction: own meeting + teaches);
                         [meetingId]/participation?subject= = ParticipationForm: per student a 0–100 score (part-<id>) + optional comment ≤ 2000
