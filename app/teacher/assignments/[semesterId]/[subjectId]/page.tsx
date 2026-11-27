@@ -23,6 +23,7 @@ import { ASSIGNMENT_PAGE_SIZE } from "@/lib/assignment-shared";
 import { formatDate, isRealDate } from "@/lib/dates";
 import { requireTeacher, teaches } from "@/lib/grading";
 import { deleteAssignmentAction } from "../../actions";
+import { DateFilter } from "./DateFilter";
 
 type Params = { semesterId: string; subjectId: string };
 type SearchParams = { name?: string; date?: string; meeting?: string; page?: string };
@@ -111,7 +112,7 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-date">Date</Label>
-                <Input id="filter-date" name="date" type="date" defaultValue={date} />
+                <DateFilter id="filter-date" defaultValue={date} />
               </div>
             </div>
             <FilterActions clearHref={base} filtered={filtered} />
