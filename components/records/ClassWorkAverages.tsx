@@ -1,4 +1,5 @@
-import { CalendarCheck, ClipboardList, MessagesSquare } from "lucide-react";
+import { CalendarCheck, ChevronRight, ClipboardList, MessagesSquare } from "lucide-react";
+import Link from "next/link";
 import { attendanceLabel, meetingSummary, type Marks } from "@/lib/class-work-shared";
 import { cn } from "@/lib/utils";
 
@@ -16,45 +17,53 @@ export function AttendanceBadge({ value }: { value: Marks["attendance"] }) {
   return <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", ATTENDANCE_TONE[value])}>{attendanceLabel(value)}</span>;
 }
 
-// The weekly meeting's summary for one subject, in the style of GradeAverages: attendance rate with the counts, and the
-// average assignments and participation scores out of 100.
-export function ClassWorkAverages({ marks }: { marks: Marks[] }) {
+// The weekly meeting's three class work cards for one subject: attendance rate with the counts, the class average %
+// earned in the meeting's assignments (the card opens them), and the participation average out of 100.
+export function ClassWorkAverages({ marks, assignments, assignmentsHref }: { marks: Marks[]; assignments: number; assignmentsHref: string }) {
   const s = meetingSummary(marks);
   const c = s.attendance.counts;
-  const block = "flex flex-col gap-3 border-border/70 p-6";
+  const card = "flex h-full flex-col gap-3 rounded-[1.75rem] border border-border/70 bg-card p-6";
   const head = (Icon: typeof CalendarCheck, tint: string, label: string) => (
-    <dt className="flex min-h-10 items-center gap-2.5 text-sm text-muted-foreground">
+    <span className="flex min-h-10 items-center gap-2.5 text-sm text-muted-foreground">
       <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", tint)}><Icon className="size-4" aria-hidden="true" /></span>
       {label}
-    </dt>
+    </span>
   );
-  const score = (k: "assignments" | "participation", Icon: typeof CalendarCheck, tint: string, label: string, last: boolean) => (
-    <div className={cn(block, !last && "border-b md:border-b-0 md:border-r")}>
-      {head(Icon, tint, label)}
-      <dd className="font-heading text-4xl font-bold whitespace-nowrap tabular-nums">
-        {s[k].avg === null ? "–" : one(s[k].avg!)}
-        <span className="text-lg font-medium text-muted-foreground"> / 100</span>
-      </dd>
-      <dd className="text-sm text-muted-foreground">{s[k].n ? `${s[k].n} student${s[k].n === 1 ? "" : "s"} marked` : "No marks yet"}</dd>
-    </div>
-  );
+  const big = "font-heading text-4xl font-bold whitespace-nowrap tabular-nums";
+  const small = "text-lg font-medium text-muted-foreground";
+  const scored = (n: number) => `${n} student${n === 1 ? "" : "s"}`;
   return (
-    <section aria-labelledby="summary" className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-card">
-      <h2 id="summary" className="sr-only">Summary</h2>
-      <dl className="grid md:grid-cols-3">
-        <div className={cn(block, "border-b md:border-b-0 md:border-r")}>
+    <section aria-labelledby="summary">
+      <h2 id="summary" className="sr-only">Class work</h2>
+      <ul className="grid gap-4 md:grid-cols-3">
+        <li className={card}>
           {head(CalendarCheck, "bg-success/12 text-success", "Attendance")}
-          <dd className="font-heading text-4xl font-bold whitespace-nowrap tabular-nums">
-            {s.attendance.pct === null ? "–" : `${s.attendance.pct}%`}
-            <span className="text-lg font-medium text-muted-foreground"> present</span>
-          </dd>
-          <dd className="text-sm text-muted-foreground">
+          <span className={big}>{s.attendance.pct === null ? "–" : `${s.attendance.pct}%`}<span className={small}> present</span></span>
+          <span className="text-sm text-muted-foreground">
             {s.attendance.n ? `${c.present} present · ${c.late} late · ${c.absent} absent · ${c.excused} excused` : "No attendance yet"}
-          </dd>
-        </div>
-        {score("assignments", ClipboardList, "bg-primary/10 text-primary", "Assignments average", false)}
-        {score("participation", MessagesSquare, "bg-amber-500/12 text-amber-700", "Participation average", true)}
-      </dl>
+          </span>
+        </li>
+        <li>
+          <Link
+            href={assignmentsHref}
+            className={cn(card, "group outline-none transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-[0_12px_32px_-16px_rgba(46,99,207,0.35)] focus-visible:ring-3 focus-visible:ring-ring/40")}
+          >
+            <span className="flex items-start justify-between gap-2">
+              {head(ClipboardList, "bg-primary/10 text-primary", "Assignments and Activities")}
+              <ChevronRight className="mt-2.5 size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </span>
+            <span className={big}>{s.assignments.avg === null ? "–" : `${Math.round(s.assignments.avg)}%`}<span className={small}> average</span></span>
+            <span className="text-sm text-muted-foreground">
+              {assignments ? `${assignments} assignment${assignments === 1 ? "" : "s"} · ${scored(s.assignments.n)} scored` : "No assignments yet. Open to register one."}
+            </span>
+          </Link>
+        </li>
+        <li className={card}>
+          {head(MessagesSquare, "bg-amber-500/12 text-amber-700", "Participation")}
+          <span className={big}>{s.participation.avg === null ? "–" : one(s.participation.avg)}<span className={small}> / 100</span></span>
+          <span className="text-sm text-muted-foreground">{s.participation.n ? `${scored(s.participation.n)} marked` : "No marks yet"}</span>
+        </li>
+      </ul>
     </section>
   );
 }

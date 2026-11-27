@@ -76,18 +76,22 @@ app/
                         cards) and "Class work" (class-work/: the teacher's weekly meetings — list with semester picker (same default rule), 10 per
                         page newest first, View/Edit/Delete; new/ + [meetingId]/edit = MeetingForm (name, date; semester fixed from the
                         list); [meetingId]?subject= = summary: subject pill (SemesterSelect kind="subject") over the teacher's subjects that
-                        semester, ClassWorkAverages (attendance % present + counts, assignments/participation averages / 100), student list
-                        (graded students of the subject) linking to [meetingId]/students/[studentId]?subject= (read-only summary; mark
-                        entry and the blocks' target pages come later)); [semesterId]/[subjectId] shows the batches an admin
+                        semester, ClassWorkAverages = 3 cards (Attendance % present + counts; Assignments and Activities = class average % earned
+                        in the meeting's assignments of the subject, links to /teacher/assignments/<sem>/<subject>?meeting=<id>; Participation
+                        avg / 100), student list (graded students of the subject) linking to [meetingId]/students/[studentId]?subject=
+                        (read-only summary; attendance/participation entry and their cards' pages come later)); [semesterId]/[subjectId] shows the batches an admin
                         assigned (read-only chips; teachers can't bind batches) and, once a batch is assigned, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
   teacher/assignments/  "Assignments": same first screen as Gradings (semester picker + subject cards with assignment counts);
-                        [semesterId]/[subjectId] = list (name + date filters, 10 per page, newest date first; students scored
+                        [semesterId]/[subjectId] = list (weekly meeting (SearchSelect, ?meeting=; from a meeting the back link returns to it
+                        and Register pre-picks it) + name + date filters, 10 per page, newest date first; Weekly meeting column; students scored
                         "n of N", average "avg / max (pct%)", edit + delete with AlertDialog), then "Assignment ranking" below the pager (every
                         graded student: points earned ÷ points possible over the assignments they were scored in, %, dense places,
                         unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
-                        empty state saying an admin assigns batches, back to the list) with AssignmentForm (name, date, maximum points
+                        empty state saying an admin assigns batches, back to the list; no own weekly meeting in the semester → "Register a
+                        weekly meeting first" (Calendar booking Lottie) linking to Class work) with AssignmentForm (weekly meeting = SearchSelect
+                        over the teacher's own meetings, or another teacher's meeting shown fixed on edit; name, date, maximum points
                         1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
                         0..max); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,
@@ -181,13 +185,18 @@ Conventions:
   subject like grades (every teacher of the subject shares them). The form lists the students the subject grades
   (`gradedStudents`); saving writes only those (blank removes a score, others' scores are kept; a lower maximum is refused
   while an unlisted student's score is above it). A new assignment needs ≥ 1 bound batch; deleting cascades the scores.
-  Separate from `grades.assignments` (that 0–25 grade is still typed by hand).
+  Separate from `grades.assignments` (that 0–25 grade is still typed by hand). Every assignment belongs to a **weekly
+  meeting** (`meeting_id`, migration 021, ON DELETE CASCADE; nullable in the DB for the pre-deploy code, required by
+  `parseAssignment`): create/move only into the teacher's own meeting of that semester; an edit by another teacher of the
+  subject keeps the meeting (`meetingAllowed`). Assignments stay shared by the subject's teachers and show the meeting
+  (+ its teacher when not yours). The 4 assignments made before 021 were deleted (user's choice).
 - **Class work** (migration 020): `class_meetings` (teacher, semester, name ≤ 150, `held_on`) belong to **one teacher**
   (every query filters `teacher_id`; created only in a semester they teach in). `class_meeting_marks` (meeting, subject,
   student: `attendance` present|late|absent|excused, `assignments`/`participation` 0–100, NULL = not given). Students of
-  a meeting + subject = the grading rule (`gradedStudents`). Attendance % = (present + late) / (present + late + absent),
-  excused left out (`meetingSummary` in lib/class-work-shared.ts). Deleting a meeting or semester cascades. Nothing
-  writes marks yet (entry UI is the next step).
+  a meeting + subject = the grading rule (`gradedStudents`); their "assignments" value = % of points earned in the
+  meeting's assignments of the subject (`class_meeting_marks.assignments` is unused). Attendance % = (present + late) / (present + late + absent),
+  excused left out (`meetingSummary` in lib/class-work-shared.ts). Deleting a meeting (its marks and
+  assignments) or semester cascades. Nothing writes attendance/participation marks yet (entry UI is a next step).
 - **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
   (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
   grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.
@@ -317,7 +326,7 @@ semester), 006 admins, 007 auth (users, user_roles, tokens, sessions, rate limit
 `scripts/backfill-users.ts`), 008 token purpose (setup | reset), 009 admin/teacher photos, 010 users.photo (avatar), 011 users.disabled_at (admin block), 012 academic semesters, 013 drop teacher_subjects (applied after
 the deploy that stopped reading it), 014 gradings (subject_batches, grades), 015 delete accounts whose email is in no role table, 016 new grade columns (attendance, assignments, exams), 017 drop the old grade columns (midterm, presence, final_exam;
 it also deleted the 9 old-type grade rows). 016b-clear-old-grades.sql was never run and is obsolete: it reads the dropped
-columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method), 020 class work (class_meetings, class_meeting_marks). A migration that removes something production code still reads must wait
+columns and would fail. 018 assignments (assignments, assignment_scores), 019 passkeys (user_passkeys, webauthn_challenges, sessions.method), 020 class work (class_meetings, class_meeting_marks), 021 assignments.meeting_id (deleted the 4 existing assignments). A migration that removes something production code still reads must wait
 for that code's deploy, since the database is shared. Production uses the same database, so a migration is live immediately — note it in the PR.
 
 ## Git, PRs and deployment

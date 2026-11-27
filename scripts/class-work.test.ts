@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { createAcademicSemester } from "../lib/academic-semester";
-import { deleteMeeting, getMeeting, insertMeeting, listMeetings, meetingStudents, updateMeeting } from "../lib/class-work";
+import { deleteMeeting, getMeeting, insertMeeting, listMeetings, meetingAssignmentCount, meetingStudents, updateMeeting } from "../lib/class-work";
 import { meetingSummary, parseMeeting } from "../lib/class-work-shared";
 import { bindBatch } from "../lib/grading";
 
@@ -75,6 +75,12 @@ const fd = (o: Record<string, string>) => { const f = new FormData(); for (const
     await bindBatch(sem, art, b1);
     await sql`INSERT INTO class_meeting_marks (meeting_id, subject_id, student_id, attendance, assignments, participation) VALUES
       (${w1}, ${art}, ${st1}, 'present', 90, 80), (${w2}, ${art}, ${st1}, 'absent', null, null), (${w1}, ${music}, ${st2}, 'late', 10, 10)`;
+    // assignments = % earned in this meeting's assignments of the subject: 18 + 9 of 20 + 10 → 90%
+    const [x1, x2] = (await sql`INSERT INTO assignments (academic_semester_id, subject_id, name, due_on, max_score, meeting_id) VALUES
+      (${sem}, ${art}, 'Essay', '2090-08-04', 20, ${w1}), (${sem}, ${art}, 'Quiz', '2090-08-04', 10, ${w1}) RETURNING id`).map((r) => r.id as number);
+    await sql`INSERT INTO assignment_scores VALUES (${x1}, ${st1}, 18), (${x2}, ${st1}, 9)`;
+    assert.equal(await meetingAssignmentCount(w1, art), 2);
+    assert.equal(await meetingAssignmentCount(w2, art), 0);
     const list = await meetingStudents(w1, sem, art);
     assert.deepEqual(list.map((x) => [x.name, x.marks]), [
       ["Cwtest Alpha", { attendance: "present", assignments: 90, participation: 80 }],
@@ -84,8 +90,9 @@ const fd = (o: Record<string, string>) => { const f = new FormData(); for (const
     assert.deepEqual((await meetingStudents(w1, sem, art, st2)).map((x) => x.id), [st2]);
     assert.deepEqual(await meetingStudents(w1, sem, music), [], "music has no batch, so no students");
 
-    // deleting a meeting removes its marks only
+    // deleting a meeting removes its marks and assignments only
     assert.equal(await deleteMeeting(ada, w1), true);
+    assert.equal((await sql`SELECT count(*)::int AS n FROM assignments WHERE meeting_id = ${w1}`)[0].n, 0);
     assert.equal((await sql`SELECT count(*)::int AS n FROM class_meeting_marks WHERE meeting_id = ${w1}`)[0].n, 0);
     assert.equal((await sql`SELECT count(*)::int AS n FROM class_meeting_marks WHERE meeting_id = ${w2}`)[0].n, 1);
     // deleting the semester removes its meetings

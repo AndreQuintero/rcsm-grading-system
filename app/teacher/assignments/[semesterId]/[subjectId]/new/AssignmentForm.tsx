@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import type { AssignmentStudent } from "@/lib/assignment";
 import { ASSIGNMENT_MAX_SCORE, ASSIGNMENT_NAME_MAX, scoreAverage, type AssignmentFormState } from "@/lib/assignment-shared";
 import { cn } from "@/lib/utils";
+import { SearchSelect } from "@/app/SearchSelect";
 import { createAssignmentAction, updateAssignmentAction } from "../../../actions";
 
 type Props = {
@@ -19,12 +20,16 @@ type Props = {
   assignmentId?: number;
   students: AssignmentStudent[];
   initial: Record<string, string>;
+  // the teacher's own weekly meetings; `fixedMeeting` = another teacher's meeting this assignment is in (kept as is)
+  meetings: { value: string; label: string }[];
+  fixedMeeting?: { id: number; label: string };
+  returnTo?: string; // where a save goes back to (default: the subject's assignment list)
 };
 
 // Registers an assignment, or edits one when assignmentId is given. Controlled, so the live average and the inputs
 // survive React's form reset after the action.
-export function AssignmentForm({ semesterId, subjectId, assignmentId, students, initial }: Props) {
-  const list = `/teacher/assignments/${semesterId}/${subjectId}`;
+export function AssignmentForm({ semesterId, subjectId, assignmentId, students, initial, meetings, fixedMeeting, returnTo }: Props) {
+  const list = returnTo ?? `/teacher/assignments/${semesterId}/${subjectId}`;
   const savedRedirect = useSavedRedirect(list);
   const [v, setV] = useState<Record<string, string>>(initial);
   const [state, action, pending] = useActionState(async (prev: AssignmentFormState, fd: FormData) => {
@@ -56,6 +61,19 @@ export function AssignmentForm({ semesterId, subjectId, assignmentId, students, 
         }
       >
         <FieldError message={e.form} />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="meetingId">Weekly meeting</Label>
+          {fixedMeeting ? (
+            <>
+              <input type="hidden" name="meetingId" value={fixedMeeting.id} />
+              <p id="meetingId" className="text-sm">{fixedMeeting.label}</p>
+              <p className="text-sm text-muted-foreground">Another teacher&apos;s weekly meeting: only they can move this assignment.</p>
+            </>
+          ) : (
+            <SearchSelect id="meetingId" name="meetingId" options={meetings} defaultValue={initial.meetingId ?? ""} placeholder="Search your weekly meetings…" />
+          )}
+          <FieldError message={e.meetingId} />
+        </div>
         <div className="grid gap-6 sm:grid-cols-[2fr_1fr_1fr]">
           <div className="flex flex-col gap-2">
             <Label htmlFor="name">Assignment name</Label>

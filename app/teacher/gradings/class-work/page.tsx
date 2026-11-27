@@ -129,7 +129,7 @@ async function Meetings({ searchParams }: { searchParams: Promise<SearchParams> 
                       action={deleteMeetingAction.bind(null, m.id)}
                       name={m.name}
                       noun="weekly meeting"
-                      note="Its class work grades are removed too."
+                      note="Its class work grades and its assignments (with their scores) are removed too."
                     />
                   </div>
                 </TableCell>

@@ -52,7 +52,7 @@ async function Student({ params, searchParams }: { params: Promise<Params>; sear
         </div>
         <dl className="mt-6 grid gap-4 border-t border-border/70 pt-6 sm:grid-cols-3">
           <div><dt className="text-sm text-muted-foreground">Attendance</dt><dd className="mt-1"><AttendanceBadge value={s.marks.attendance} /></dd></div>
-          <div><dt className="text-sm text-muted-foreground">Assignments</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.assignments ?? "–"}<span className="text-sm font-medium text-muted-foreground"> / 100</span></dd></div>
+          <div><dt className="text-sm text-muted-foreground">Assignments and Activities</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.assignments === null ? "–" : `${s.marks.assignments}%`}<span className="text-sm font-medium text-muted-foreground"> earned</span></dd></div>
           <div><dt className="text-sm text-muted-foreground">Participation</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.participation ?? "–"}<span className="text-sm font-medium text-muted-foreground"> / 100</span></dd></div>
         </dl>
         <p className="mt-6 text-sm text-muted-foreground">Entering this student&apos;s weekly grades comes in the next step.</p>

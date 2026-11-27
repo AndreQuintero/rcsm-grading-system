@@ -61,11 +61,22 @@ const toStudent = (s: Record<string, unknown>): MeetingStudent => ({
   marks: { attendance: (s.attendance ?? null) as Marks["attendance"], assignments: (s.assignments ?? null) as number | null, participation: (s.participation ?? null) as number | null },
 });
 
-// The subject's students (the grading rule) with their marks in this meeting. Optionally one student only.
+// How many assignments this meeting has for the subject.
+export async function meetingAssignmentCount(meetingId: number, subjectId: number): Promise<number> {
+  const [r] = await sql`SELECT count(*)::int AS n FROM assignments WHERE meeting_id = ${meetingId} AND subject_id = ${subjectId}`;
+  return r.n as number;
+}
+
+// The subject's students (the grading rule) with their marks in this meeting: attendance and participation as given,
+// assignments as the % earned in the meeting's assignments of the subject. Optionally one student only.
 export async function meetingStudents(meetingId: number, semesterId: number, subjectId: number, studentId: number | null = null) {
   const rows = await sql.query(
     `SELECT g.id, concat_ws(' ', g.first_name, g.middle_name, g.last_name) AS name, g.status, g.photo IS NOT NULL AS has_photo,
-       b.number, b.year, b.semester, mk.attendance, mk.assignments, mk.participation
+       b.number, b.year, b.semester, mk.attendance, mk.participation,
+       -- assignments = % of the points possible in this meeting's assignments of the subject the student was scored in
+       (SELECT round(100.0 * sum(sc.score) / sum(a.max_score))::int FROM assignments a
+          JOIN assignment_scores sc ON sc.assignment_id = a.id AND sc.student_id = g.id
+          WHERE a.meeting_id = $3 AND a.subject_id = $2) AS assignments
      FROM (${gradedStudents()}) g
      JOIN batches b ON b.id = g.bound_batch
      LEFT JOIN class_meeting_marks mk ON mk.meeting_id = $3 AND mk.subject_id = $2 AND mk.student_id = g.id

@@ -17,19 +17,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { periodLabel } from "@/lib/academic-semester";
-import { assignmentRanking, assignmentSubject, listAssignments } from "@/lib/assignment";
+import { assignmentMeetings, assignmentRanking, assignmentSubject, listAssignments, meetingLabel } from "@/lib/assignment";
+import { SearchSelect } from "@/app/SearchSelect";
 import { ASSIGNMENT_PAGE_SIZE } from "@/lib/assignment-shared";
 import { formatDate, isRealDate } from "@/lib/dates";
 import { requireTeacher, teaches } from "@/lib/grading";
 import { deleteAssignmentAction } from "../../actions";
 
 type Params = { semesterId: string; subjectId: string };
-type SearchParams = { name?: string; date?: string; page?: string };
-const COLUMNS = ["Assignment", "Date", "Students scored", "Average score", "Actions"];
+type SearchParams = { name?: string; date?: string; meeting?: string; page?: string };
+const COLUMNS = ["Assignment", "Weekly meeting", "Date", "Students scored", "Average score", "Actions"];
 
 export default function Page({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<SearchParams> }) {
   return (
-    <Suspense fallback={<main><ListSkeleton filters={["Assignment name", "Date"]} columns={COLUMNS} /></main>}>
+    <Suspense fallback={<main><ListSkeleton filters={["Weekly meeting", "Assignment name", "Date"]} columns={COLUMNS} /></main>}>
       <Results params={params} searchParams={searchParams} />
     </Suspense>
   );
@@ -43,35 +44,44 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
   const name = (sp.name ?? "").trim();
   const date = isRealDate(sp.date ?? "") ? sp.date! : "";
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
-  const [head, { assignments, total }, ranking] = await Promise.all([
+  const meetingId = /^\d+$/.test(sp.meeting ?? "") ? Number(sp.meeting) : null;
+  const [head, { assignments, total }, ranking, meetings] = await Promise.all([
     assignmentSubject(semesterId, subjectId),
-    listAssignments({ semesterId, subjectId, name, date, page }),
+    listAssignments({ semesterId, subjectId, name, date, meetingId, page }),
     assignmentRanking(semesterId, subjectId),
+    assignmentMeetings(teacherId, semesterId, subjectId),
   ]);
+  const meeting = meetings.find((m) => m.id === meetingId);
   const students = ranking.students;
   if (!head) notFound();
   const base = `/teacher/assignments/${semesterId}/${subjectId}`;
   const pages = Math.max(1, Math.ceil(total / ASSIGNMENT_PAGE_SIZE));
   const pageHref = (n: number) => {
     const q = new URLSearchParams();
+    if (meetingId !== null) q.set("meeting", String(meetingId));
     if (name) q.set("name", name);
     if (date) q.set("date", date);
     if (n > 1) q.set("page", String(n));
     const qs = q.toString();
     return qs ? `${base}?${qs}` : base;
   };
-  const filtered = Boolean(name || date);
+  const filtered = Boolean(name || date || meetingId !== null);
 
   return (
     <main>
       <PageHeader
         title={head.subject}
-        description={`${periodLabel(head.period)} assignments`}
+        description={`${periodLabel(head.period)} assignments${meeting ? ` of ${meeting.name}` : ""}`}
         action={
           <div className="flex items-center gap-3">
-            <BackLink href={`/teacher/assignments?semester=${semesterId}`} label="Back to assignments" />
+            {/* reached from a weekly meeting: back goes to that meeting */}
+            {meeting?.own ? (
+              <BackLink href={`/teacher/gradings/class-work/${meeting.id}?subject=${subjectId}`} label={`Back to ${meeting.name}`} />
+            ) : (
+              <BackLink href={`/teacher/assignments?semester=${semesterId}`} label="Back to assignments" />
+            )}
             <Button asChild size="lg">
-              <Link href={`${base}/new`}>
+              <Link href={`${base}/new${meeting?.own ? `?meeting=${meeting.id}` : ""}`}>
                 <Plus aria-hidden="true" />
                 Register assignment
               </Link>
@@ -84,7 +94,17 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
         <CardContent>
           {/* keyed on the active filters so Clear (a client-side navigation) resets the inputs */}
           <form key={pageHref(1)} method="get" role="search" aria-label="Filter assignments" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-meeting">Weekly meeting</Label>
+                <SearchSelect
+                  id="filter-meeting"
+                  name="meeting"
+                  options={meetings.map((m) => ({ value: String(m.id), label: meetingLabel(m, m.own) }))}
+                  defaultValue={meetingId === null ? "" : String(meetingId)}
+                  placeholder="All weekly meetings"
+                />
+              </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="filter-name">Assignment name</Label>
                 <Input id="filter-name" name="name" defaultValue={name} />
@@ -107,6 +127,7 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
           <TableHeader>
             <TableRow>
               <TableHead className="pl-4">Assignment</TableHead>
+              <TableHead>Weekly meeting</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Students scored</TableHead>
               <TableHead>Average score</TableHead>
@@ -117,6 +138,14 @@ async function Results({ params, searchParams }: { params: Promise<Params>; sear
             {assignments.map((a) => (
               <TableRow key={a.id}>
                 <TableCell className="pl-4 font-medium">{a.name}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {a.meeting ? (
+                    <>
+                      {a.meeting.name}
+                      {meetings.find((m) => m.id === a.meeting!.id)?.own ? null : <span className="block text-xs">{a.meeting.teacher}</span>}
+                    </>
+                  ) : "–"}
+                </TableCell>
                 <TableCell className="text-muted-foreground">{formatDate(a.dueOn)}</TableCell>
                 <TableCell className="tabular-nums">
                   {a.graded} <span className="text-muted-foreground">of {students.length}</span>

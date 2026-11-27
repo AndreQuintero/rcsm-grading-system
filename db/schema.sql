@@ -254,3 +254,7 @@ CREATE TABLE IF NOT EXISTS class_meeting_marks (
   PRIMARY KEY (meeting_id, subject_id, student_id)
 );
 CREATE INDEX IF NOT EXISTS class_meeting_marks_student_idx ON class_meeting_marks (student_id);
+
+-- Assignments belong to a weekly meeting (migration 021; required by the app).
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS meeting_id int REFERENCES class_meetings(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS assignments_meeting_idx ON assignments (meeting_id);
