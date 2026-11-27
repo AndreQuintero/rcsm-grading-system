@@ -91,13 +91,14 @@ app/
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
   teacher/assignments/  "Assignments": same first screen as Gradings (semester picker + subject cards with assignment counts);
                         [semesterId]/[subjectId] = list (weekly meeting (SearchSelect, ?meeting=; from a meeting the back link returns to it
-                        and Register pre-picks it) + name + date filters, 10 per page, newest date first; Weekly meeting column; students scored
+                        and Register pre-picks it) + name + date (SearchSelect over the dates that have assignments, first option "Any date"; no native date field because Safari pre-fills it; the meeting filter likewise starts with "All weekly meetings") filters, 10 per page, newest date first; Weekly meeting column; students scored
                         "n of N", average "avg / max (pct%)", edit + delete with AlertDialog), then "Assignment ranking" below the pager (every
                         graded student: points earned ÷ points possible over the assignments they were scored in, %, dense places,
                         unscored last unranked, rows link to /teacher/records/<id>; assignmentRanking); new/ = register (no batch bound →
                         empty state saying an admin assigns batches, back to the list; no own weekly meeting in the semester → "Register a
                         weekly meeting first" (Calendar booking Lottie) linking to Class work) with AssignmentForm (weekly meeting = SearchSelect
-                        over the teacher's own meetings, or another teacher's meeting shown fixed on edit; name, date, maximum points
+                        over the teacher's own meetings when opened from the Assignments menu; shown fixed (fixedMeeting + note) when opened
+                        with ?meeting= (from a weekly meeting) or, on edit, when it is another teacher's meeting; name, date, maximum points
                         1–1000, live class average, one row per graded student: avatar, name, batch, optional whole score
                         0..max + optional comment ≤ 2000 (comment-<id>)); [assignmentId]/edit reuses it. Actions: requireTeacher() + teaches(semester, subject)
   teacher/records/      "Score records": the teacher's students across all semesters (name/batch/semester filters, 10 per page,

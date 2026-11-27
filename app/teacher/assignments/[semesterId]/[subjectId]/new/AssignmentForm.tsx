@@ -20,9 +20,10 @@ type Props = {
   assignmentId?: number;
   students: AssignmentStudent[];
   initial: Record<string, string>;
-  // the teacher's own weekly meetings; `fixedMeeting` = another teacher's meeting this assignment is in (kept as is)
+  // the teacher's own weekly meetings; `fixedMeeting` = a meeting that can't be changed here, with why (`note`): the
+  // weekly meeting the teacher came from, or another teacher's meeting this assignment is in
   meetings: { value: string; label: string }[];
-  fixedMeeting?: { id: number; label: string };
+  fixedMeeting?: { id: number; label: string; note: string };
   returnTo?: string; // where a save goes back to (default: the subject's assignment list)
 };
 
@@ -67,7 +68,7 @@ export function AssignmentForm({ semesterId, subjectId, assignmentId, students, 
             <>
               <input type="hidden" name="meetingId" value={fixedMeeting.id} />
               <p id="meetingId" className="text-sm">{fixedMeeting.label}</p>
-              <p className="text-sm text-muted-foreground">Another teacher&apos;s weekly meeting: only they can move this assignment.</p>
+              <p className="text-sm text-muted-foreground">{fixedMeeting.note}</p>
             </>
           ) : (
             <SearchSelect id="meetingId" name="meetingId" options={meetings} defaultValue={initial.meetingId ?? ""} placeholder="Search your weekly meetings…" />

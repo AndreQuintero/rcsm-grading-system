@@ -146,6 +146,13 @@ export async function scoresAbove(id: number, maxScore: number, keep: number[]):
   return r.n as number;
 }
 
+// The dates that have assignments of this semester + subject (newest first), for the date filter.
+export async function assignmentDates(semesterId: number, subjectId: number): Promise<string[]> {
+  const rows = await sql`SELECT DISTINCT due_on::text AS d FROM assignments
+    WHERE academic_semester_id = ${semesterId} AND subject_id = ${subjectId} ORDER BY d DESC`;
+  return rows.map((r) => r.d as string);
+}
+
 // The weekly meetings an assignment form or filter can offer: the teacher's own meetings in the semester, plus (for
 // the filter) meetings of other teachers that already hold this subject's assignments. Newest first.
 export async function assignmentMeetings(teacherId: number, semesterId: number, subjectId: number) {

@@ -31,7 +31,7 @@ async function Edit({ params }: { params: Promise<Params> }) {
   ]);
   if (!head || !a) notFound();
   // another teacher's meeting stays as it is; the teacher can only pick among their own
-  const fixedMeeting = a.meeting && a.meetingTeacherId !== teacherId ? { id: a.meeting.id, label: meetingLabel(a.meeting, false) } : undefined;
+  const fixedMeeting = a.meeting && a.meetingTeacherId !== teacherId ? { id: a.meeting.id, label: meetingLabel(a.meeting, false), note: "Another teacher's weekly meeting: only they can move this assignment." } : undefined;
   const initial: Record<string, string> = {
     meetingId: a.meeting ? String(a.meeting.id) : "", name: a.name, dueOn: a.dueOn, maxScore: String(a.maxScore),
     ...Object.fromEntries(Object.entries(a.scores).map(([sid, score]) => [`score-${sid}`, String(score)])),
