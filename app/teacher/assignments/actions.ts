@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assignmentStudents, deleteAssignment, saveAssignment, scoresAbove } from "@/lib/assignment";
+import { assignmentStudents, deleteAssignment, getAssignment, meetingAllowed, saveAssignment, scoresAbove } from "@/lib/assignment";
 import { parseAssignment, type AssignmentFormState } from "@/lib/assignment-shared";
 import { requireTeacher, teaches } from "@/lib/grading";
 
@@ -16,13 +16,17 @@ async function allowed(semesterId: number, subjectId: number) {
 
 // The typed values, so the form keeps them after an error.
 const echo = (fd: FormData) =>
-  Object.fromEntries([...fd.entries()].filter(([k]) => k === "name" || k === "dueOn" || k === "maxScore" || k.startsWith("score-")).map(([k, v]) => [k, String(v)]));
+  Object.fromEntries([...fd.entries()].filter(([k]) => k === "meetingId" || k === "name" || k === "dueOn" || k === "maxScore" || k.startsWith("score-") || k.startsWith("comment-")).map(([k, v]) => [k, String(v)]));
 
 async function save(semesterId: number, subjectId: number, id: number | null, fd: FormData): Promise<AssignmentFormState> {
-  const { userId } = await allowed(semesterId, subjectId);
+  const { userId, teacherId } = await allowed(semesterId, subjectId);
   const values = echo(fd);
   const parsed = parseAssignment(fd);
   if (!parsed.data) return { errors: parsed.errors, values };
+  const current = id === null ? null : await getAssignment(semesterId, subjectId, id);
+  if (id !== null && !current) return { errors: { form: "This assignment no longer exists." }, values };
+  if (!(await meetingAllowed(teacherId, semesterId, parsed.data.meetingId, current?.meeting?.id ?? null)))
+    return { errors: { meetingId: "Choose one of your weekly meetings of this semester." }, values };
   const { students, batches } = await assignmentStudents(semesterId, subjectId);
   // a new assignment needs students to score; an existing one can still be renamed after its batches were removed
   if (!batches && id === null) return { errors: { form: "This subject has no batch yet. An admin assigns batches on the academic semester." }, values };

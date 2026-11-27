@@ -254,3 +254,17 @@ CREATE TABLE IF NOT EXISTS class_meeting_marks (
   PRIMARY KEY (meeting_id, subject_id, student_id)
 );
 CREATE INDEX IF NOT EXISTS class_meeting_marks_student_idx ON class_meeting_marks (student_id);
+
+-- Assignments belong to a weekly meeting (migration 021; required by the app).
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS meeting_id int REFERENCES class_meetings(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS assignments_meeting_idx ON assignments (meeting_id);
+
+-- The teacher's comment on a student's weekly participation (migration 022).
+ALTER TABLE class_meeting_marks ADD COLUMN IF NOT EXISTS participation_comment text CHECK (char_length(participation_comment) <= 2000);
+
+-- A comment per student on an assignment; a row may hold only a comment (migration 023).
+ALTER TABLE assignment_scores ADD COLUMN IF NOT EXISTS comment text CHECK (char_length(comment) <= 2000);
+ALTER TABLE assignment_scores ALTER COLUMN score DROP NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE assignment_scores ADD CONSTRAINT assignment_scores_score_or_comment CHECK (score IS NOT NULL OR comment IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

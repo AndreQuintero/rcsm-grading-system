@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { createAcademicSemester } from "../lib/academic-semester";
-import { deleteMeeting, getMeeting, insertMeeting, listMeetings, meetingStudents, updateMeeting } from "../lib/class-work";
-import { meetingSummary, parseMeeting } from "../lib/class-work-shared";
+import { deleteMeeting, getMeeting, insertMeeting, listMeetings, meetingAssignmentCount, meetingStudents, saveAttendance, saveParticipation, updateMeeting } from "../lib/class-work";
+import { meetingSummary, parseAttendance, parseMeeting, parseParticipation } from "../lib/class-work-shared";
 import { bindBatch } from "../lib/grading";
 
 const cleanup = async () => {
@@ -75,17 +75,54 @@ const fd = (o: Record<string, string>) => { const f = new FormData(); for (const
     await bindBatch(sem, art, b1);
     await sql`INSERT INTO class_meeting_marks (meeting_id, subject_id, student_id, attendance, assignments, participation) VALUES
       (${w1}, ${art}, ${st1}, 'present', 90, 80), (${w2}, ${art}, ${st1}, 'absent', null, null), (${w1}, ${music}, ${st2}, 'late', 10, 10)`;
+    // assignments = % earned in this meeting's assignments of the subject: 18 + 9 of 20 + 10 → 90%
+    const [x1, x2] = (await sql`INSERT INTO assignments (academic_semester_id, subject_id, name, due_on, max_score, meeting_id) VALUES
+      (${sem}, ${art}, 'Essay', '2090-08-04', 20, ${w1}), (${sem}, ${art}, 'Quiz', '2090-08-04', 10, ${w1}) RETURNING id`).map((r) => r.id as number);
+    await sql`INSERT INTO assignment_scores (assignment_id, student_id, score) VALUES (${x1}, ${st1}, 18), (${x2}, ${st1}, 9)`;
+    // a comment without a score doesn't count: Beta stays without a %
+    await sql`INSERT INTO assignment_scores (assignment_id, student_id, comment) VALUES (${x1}, ${st2}, 'No work handed in')`;
+    assert.equal(await meetingAssignmentCount(w1, art), 2);
+    assert.equal(await meetingAssignmentCount(w2, art), 0);
     const list = await meetingStudents(w1, sem, art);
     assert.deepEqual(list.map((x) => [x.name, x.marks]), [
-      ["Cwtest Alpha", { attendance: "present", assignments: 90, participation: 80 }],
-      ["Cwtest Beta", { attendance: null, assignments: null, participation: null }],
+      ["Cwtest Alpha", { attendance: "present", assignments: 90, participation: 80, participationComment: null }],
+      ["Cwtest Beta", { attendance: null, assignments: null, participation: null, participationComment: null }],
     ]);
     assert.equal(list[0].batch, "81st batch, 2090 – 1st semester");
     assert.deepEqual((await meetingStudents(w1, sem, art, st2)).map((x) => x.id), [st2]);
     assert.deepEqual(await meetingStudents(w1, sem, music), [], "music has no batch, so no students");
 
-    // deleting a meeting removes its marks only
+    // attendance form: only the four statuses or blank
+    assert.deepEqual([...parseAttendance(fd({ [`att-${st1}`]: "late", [`att-${st2}`]: "" })).data!], [[st1, "late"], [st2, null]]);
+    assert.ok(parseAttendance(fd({ [`att-${st1}`]: "sick" })).error);
+    // saving: upserts the listed students, a blank clears, the other marks of the row are kept, unlisted untouched
+    await saveAttendance(w1, art, [st1, st2], new Map([[st1, "absent"], [st2, "excused"]]));
+    let marks = await meetingStudents(w1, sem, art);
+    assert.deepEqual(marks.map((x) => x.marks.attendance), ["absent", "excused"]);
+    assert.equal(marks[0].marks.participation, 80, "participation kept");
+    await saveAttendance(w1, art, [st1], new Map([[st1, null], [st2, "present"]]));
+    marks = await meetingStudents(w1, sem, art);
+    assert.deepEqual(marks.map((x) => x.marks.attendance), [null, "excused"], "blank clears; a student not allowed is untouched");
+    assert.equal((await sql`SELECT attendance FROM class_meeting_marks WHERE meeting_id = ${w1} AND subject_id = ${music} AND student_id = ${st2}`)[0].attendance, "late", "other subject untouched");
+
+    // participation form: score blank or whole 0–100, comment ≤ 2000
+    assert.deepEqual([...parseParticipation(fd({ [`part-${st1}`]: " 85 ", [`note-${st1}`]: " Great questions ", [`part-${st2}`]: "", [`note-${st2}`]: "" })).data!],
+      [[st1, { score: 85, comment: "Great questions" }], [st2, { score: null, comment: null }]]);
+    const pe = parseParticipation(fd({ [`part-${st1}`]: "101", [`part-${st2}`]: "7.5", [`note-${st1}`]: "x".repeat(2001) })).errors!;
+    assert.deepEqual(Object.keys(pe).sort(), [`note-${st1}`, `part-${st1}`, `part-${st2}`].sort());
+    // saving: scores + comments for the listed students, attendance on the row kept, a missing row clears both
+    await saveParticipation(w1, art, [st1, st2], new Map([[st1, { score: 85, comment: "Great questions" }], [st2, { score: 40, comment: null }]]));
+    marks = await meetingStudents(w1, sem, art);
+    assert.deepEqual(marks.map((x) => [x.marks.participation, x.marks.participationComment, x.marks.attendance]),
+      [[85, "Great questions", null], [40, null, "excused"]]);
+    await saveParticipation(w1, art, [st2], new Map());
+    marks = await meetingStudents(w1, sem, art);
+    assert.deepEqual(marks.map((x) => x.marks.participation), [85, null], "cleared for the listed student only");
+    assert.equal(marks[1].marks.attendance, "excused");
+
+    // deleting a meeting removes its marks and assignments only
     assert.equal(await deleteMeeting(ada, w1), true);
+    assert.equal((await sql`SELECT count(*)::int AS n FROM assignments WHERE meeting_id = ${w1}`)[0].n, 0);
     assert.equal((await sql`SELECT count(*)::int AS n FROM class_meeting_marks WHERE meeting_id = ${w1}`)[0].n, 0);
     assert.equal((await sql`SELECT count(*)::int AS n FROM class_meeting_marks WHERE meeting_id = ${w2}`)[0].n, 1);
     // deleting the semester removes its meetings

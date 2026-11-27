@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Avatar } from "@/app/_dashboard/Avatar";
@@ -7,12 +8,21 @@ import { AttendanceBadge } from "@/components/records/ClassWorkAverages";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { periodLabel } from "@/lib/academic-semester";
-import { getMeeting, meetingStudents } from "@/lib/class-work";
+import { getMeeting, meetingStudentAssignments, meetingStudents } from "@/lib/class-work";
 import { formatDate } from "@/lib/dates";
 import { requireTeacher, teaches } from "@/lib/grading";
 import { getSubject } from "@/lib/subject";
 
 type Params = { meetingId: string; studentId: string };
+const panel = "rounded-[1.75rem] border border-border/70 bg-card p-6 sm:p-8";
+const link = "text-sm font-medium text-primary underline-offset-4 hover:underline";
+
+// The teacher's comment, or a quiet note that there is none.
+function Comment({ text }: { text: string | null }) {
+  return text
+    ? <p className="rounded-xl bg-muted/60 px-3 py-2 text-sm whitespace-pre-line"><span className="sr-only">Teacher&apos;s comment: </span>{text}</p>
+    : <p className="text-sm text-muted-foreground">No comment.</p>;
+}
 
 export default function Page({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<{ subject?: string }> }) {
   return (
@@ -31,7 +41,9 @@ async function Student({ params, searchParams }: { params: Promise<Params>; sear
   if (![meetingId, studentId, subjectId].every((n) => Number.isInteger(n) && n > 0)) notFound();
   const m = await getMeeting(teacherId, meetingId);
   if (!m || !(await teaches(m.semesterId, subjectId, teacherId))) notFound();
-  const [[s], sub] = await Promise.all([meetingStudents(m.id, m.semesterId, subjectId, studentId), getSubject(subjectId)]);
+  const [[s], sub, assignments] = await Promise.all([
+    meetingStudents(m.id, m.semesterId, subjectId, studentId), getSubject(subjectId), meetingStudentAssignments(m.id, subjectId, studentId),
+  ]);
   if (!s || !sub) notFound();
   const subject = sub.name as string;
 
@@ -42,7 +54,7 @@ async function Student({ params, searchParams }: { params: Promise<Params>; sear
         description={`${subject} · ${m.name}, ${formatDate(m.heldOn)} · ${periodLabel(m.period)}`}
         action={<BackLink href={`/teacher/gradings/class-work/${m.id}?subject=${subjectId}`} label={`Back to ${m.name}`} />}
       />
-      <section aria-labelledby="student" className="rounded-[1.75rem] border border-border/70 bg-card p-6 sm:p-8">
+      <section aria-labelledby="student" className={panel}>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
           <Avatar src={s.hasPhoto ? `/teacher/students/${s.id}/photo` : null} className="size-20 ring-4 ring-accent" />
           <div className="min-w-0">
@@ -52,10 +64,44 @@ async function Student({ params, searchParams }: { params: Promise<Params>; sear
         </div>
         <dl className="mt-6 grid gap-4 border-t border-border/70 pt-6 sm:grid-cols-3">
           <div><dt className="text-sm text-muted-foreground">Attendance</dt><dd className="mt-1"><AttendanceBadge value={s.marks.attendance} /></dd></div>
-          <div><dt className="text-sm text-muted-foreground">Assignments</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.assignments ?? "–"}<span className="text-sm font-medium text-muted-foreground"> / 100</span></dd></div>
+          <div><dt className="text-sm text-muted-foreground">Assignments and Activities</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.assignments === null ? "–" : `${s.marks.assignments}%`}<span className="text-sm font-medium text-muted-foreground"> earned</span></dd></div>
           <div><dt className="text-sm text-muted-foreground">Participation</dt><dd className="mt-1 font-heading text-2xl font-bold tabular-nums">{s.marks.participation ?? "–"}<span className="text-sm font-medium text-muted-foreground"> / 100</span></dd></div>
         </dl>
-        <p className="mt-6 text-sm text-muted-foreground">Entering this student&apos;s weekly grades comes in the next step.</p>
+      </section>
+
+      <section aria-labelledby="assignments" className={panel}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="assignments" className="font-heading text-xl font-bold">Assignments and Activities</h2>
+          <Link href={`/teacher/assignments/${m.semesterId}/${subjectId}?meeting=${m.id}`} className={link}>Open this week&apos;s assignments</Link>
+        </div>
+        {assignments.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">No assignments registered for {m.name} in {subject} yet.</p>
+        ) : (
+          <ul className="mt-4 flex flex-col divide-y divide-border/70">
+            {assignments.map((a) => (
+              <li key={a.id} className="flex flex-col gap-2 py-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-medium">{a.name}</span>
+                  <span className="tabular-nums">
+                    {a.score === null ? <span className="text-sm text-muted-foreground">Not scored</span> : <><span className="font-medium">{a.score}</span><span className="text-sm text-muted-foreground"> / {a.maxScore}</span></>}
+                  </span>
+                </div>
+                <Comment text={a.comment} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="participation" className={panel}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="participation" className="font-heading text-xl font-bold">Participation</h2>
+          <Link href={`/teacher/gradings/class-work/${m.id}/participation?subject=${subjectId}`} className={link}>Edit participation</Link>
+        </div>
+        <p className="mt-3 font-heading text-3xl font-bold tabular-nums">
+          {s.marks.participation ?? "–"}<span className="text-base font-medium text-muted-foreground"> / 100</span>
+        </p>
+        <div className="mt-3"><Comment text={s.marks.participationComment ?? null} /></div>
       </section>
     </>
   );

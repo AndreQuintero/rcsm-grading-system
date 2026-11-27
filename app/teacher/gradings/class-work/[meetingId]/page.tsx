@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { periodLabel } from "@/lib/academic-semester";
-import { getMeeting, meetingStudents } from "@/lib/class-work";
+import { getMeeting, meetingAssignmentCount, meetingStudents } from "@/lib/class-work";
 import { formatDate } from "@/lib/dates";
 import { requireTeacher, teacherSubjects } from "@/lib/grading";
 
@@ -69,7 +69,7 @@ async function Summary({ params, searchParams }: { params: Promise<Params>; sear
       </>
     );
 
-  const students = await meetingStudents(m.id, m.semesterId, subject.id);
+  const [students, assignments] = await Promise.all([meetingStudents(m.id, m.semesterId, subject.id), meetingAssignmentCount(m.id, subject.id)]);
 
   return (
     <>
@@ -91,7 +91,7 @@ async function Summary({ params, searchParams }: { params: Promise<Params>; sear
         />
       </div>
 
-      <ClassWorkAverages marks={students.map((s) => s.marks)} />
+      <ClassWorkAverages marks={students.map((s) => s.marks)} assignments={assignments} assignmentsHref={`/teacher/assignments/${m.semesterId}/${subject.id}?meeting=${m.id}`} attendanceHref={`${base}/attendance?subject=${subject.id}`} participationHref={`${base}/participation?subject=${subject.id}`} />
 
       <section aria-labelledby="students" className={panel}>
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -128,7 +128,7 @@ async function Summary({ params, searchParams }: { params: Promise<Params>; sear
                   {(["assignments", "participation"] as const).map((k) => (
                     <span key={k} className="hidden text-center lg:block">
                       <span className="block text-[0.7rem] text-muted-foreground">{k === "assignments" ? "Assignments" : "Participation"}</span>
-                      <span className="font-medium tabular-nums">{s.marks[k] ?? "–"}</span>
+                      <span className="font-medium tabular-nums">{s.marks[k] === null ? "–" : k === "assignments" ? `${s.marks[k]}%` : s.marks[k]}</span>
                     </span>
                   ))}
                   <span className="flex items-center gap-2 lg:contents">
