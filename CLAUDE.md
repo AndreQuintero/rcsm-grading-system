@@ -76,10 +76,12 @@ app/
                         cards) and "Class work" (class-work/: the teacher's weekly meetings — list with semester picker (same default rule), 10 per
                         page newest first, View/Edit/Delete; new/ + [meetingId]/edit = MeetingForm (name, date; semester fixed from the
                         list); [meetingId]?subject= = summary: subject pill (SemesterSelect kind="subject") over the teacher's subjects that
-                        semester, ClassWorkAverages = 3 cards (Attendance % present + counts; Assignments and Activities = class average % earned
+                        semester, ClassWorkAverages = 3 cards (Attendance % present + counts, links to [meetingId]/attendance?subject=; Assignments and Activities = class average % earned
                         in the meeting's assignments of the subject, links to /teacher/assignments/<sem>/<subject>?meeting=<id>; Participation
                         avg / 100), student list (graded students of the subject) linking to [meetingId]/students/[studentId]?subject=
-                        (read-only summary; attendance/participation entry and their cards' pages come later)); [semesterId]/[subjectId] shows the batches an admin
+                        (read-only summary); [meetingId]/attendance?subject= = AttendanceForm: one row per graded student with 4 native
+                        radios (Present/Late/Absent/Excused, controlled, posted as att-<id>), live counts, one "Save attendance" → toast +
+                        back to the meeting (saveAttendanceAction: own meeting + teaches; participation entry comes later)); [semesterId]/[subjectId] shows the batches an admin
                         assigned (read-only chips; teachers can't bind batches) and, once a batch is assigned, shows 5 class averages
                         (gradeAverages: per type over students who have it, total over students with ≥ 1 grade) above the students; .../[studentId] = student card + GradeForm
                         (4 grades, live total, comment; a save toasts and returns to the subject's students via useSavedRedirect). Every page/action: requireTeacher() + teaches(semester, subject)
@@ -120,8 +122,8 @@ components/   records/ (GradeAverages = 5-indicator row, RankingList = ranked ro
 lib/auth/     roles (client-safe), sync, session, login (completeLogin: shared end of password + passkey sign-in), passkey
               (WebAuthn via @simplewebauthn/server), password (Argon2id), password-rules, tokens, rate-limit, email (EmailJS), audit,
               first-sign-in, account (own profile + change password; account-shared = client-safe types)
-lib/          class-work.ts (server: listMeetings, getMeeting, insert/update/deleteMeeting, meetingStudents), class-work-shared.ts
-              (client-safe: ATTENDANCE, parseMeeting, meetingSummary), assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
+lib/          class-work.ts (server: listMeetings, getMeeting, insert/update/deleteMeeting, meetingStudents, meetingAssignmentCount,
+              saveAttendance), class-work-shared.ts (client-safe: ATTENDANCE, parseMeeting, parseAttendance, meetingSummary), assignment.ts (server: assignmentSubject, assignmentCounts, listAssignments, assignmentStudents, getAssignment,
               saveAssignment, scoresAbove, deleteAssignment, assignmentRanking), assignment-shared.ts (client-safe: parseAssignment, scoreAverage),
               student-records.ts (listStudentRecords, studentRecordBatches, studentSemesters, studentSemesterRecord,
               studentRecordView = one semester or "all", requireStudent, studentCanSeeTeacher),
@@ -196,7 +198,8 @@ Conventions:
   a meeting + subject = the grading rule (`gradedStudents`); their "assignments" value = % of points earned in the
   meeting's assignments of the subject (`class_meeting_marks.assignments` is unused). Attendance % = (present + late) / (present + late + absent),
   excused left out (`meetingSummary` in lib/class-work-shared.ts). Deleting a meeting (its marks and
-  assignments) or semester cascades. Nothing writes attendance/participation marks yet (entry UI is a next step).
+  assignments) or semester cascades. Attendance is saved per meeting + subject (`saveAttendance`: upsert for the students the subject grades, blank clears,
+  other marks of the row kept); nothing writes participation yet.
 - **Score records**: a teacher's students = in a batch bound to one of their (semester, subject), or graded in one
   (inactive included; a later unbinding keeps graded students listed). The record's gauge counts 25 possible points per
   grade given, so a half-graded subject isn't shown as half failed; the bar chart averages a subject's totals across semesters.

@@ -19,10 +19,12 @@ export function AttendanceBadge({ value }: { value: Marks["attendance"] }) {
 
 // The weekly meeting's three class work cards for one subject: attendance rate with the counts, the class average %
 // earned in the meeting's assignments (the card opens them), and the participation average out of 100.
-export function ClassWorkAverages({ marks, assignments, assignmentsHref }: { marks: Marks[]; assignments: number; assignmentsHref: string }) {
+export function ClassWorkAverages({ marks, assignments, assignmentsHref, attendanceHref }: { marks: Marks[]; assignments: number; assignmentsHref: string; attendanceHref: string }) {
   const s = meetingSummary(marks);
   const c = s.attendance.counts;
   const card = "flex h-full flex-col gap-3 rounded-[1.75rem] border border-border/70 bg-card p-6";
+  const linkCard = cn(card, "group outline-none transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-[0_12px_32px_-16px_rgba(46,99,207,0.35)] focus-visible:ring-3 focus-visible:ring-ring/40");
+  const chevron = <ChevronRight className="mt-2.5 size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />;
   const head = (Icon: typeof CalendarCheck, tint: string, label: string) => (
     <span className="flex min-h-10 items-center gap-2.5 text-sm text-muted-foreground">
       <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", tint)}><Icon className="size-4" aria-hidden="true" /></span>
@@ -36,22 +38,18 @@ export function ClassWorkAverages({ marks, assignments, assignmentsHref }: { mar
     <section aria-labelledby="summary">
       <h2 id="summary" className="sr-only">Class work</h2>
       <ul className="grid gap-4 md:grid-cols-3">
-        <li className={card}>
-          {head(CalendarCheck, "bg-success/12 text-success", "Attendance")}
-          <span className={big}>{s.attendance.pct === null ? "–" : `${s.attendance.pct}%`}<span className={small}> present</span></span>
-          <span className="text-sm text-muted-foreground">
-            {s.attendance.n ? `${c.present} present · ${c.late} late · ${c.absent} absent · ${c.excused} excused` : "No attendance yet"}
-          </span>
+        <li>
+          <Link href={attendanceHref} className={linkCard}>
+            <span className="flex items-start justify-between gap-2">{head(CalendarCheck, "bg-success/12 text-success", "Attendance")}{chevron}</span>
+            <span className={big}>{s.attendance.pct === null ? "–" : `${s.attendance.pct}%`}<span className={small}> present</span></span>
+            <span className="text-sm text-muted-foreground">
+              {s.attendance.n ? `${c.present} present · ${c.late} late · ${c.absent} absent · ${c.excused} excused` : "No attendance yet. Open to take it."}
+            </span>
+          </Link>
         </li>
         <li>
-          <Link
-            href={assignmentsHref}
-            className={cn(card, "group outline-none transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-[0_12px_32px_-16px_rgba(46,99,207,0.35)] focus-visible:ring-3 focus-visible:ring-ring/40")}
-          >
-            <span className="flex items-start justify-between gap-2">
-              {head(ClipboardList, "bg-primary/10 text-primary", "Assignments and Activities")}
-              <ChevronRight className="mt-2.5 size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-            </span>
+          <Link href={assignmentsHref} className={linkCard}>
+            <span className="flex items-start justify-between gap-2">{head(ClipboardList, "bg-primary/10 text-primary", "Assignments and Activities")}{chevron}</span>
             <span className={big}>{s.assignments.avg === null ? "–" : `${Math.round(s.assignments.avg)}%`}<span className={small}> average</span></span>
             <span className="text-sm text-muted-foreground">
               {assignments ? `${assignments} assignment${assignments === 1 ? "" : "s"} · ${scored(s.assignments.n)} scored` : "No assignments yet. Open to register one."}

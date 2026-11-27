@@ -91,7 +91,7 @@ async function Summary({ params, searchParams }: { params: Promise<Params>; sear
         />
       </div>
 
-      <ClassWorkAverages marks={students.map((s) => s.marks)} assignments={assignments} assignmentsHref={`/teacher/assignments/${m.semesterId}/${subject.id}?meeting=${m.id}`} />
+      <ClassWorkAverages marks={students.map((s) => s.marks)} assignments={assignments} assignmentsHref={`/teacher/assignments/${m.semesterId}/${subject.id}?meeting=${m.id}`} attendanceHref={`${base}/attendance?subject=${subject.id}`} />
 
       <section aria-labelledby="students" className={panel}>
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">

@@ -45,3 +45,18 @@ export function meetingSummary(marks: Marks[]) {
     participation: avg("participation"),
   };
 }
+
+const ATTENDANCE_KEYS: readonly string[] = ATTENDANCE.map((a) => a.key);
+
+// Untrusted attendance form: `att-<studentId>` = present | late | absent | excused, or "" (not taken yet).
+export function parseAttendance(fd: FormData): { data?: Map<number, Attendance | null>; error?: string } {
+  const data = new Map<number, Attendance | null>();
+  for (const [key, value] of fd.entries()) {
+    const m = /^att-(\d+)$/.exec(key);
+    if (!m) continue;
+    const v = String(value);
+    if (v !== "" && !ATTENDANCE_KEYS.includes(v)) return { error: "Choose Present, Late, Absent or Excused." };
+    data.set(Number(m[1]), (v || null) as Attendance | null);
+  }
+  return { data };
+}

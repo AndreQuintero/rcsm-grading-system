@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import { sql } from "../lib/db";
 import { createAcademicSemester } from "../lib/academic-semester";
-import { deleteMeeting, getMeeting, insertMeeting, listMeetings, meetingAssignmentCount, meetingStudents, updateMeeting } from "../lib/class-work";
-import { meetingSummary, parseMeeting } from "../lib/class-work-shared";
+import { deleteMeeting, getMeeting, insertMeeting, listMeetings, meetingAssignmentCount, meetingStudents, saveAttendance, updateMeeting } from "../lib/class-work";
+import { meetingSummary, parseAttendance, parseMeeting } from "../lib/class-work-shared";
 import { bindBatch } from "../lib/grading";
 
 const cleanup = async () => {
@@ -89,6 +89,19 @@ const fd = (o: Record<string, string>) => { const f = new FormData(); for (const
     assert.equal(list[0].batch, "81st batch, 2090 – 1st semester");
     assert.deepEqual((await meetingStudents(w1, sem, art, st2)).map((x) => x.id), [st2]);
     assert.deepEqual(await meetingStudents(w1, sem, music), [], "music has no batch, so no students");
+
+    // attendance form: only the four statuses or blank
+    assert.deepEqual([...parseAttendance(fd({ [`att-${st1}`]: "late", [`att-${st2}`]: "" })).data!], [[st1, "late"], [st2, null]]);
+    assert.ok(parseAttendance(fd({ [`att-${st1}`]: "sick" })).error);
+    // saving: upserts the listed students, a blank clears, the other marks of the row are kept, unlisted untouched
+    await saveAttendance(w1, art, [st1, st2], new Map([[st1, "absent"], [st2, "excused"]]));
+    let marks = await meetingStudents(w1, sem, art);
+    assert.deepEqual(marks.map((x) => x.marks.attendance), ["absent", "excused"]);
+    assert.equal(marks[0].marks.participation, 80, "participation kept");
+    await saveAttendance(w1, art, [st1], new Map([[st1, null], [st2, "present"]]));
+    marks = await meetingStudents(w1, sem, art);
+    assert.deepEqual(marks.map((x) => x.marks.attendance), [null, "excused"], "blank clears; a student not allowed is untouched");
+    assert.equal((await sql`SELECT attendance FROM class_meeting_marks WHERE meeting_id = ${w1} AND subject_id = ${music} AND student_id = ${st2}`)[0].attendance, "late", "other subject untouched");
 
     // deleting a meeting removes its marks and assignments only
     assert.equal(await deleteMeeting(ada, w1), true);

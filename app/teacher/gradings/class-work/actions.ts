@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { deleteMeeting, insertMeeting, updateMeeting } from "@/lib/class-work";
-import { parseMeeting, type MeetingFormState } from "@/lib/class-work-shared";
-import { requireTeacher } from "@/lib/grading";
+import { deleteMeeting, getMeeting, insertMeeting, meetingStudents, saveAttendance, updateMeeting } from "@/lib/class-work";
+import { parseAttendance, parseMeeting, type MeetingFormState } from "@/lib/class-work-shared";
+import { requireTeacher, teaches } from "@/lib/grading";
 
 const id = (n: number) => Number.isInteger(n) && n > 0;
 const echo = (fd: FormData) => ({ name: String(fd.get("name") ?? ""), heldOn: String(fd.get("heldOn") ?? "") });
@@ -33,4 +33,19 @@ export async function deleteMeetingAction(meetingId: number): Promise<void> {
   if (!id(meetingId)) throw new Error("Invalid meeting id");
   await deleteMeeting(teacherId, meetingId);
   revalidatePath("/teacher/gradings/class-work", "layout");
+}
+
+// Attendance of one meeting + subject: the teacher's own meeting, a subject they teach in its semester, and only the
+// students the subject grades now are written.
+export async function saveAttendanceAction(meetingId: number, subjectId: number, _prev: { error?: string; message?: string }, fd: FormData): Promise<{ error?: string; message?: string }> {
+  const { teacherId } = await requireTeacher();
+  if (!id(meetingId) || !id(subjectId)) throw new Error("Invalid id");
+  const m = await getMeeting(teacherId, meetingId);
+  if (!m || !(await teaches(m.semesterId, subjectId, teacherId))) throw new Error("Not your meeting or subject");
+  const p = parseAttendance(fd);
+  if (!p.data) return { error: p.error };
+  const allowed = (await meetingStudents(m.id, m.semesterId, subjectId)).map((s) => s.id);
+  await saveAttendance(m.id, subjectId, allowed, p.data);
+  revalidatePath("/teacher/gradings/class-work", "layout");
+  return { message: `Saved the attendance of ${m.name}.` };
 }

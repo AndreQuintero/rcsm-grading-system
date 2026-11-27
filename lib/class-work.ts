@@ -1,7 +1,7 @@
 import { sql } from "@/lib/db";
 import { batchLabel } from "@/lib/batch";
 import { gradedStudents } from "@/lib/grading";
-import { CLASS_WORK_PAGE_SIZE, type Marks, type MeetingInput } from "@/lib/class-work-shared";
+import { CLASS_WORK_PAGE_SIZE, type Attendance, type Marks, type MeetingInput } from "@/lib/class-work-shared";
 
 // Class work: weekly meetings belong to one teacher (every query is filtered by teacher_id), in one academic semester.
 
@@ -85,4 +85,21 @@ export async function meetingStudents(meetingId: number, semesterId: number, sub
     [semesterId, subjectId, meetingId, studentId],
   );
   return rows.map(toStudent);
+}
+
+// Saves the attendance of one meeting + subject for the students in `allowed` (the ones the subject grades now):
+// a status is upserted, a blank clears it (the other marks of that row are kept). Anyone else is left untouched.
+export async function saveAttendance(meetingId: number, subjectId: number, allowed: number[], marks: Map<number, Attendance | null>) {
+  const ids: number[] = [], statuses: string[] = [], blanks: number[] = [];
+  for (const id of allowed) {
+    const a = marks.get(id);
+    if (a) { ids.push(id); statuses.push(a); } else blanks.push(id);
+  }
+  await sql.transaction([
+    sql`INSERT INTO class_meeting_marks (meeting_id, subject_id, student_id, attendance)
+        SELECT ${meetingId}, ${subjectId}, x.id, x.a FROM unnest(${ids}::int[], ${statuses}::text[]) AS x(id, a)
+        ON CONFLICT (meeting_id, subject_id, student_id) DO UPDATE SET attendance = EXCLUDED.attendance, updated_at = now()`,
+    sql`UPDATE class_meeting_marks SET attendance = NULL, updated_at = now()
+        WHERE meeting_id = ${meetingId} AND subject_id = ${subjectId} AND student_id = ANY(${blanks}::int[]) AND attendance IS NOT NULL`,
+  ]);
 }
